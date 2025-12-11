@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 require('dotenv').config();
 
 class FasahClient {
@@ -7,6 +8,58 @@ class FasahClient {
     this.brokerBaseUrl = process.env.FASAH_BROKER_BASE_URL || 'https://fasah.zatca.gov.sa';
     this.transporterBaseUrl = process.env.FASAH_TRANSPORTER_BASE_URL || 'https://oga.fasah.sa';
     this.apiPath = '/api/zatca-tas/v2';
+    
+    // Proxy rotation configuration
+    this.proxies = [
+      {
+        host: 'brd.superproxy.io',
+        port: 33335,
+        username: 'brd-customer-hl_0d104c73-zone-residential_proxy1',
+        password: 'nqktf6dz7d9s'
+      },
+      {
+        host: 'brd.superproxy.io',
+        port: 33335,
+        username: 'brd-customer-hl_0d104c73-zone-residential_proxy2',
+        password: '4npqu118r65l'
+      },
+      {
+        host: 'brd.superproxy.io',
+        port: 33335,
+        username: 'brd-customer-hl_0d104c73-zone-residential_proxy3',
+        password: 'nkjx6vepy1us'
+      },
+      {
+        host: 'brd.superproxy.io',
+        port: 33335,
+        username: 'brd-customer-hl_0d104c73-zone-residential_proxy4',
+        password: 'svye5y2cv0u0'
+      }
+    ];
+    
+    // Proxy rotation index
+    this.currentProxyIndex = 0;
+  }
+
+  /**
+   * Get next proxy in rotation
+   * @returns {Object} Proxy configuration
+   */
+  getNextProxy() {
+    const proxy = this.proxies[this.currentProxyIndex];
+    // Rotate to next proxy
+    this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxies.length;
+    return proxy;
+  }
+
+  /**
+   * Create proxy agent for axios
+   * @param {Object} proxyConfig - Proxy configuration
+   * @returns {HttpsProxyAgent} Proxy agent
+   */
+  createProxyAgent(proxyConfig) {
+    const proxyUrl = `http://${proxyConfig.username}:${proxyConfig.password}@${proxyConfig.host}:${proxyConfig.port}`;
+    return new HttpsProxyAgent(proxyUrl);
   }
 
   /**
@@ -53,9 +106,17 @@ class FasahClient {
         'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
       };
 
+      // Get next proxy in rotation
+      const proxy = this.getNextProxy();
+      const httpsAgent = this.createProxyAgent(proxy);
+      
+      console.log(`🔄 Using proxy: ${proxy.username}@${proxy.host}:${proxy.port}`);
+
       const response = await axios.get(url, {
         params: queryParams,
-        headers
+        headers,
+        httpsAgent,
+        timeout: 30000 // 30 seconds timeout
       });
 
       return response.data;
