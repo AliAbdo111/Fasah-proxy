@@ -46,7 +46,7 @@ router.get('/schedule/land', async (req, res) => {
     });
 
     // Check if the response indicates no schedules available
-    if (result.success === false && result.errors) {
+    if (result?.success === false && result.errors) {
       return res.status(200).json({
         success: false,
         data: result
@@ -59,6 +59,7 @@ router.get('/schedule/land', async (req, res) => {
     });
   } catch (error) {
     const status = error.status || 500;
+    console.log(error);
     res.status(status).json({
       success: false,
       message: 'Failed to retrieve schedule',

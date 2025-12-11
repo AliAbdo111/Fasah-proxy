@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const https = require('https');
 require('dotenv').config();
 
 class FasahClient {
@@ -9,31 +10,41 @@ class FasahClient {
     this.transporterBaseUrl = process.env.FASAH_TRANSPORTER_BASE_URL || 'https://oga.fasah.sa';
     this.apiPath = '/api/zatca-tas/v2';
     
-    // Proxy rotation configuration
+    
+    // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
+    // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.proxies = [
       {
         host: 'brd.superproxy.io',
         port: 33335,
         username: 'brd-customer-hl_0d104c73-zone-residential_proxy1',
-        password: 'nqktf6dz7d9s'
+        password: 'nqktf6dz7d9s',
+        protocol: 'http', // Change to 'https' if provider supports HTTPS proxy protocol
+        rejectUnauthorized: false // Set to true for providers with trusted TLS certificates
       },
       {
         host: 'brd.superproxy.io',
         port: 33335,
         username: 'brd-customer-hl_0d104c73-zone-residential_proxy2',
-        password: '4npqu118r65l'
+        password: '4npqu118r65l',
+        protocol: 'http',
+        rejectUnauthorized: false
       },
       {
         host: 'brd.superproxy.io',
         port: 33335,
         username: 'brd-customer-hl_0d104c73-zone-residential_proxy3',
-        password: 'nkjx6vepy1us'
+        password: 'nkjx6vepy1us',
+        protocol: 'http',
+        rejectUnauthorized: false
       },
       {
         host: 'brd.superproxy.io',
         port: 33335,
         username: 'brd-customer-hl_0d104c73-zone-residential_proxy4',
-        password: 'svye5y2cv0u0'
+        password: 'svye5y2cv0u0',
+        protocol: 'http',
+        rejectUnauthorized: false
       }
     ];
     
@@ -55,13 +66,47 @@ class FasahClient {
   /**
    * Create proxy agent for axios
    * @param {Object} proxyConfig - Proxy configuration
+   * @param {string} proxyConfig.host - Proxy host
+   * @param {number} proxyConfig.port - Proxy port
+   * @param {string} proxyConfig.username - Proxy username
+   * @param {string} proxyConfig.password - Proxy password
+   * @param {string} [proxyConfig.protocol='http'] - Proxy protocol: 'http' or 'https'
    * @returns {HttpsProxyAgent} Proxy agent
    */
   createProxyAgent(proxyConfig) {
-    const proxyUrl = `http://${proxyConfig.username}:${proxyConfig.password}@${proxyConfig.host}:${proxyConfig.port}`;
-    return new HttpsProxyAgent(proxyUrl);
+    // Support both HTTP and HTTPS proxy protocols
+    const protocol = proxyConfig.protocol || 'http';
+    const proxyUrl = `${protocol}://${proxyConfig.username}:${proxyConfig.password}@${proxyConfig.host}:${proxyConfig.port}`;
+    
+    // Configure TLS options - rejectUnauthorized must be false for proxies with self-signed certs
+    const rejectUnauthorized = proxyConfig.rejectUnauthorized !== undefined 
+      ? proxyConfig.rejectUnauthorized 
+      : false;
+    
+    // Create proxy agent with TLS configuration
+    // For https-proxy-agent v7.x, options are passed directly
+    const agentOptions = {
+      rejectUnauthorized: rejectUnauthorized
+    };
+    
+    const agent = new HttpsProxyAgent(proxyUrl, agentOptions);
+    
+    // Patch the agent to ensure TLS options are applied to the target connection
+    // This is needed because the proxy agent creates a tunnel, then establishes TLS
+    const originalCreateConnection = agent.createConnection;
+    if (originalCreateConnection) {
+      agent.createConnection = function(options, callback) {
+        // Ensure rejectUnauthorized is set for the TLS connection to the target server
+        if (options && typeof options === 'object') {
+          options.rejectUnauthorized = rejectUnauthorized;
+        }
+        return originalCreateConnection.call(this, options, callback);
+      };
+    }
+    
+    return agent;
   }
-
+ 
   /**
    * Get schedule for land zone
    * @param {Object} params - Query parameters
@@ -112,15 +157,50 @@ class FasahClient {
       
       console.log(`🔄 Using proxy: ${proxy.username}@${proxy.host}:${proxy.port}`);
 
-      const response = await axios.get(url, {
-        params: queryParams,
-        headers,
-        httpsAgent,
-        timeout: 30000 // 30 seconds timeout
-      });
+      // Temporarily disable SSL verification if needed (fallback)
+      // This is a workaround for proxies that don't properly handle TLS options
+      // Setting NODE_TLS_REJECT_UNAUTHORIZED=0 tells Node.js to accept self-signed certificates
+      const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      const shouldRejectUnauthorized = proxy.rejectUnauthorized !== undefined 
+        ? proxy.rejectUnauthorized 
+        : false; // Default to false for compatibility
+      
+      if (!shouldRejectUnauthorized) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      }
 
-      return response.data;
+      try {
+        const response = await axios.get(url, {
+          params: queryParams,
+          headers,
+          httpsAgent,
+          timeout: 30000, // 30 seconds timeout
+          // Also configure axios to accept self-signed certificates
+          validateStatus: function (status) {
+            return status >= 200 && status < 500; // Accept 4xx as valid responses
+          }
+        });
+        
+        // Restore original setting
+        if (originalRejectUnauthorized !== undefined) {
+          process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
+        } else {
+          delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        }
+        
+        return response.data;
+      } catch (error) {
+        // Restore original setting on error
+        if (originalRejectUnauthorized !== undefined) {
+          process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
+        } else {
+          delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        }
+        throw error;
+      }
+
     } catch (error) {
+      console.log(error);
       this.handleError(error);
     }
   }
@@ -171,9 +251,11 @@ class FasahClient {
     } else if (error.request) {
       // The request was made but no response was received
       throw new Error('No response received from FASAH API');
+      
     } else {
       // Something happened in setting up the request that triggered an Error
       throw new Error(`Request setup error: ${error.message}`);
+
     }
   }
 }
