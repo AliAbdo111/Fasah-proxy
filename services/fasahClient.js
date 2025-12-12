@@ -14,38 +14,40 @@ class FasahClient {
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.proxies = [
-      {
-        host: 'brd.superproxy.io',
-        port: 33335,
-        username: 'brd-customer-hl_0d104c73-zone-residential_proxy1',
-        password: 'nqktf6dz7d9s',
+      { 
+        host: '142.111.48.253',
+        port: 7030,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
         protocol: 'http', // Change to 'https' if provider supports HTTPS proxy protocol
         rejectUnauthorized: false // Set to true for providers with trusted TLS certificates
       },
       {
-        host: 'brd.superproxy.io',
-        port: 33335,
-        username: 'brd-customer-hl_0d104c73-zone-residential_proxy2',
-        password: '4npqu118r65l',
+
+        host: '31.59.20.176',
+        port: 6754,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
       {
-        host: 'brd.superproxy.io',
-        port: 33335,
-        username: 'brd-customer-hl_0d104c73-zone-residential_proxy3',
-        password: 'nkjx6vepy1us',
+        host: '198.23.239.134',
+        port: 6540,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
       {
-        host: 'brd.superproxy.io',
-        port: 33335,
-        username: 'brd-customer-hl_0d104c73-zone-residential_proxy4',
-        password: 'svye5y2cv0u0',
+        host: '198.105.121.200',
+        port: 6462,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
-      }
+      },
+
     ];
     
     // Proxy rotation index
@@ -150,17 +152,14 @@ class FasahClient {
         'Content-Type': 'application/json; charset=utf-8',
         'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
       };
-
+      console.log('headers', headers);
       // Get next proxy in rotation
       const proxy = this.getNextProxy();
       const httpsAgent = this.createProxyAgent(proxy);
       
       console.log(`🔄 Using proxy: ${proxy.username}@${proxy.host}:${proxy.port}`);
 
-      // Temporarily disable SSL verification if needed (fallback)
-      // This is a workaround for proxies that don't properly handle TLS options
-      // Setting NODE_TLS_REJECT_UNAUTHORIZED=0 tells Node.js to accept self-signed certificates
-      const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+            const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
       const shouldRejectUnauthorized = proxy.rejectUnauthorized !== undefined 
         ? proxy.rejectUnauthorized 
         : false; // Default to false for compatibility
@@ -180,7 +179,7 @@ class FasahClient {
             return status >= 200 && status < 500; // Accept 4xx as valid responses
           }
         });
-        
+        console.log('response', response.data);
         // Restore original setting
         if (originalRejectUnauthorized !== undefined) {
           process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
@@ -239,7 +238,7 @@ class FasahClient {
       } else if (status === 404) {
         message = 'Resource not found';
       } else if (status === 429) {
-        message = 'Too many requests - Rate limit exceeded';
+        message = data.message || 'Too many requests - Rate limit exceeded';
       } else if (status >= 500) {
         message = 'Server error - Please try again later';
       }
