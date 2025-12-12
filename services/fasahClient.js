@@ -14,39 +14,207 @@ class FasahClient {
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.proxies = [
-      { 
-        host: '142.111.48.253',
-        port: 7030,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http', // Change to 'https' if provider supports HTTPS proxy protocol
-        rejectUnauthorized: false // Set to true for providers with trusted TLS certificates
-      },
-      {
-
-        host: '31.59.20.176',
-        port: 6754,
+  
+{
+        host: '195.40.62.130',
+        port: 7351,
         username: 'ucqikpgn',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
-      {
-        host: '198.23.239.134',
-        port: 6540,
+{
+        host: '195.40.63.92',
+        port: 7312,
         username: 'ucqikpgn',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
-      {
-        host: '198.105.121.200',
-        port: 6462,
+{
+        host: '195.40.63.202',
+        port: 7422,
         username: 'ucqikpgn',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
+{
+        host: '195.40.62.86',
+        port: 7307,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.120.163',
+        port: 7033,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.114.166',
+        port: 6536,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.62.234',
+        port: 7455,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.121.116',
+        port: 6987,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.120.140',
+        port: 7010,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.63.50',
+        port: 7270,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.121.41',
+        port: 6912,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.99.107',
+        port: 6478,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.63.42',
+        port: 7262,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.63.204',
+        port: 7424,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.99.158',
+        port: 6529,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.63.120',
+        port: 7340,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.63.108',
+        port: 7328,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.120.94',
+        port: 6964,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.121.190',
+        port: 7061,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.63.233',
+        port: 7453,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      } 
+, {
+        host: '104.252.121.216',
+        port: 7087,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '195.40.63.68',
+        port: 7288,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.121.199',
+        port: 7070,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.121.37',
+        port: 6908,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      },
+{
+        host: '104.252.120.158',
+        port: 7028,
+        username: 'ucqikpgn',
+        password: 'seoerggxfamv',
+        protocol: 'http',
+        rejectUnauthorized: false
+      }
 
     ];
     
