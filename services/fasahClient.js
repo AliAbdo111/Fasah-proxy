@@ -537,6 +537,124 @@ async getVerifiedTrucks(params) {
   }
 }
 
+/**
+ * إنشاء موعد جديد للنقل العابر
+ * @param {Object} params - معاملات إنشاء الموعد
+ * @param {string} params.port_code - رمز الميناء (مثال: '31')
+ * @param {string} params.zone_schedule_id - معرف جدول المنطقة
+ * @param {string} params.purpose - رمز الغرض (مثال: '6')
+ * @param {string} params.declaration_number - رقم البيان الجمركي
+ * @param {Array} params.fleet_info - معلومات الأسطول (السائق والمركبة)
+ * @param {string} params.cargo_type - نوع البضاعة (يمكن أن يكون فارغاً)
+ * @param {Object} params.bayan_appointment - معلومات موعد البيان (يمكن أن يكون فارغاً)
+ * @param {string} params.token - رمز المصادقة
+ * @param {string} [params.userType='broker'] - نوع المستخدم (broker لهذا API)
+ * @returns {Promise<Object>} نتيجة إنشاء الموعد
+ */
+async createTransitAppointment(params) {
+  try {
+    const {
+      port_code,
+      zone_schedule_id,
+      purpose,
+      declaration_number,
+      fleet_info,
+      cargo_type = '',
+      bayan_appointment = {},
+      token,
+      userType = 'broker'
+    } = params;
+
+    // التحقق من المعاملات المطلوبة
+    const requiredParams = ['port_code', 'zone_schedule_id', 'purpose', 'declaration_number', 'fleet_info'];
+    const missingParams = requiredParams.filter(param => !params[param]);
+    
+    if (missingParams.length > 0) {
+      throw new Error(`معاملات مطلوبة مفقودة: ${missingParams.join(', ')}`);
+    }
+    
+    if (!token) {
+      throw new Error('رمز المصادقة مطلوب');
+    }
+
+    // التحقق من fleet_info
+    if (!Array.isArray(fleet_info) || fleet_info.length === 0) {
+      throw new Error('fleet_info يجب أن يكون مصفوفة تحتوي على معلومات السائق والمركبة');
+    }
+
+    // اختيار الرابط حسب نوع المستخدم
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}/api/zatca-tas/v2/appointment/transit/create`;
+
+    // بناء بيانات الطلب
+    const requestData = {
+      port_code,
+      zone_schedule_id,
+      purpose,
+      cargo_type,
+      fleet_info,
+      bayan_appointment,
+      declaration_number
+    };
+
+    // إعداد الهيدرات
+    const headers = {
+      'Accept': 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Origin': baseUrl,
+      'Referer': `${baseUrl}/ar/broker/2.0/`,
+      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+    };
+
+    // استخدام البروكسي
+    const proxy = this.getNextProxy();
+    const httpsAgent = this.createProxyAgent(proxy);
+    
+    console.log(`📅 إنشاء موعد نقل عابر باستخدام البروكسي: ${proxy.username}@${proxy.host}:${proxy.port}`);
+
+    // إعدادات TLS للبروكسي
+    const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    const shouldRejectUnauthorized = proxy.rejectUnauthorized !== undefined 
+      ? proxy.rejectUnauthorized 
+      : false;
+    
+    if (!shouldRejectUnauthorized) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    }
+
+    try {
+      const response = await axios.post(url, requestData, {
+        headers,
+        httpsAgent,
+        timeout: 30000,
+        validateStatus: function (status) {
+          return status >= 200 && status < 500;
+        }
+      });
+
+      // استعادة إعدادات TLS الأصلية
+      if (originalRejectUnauthorized !== undefined) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
+      } else {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      }
+      
+      return response.data;
+    } catch (error) {
+      // استعادة الإعدادات في حالة الخطأ
+      if (originalRejectUnauthorized !== undefined) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
+      } else {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      }
+      throw error;
+    }
+
+  } catch (error) {
+    this.handleError(error);
+  }
+}
   /**
    * Handle API errors
    * @param {Error} error - Error object

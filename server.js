@@ -76,7 +76,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 API Base URL: http://localhost:${PORT}/api/fasah`);
   console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
     // بدء Cron Job تلقائياً عند تشغيل السيرفر (اختياري)
-      scheduleCron.startCronJob();
+      // scheduleCron.startCronJob();
     
 });
 

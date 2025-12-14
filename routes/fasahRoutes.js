@@ -166,6 +166,78 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
   }
 });
 
+router.post('/appointment/transit/create', async (req, res) => {
+  try {
+    // استخراج البيانات من request body
+    const {
+      port_code,
+      zone_schedule_id,
+      purpose,
+      cargo_type = '',
+      fleet_info,
+      bayan_appointment = {},
+      declaration_number
+    } = req.body;
+    
+    // الحصول على رمز المصادقة من الهيدرات
+    const token = req.headers['x-fasah-token'] || 
+                  req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+                  req.headers['token']?.replace(/^Bearer\s+/i, '');
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'رمز المصادقة مطلوب',
+        error: 'Missing authentication token'
+      });
+    }
+
+    // التحقق من البيانات المطلوبة
+    if (!port_code || !zone_schedule_id || !purpose || !declaration_number || !fleet_info) {
+      return res.status(400).json({
+        success: false,
+        message: 'بيانات غير مكتملة',
+        error: 'يجب تقديم جميع البيانات المطلوبة: port_code, zone_schedule_id, purpose, declaration_number, fleet_info'
+      });
+    }
+
+    // استدعاء Method إنشاء الموعد
+    const result = await client.createTransitAppointment({
+      port_code,
+      zone_schedule_id,
+      purpose,
+      cargo_type,
+      fleet_info,
+      bayan_appointment,
+      declaration_number,
+      token,
+      userType: 'broker'
+    });
+
+    // التحقق من نتيجة الإنشاء
+    if (result?.success === false) {
+      return res.status(400).json({
+        success: false,
+        data: result,
+      });
+    }
+
+    // إرجاع النتيجة الناجحة
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    console.error('خطأ في إنشاء موعد النقل العابر:', error);
+    res.status(status).json({
+      success: false,
+      error: error?.message,
+      ...(error.data && { details: error?.data })
+    });
+  }
+});
+
 // 404 Handler
 router.use((req, res) => {
   res.status(404).json({
