@@ -372,6 +372,171 @@ class FasahClient {
     }
   }
 
+
+
+  /**
+ * Get a paginated list of verified drivers for a specific port and appointment time.
+ * @param {Object} params - Query parameters and authentication
+ * @param {string} params.port - The port/zone code (e.g., '31')
+ * @param {string} params.appointmentTime - Appointment date in YYYY/MM/DD format
+ * @param {string} params.token - Bearer token for authentication
+ * @param {number} [params.page=1] - Page number for pagination
+ * @param {number} [params.size=10] - Number of items per page
+ * @param {string} [params.order='desc'] - Sort order: 'asc' or 'desc'
+ * @param {string} [params.sortby='licenseNo'] - Field to sort by
+ * @param {string} [params.q=''] - Search query string
+ * @param {string} [params.userType='transporter'] - User type, defaults to 'transporter' for this endpoint
+ * @returns {Promise<Object>} Paginated list of verified drivers
+ */
+async getVerifiedDrivers(params) {
+  try {
+    const {
+      port,
+      appointmentTime,
+      token,
+      page = 1,
+      size = 10,
+      order = 'desc',
+      sortby = 'licenseNo',
+      q = '',
+      userType = 'transporter' // This endpoint is specific to transporter portal
+    } = params;
+
+    // Validate required parameters
+    if (!port || !appointmentTime) {
+      throw new Error('Missing required parameters: port and appointmentTime are required');
+    }
+    if (!token) {
+      throw new Error('Authentication token is required');
+    }
+
+    // Select base URL based on user type
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}/api/zatca-fleet/v2/driver/verified/all/forAdd`;
+
+    // Build query parameters matching the curl request
+    const queryParams = {
+      port,
+      appointmentTime,
+      page,
+      size,
+      order,
+      sortby,
+      q
+    };
+
+    // Prepare headers (matching the curl request)
+    const headers = {
+      'Accept': 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=utf-8',
+      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
+    };
+
+    try {
+      const response = await axios.get(url, {
+        params: queryParams,
+        headers,
+        timeout: 30000, // 30 seconds timeout
+        // Accept both successful and client error responses
+        validateStatus: function (status) {
+          return status >= 200 && status < 500;
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      // Restore original setting on erro
+      throw error;
+    }
+
+  } catch (error) {
+    // Use the existing error handling logic
+    this.handleError(error);
+  }
+}
+
+/**
+ * الحصول على قائمة الشاحنات المرخصة لميناء وتاريخ محدد
+ * @param {Object} params - معاملات البحث والمصادقة
+ * @param {string} params.port - رمز الميناء/المنطقة (مثال: '31')
+ * @param {string} params.appointmentTime - تاريخ الموعد بتنسيق YYYY/MM/DD
+ * @param {string} params.token - رمز المصادقة
+ * @param {number} [params.page=1] - رقم الصفحة
+ * @param {number} [params.size=10] - عدد العناصر في الصفحة
+ * @param {string} [params.order='desc'] - ترتيب العرض: 'asc' أو 'desc'
+ * @param {string} [params.sortby='plateNumberEn'] - الحقل للترتيب حسبه
+ * @param {string} [params.q=''] - نص البحث
+ * @param {string} [params.userType='transporter'] - نوع المستخدم
+ * @returns {Promise<Object>} قائمة الشاحنات
+ */
+async getVerifiedTrucks(params) {
+  try {
+    const {
+      port,
+      appointmentTime,
+      token,
+      page = 1,
+      size = 10,
+      order = 'desc',
+      sortby = 'plateNumberEn',
+      q = '',
+      userType = 'transporter'
+    } = params;
+
+    // التحقق من المعاملات المطلوبة
+    if (!port || !appointmentTime) {
+      throw new Error('معاملات مطلوبة: port و appointmentTime إجباريان');
+    }
+    if (!token) {
+      throw new Error('رمز المصادقة مطلوب');
+    }
+
+    // اختيار الرابط حسب نوع المستخدم
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}/api/zatca-fleet/v2/truck/verified/all/forAdd`;
+
+    // بناء معاملات البحث
+    const queryParams = {
+      port,
+      appointmentTime,
+      page,
+      size,
+      order,
+      sortby,
+      q
+    };
+
+    // إعداد الهيدرات (نفس إعدادات السائقين)
+    const headers = {
+      'Accept': 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=utf-8',
+      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+    };
+
+
+    try {
+      const response = await axios.get(url, {
+        params: queryParams,
+        headers,
+        validateStatus: function (status) {
+          return status >= 200 && status < 500;
+        }
+      });
+
+   
+      
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+
+  } catch (error) {
+    this.handleError(error);
+  }
+}
+
   /**
    * Handle API errors
    * @param {Error} error - Error object

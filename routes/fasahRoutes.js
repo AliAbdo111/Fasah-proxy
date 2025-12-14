@@ -69,6 +69,103 @@ router.get('/schedule/land', async (req, res) => {
   }
 });
 
+
+router.get('/drivers/verified/all/forAdd', async (req, res) => {
+  try {
+    // Extract query parameters
+    const { port, appointmentTime, page, size, order, sortby, q } = req.query;
+    
+    // Get token from header (same method as existing route)
+    const token = req.headers['x-fasah-token'] || 
+                  req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+                  req.headers['token']?.replace(/^Bearer\s+/i, '');
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token is required.',
+        error: 'Missing authentication token'
+      });
+    }
+
+    // Call the new client method
+    const result = await client.getVerifiedDrivers({
+      port,
+      appointmentTime,
+      token,
+      page: page || 1,
+      size: size || 10,
+      order: order || 'desc',
+      sortby: sortby || 'licenseNo',
+      q: q || '',
+      userType: 'transporter' // This endpoint is for transporter portal
+    });
+
+    // Return the API response directly
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    console.error('Error fetching verified drivers:', error);
+    res.status(status).json({
+      success: false,
+      message: 'Failed to retrieve verified drivers list',
+      error: error.message,
+      ...(error.data && { details: error.data })
+    });
+  }
+});
+
+router.get('/trucks/verified/all/forAdd', async (req, res) => {
+  try {
+    // استخراج معاملات البحث من query parameters
+    const { port, appointmentTime, page, size, order, sortby, q } = req.query;
+    
+    // الحصول على رمز المصادقة من الهيدرات
+    const token = req.headers['x-fasah-token'] || 
+                  req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+                  req.headers['token']?.replace(/^Bearer\s+/i, '');
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'رمز المصادقة مطلوب',
+        error: 'Missing authentication token'
+      });
+    }
+
+    // استدعاء Method الحصول على الشاحنات
+    const result = await client.getVerifiedTrucks({
+      port,
+      appointmentTime,
+      token,
+      page: page || 1,
+      size: size || 10,
+      order: order || 'desc',
+      sortby: sortby || 'plateNumberEn',
+      q: q || '',
+      userType: 'transporter'
+    });
+
+    // إرجاع النتيجة
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    console.error('خطأ في جلب الشاحنات:', error);
+    res.status(status).json({
+      success: false,
+      message: 'فشل في الحصول على قائمة الشاحنات',
+      error: error.message,
+      ...(error.data && { details: error.data })
+    });
+  }
+});
+
 // 404 Handler
 router.use((req, res) => {
   res.status(404).json({
