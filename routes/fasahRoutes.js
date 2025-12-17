@@ -73,7 +73,7 @@ router.get('/schedule/land', async (req, res) => {
 router.get('/drivers/verified/all/forAdd', async (req, res) => {
   try {
     // Extract query parameters
-    const { port, appointmentTime, page, size, order, sortby, q } = req.query;
+    const { port, appointmentTime, page, size, order, sortby, q, userType='broker' } = req.query;
     
     // Get token from header (same method as existing route)
     const token = req.headers['x-fasah-token'] || 
@@ -98,7 +98,7 @@ router.get('/drivers/verified/all/forAdd', async (req, res) => {
       order: order || 'desc',
       sortby: sortby || 'licenseNo',
       q: q || '',
-      userType: 'transporter' // This endpoint is for transporter portal
+      userType: userType // This endpoint is for transporter portal
     });
 
     // Return the API response directly
@@ -121,7 +121,7 @@ router.get('/drivers/verified/all/forAdd', async (req, res) => {
 router.get('/trucks/verified/all/forAdd', async (req, res) => {
   try {
     // استخراج معاملات البحث من query parameters
-    const { port, appointmentTime, page, size, order, sortby, q } = req.query;
+    const { port, appointmentTime, page, size, order, sortby, q, userType='broker' } = req.query;
     
     // الحصول على رمز المصادقة من الهيدرات
     const token = req.headers['x-fasah-token'] || 
@@ -146,7 +146,7 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
       order: order || 'desc',
       sortby: sortby || 'plateNumberEn',
       q: q || '',
-      userType: 'transporter'
+      userType: userType
     });
 
     // إرجاع النتيجة
@@ -176,7 +176,8 @@ router.post('/appointment/transit/create', async (req, res) => {
       cargo_type = '',
       fleet_info,
       bayan_appointment = {},
-      declaration_number
+      declaration_number,
+      userType = 'broker'
     } = req.body;
     
     // الحصول على رمز المصادقة من الهيدرات
@@ -211,7 +212,7 @@ router.post('/appointment/transit/create', async (req, res) => {
       bayan_appointment,
       declaration_number,
       token,
-      userType: 'broker'
+      userType: userType
     });
 
     // التحقق من نتيجة الإنشاء
