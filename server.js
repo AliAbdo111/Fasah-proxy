@@ -6,7 +6,7 @@ const fasahRoutes = require('./routes/fasahRoutes');
 const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3001;
-
+const loggerService = require('./services/loggerSerivce');
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -22,6 +22,11 @@ db.once('open', () => {
 app.get('/schedule', async (req, res) => {
   const schedule = await Schedule.find();
   res.json(schedule);
+});
+
+app.get('/loggers', async (req, res) => {
+  const loggers = await loggerService.getLoggers();
+  res.json(loggers);
 });
 const ScheduleCron = require('./services/scheduleCron'); // الجديد
 

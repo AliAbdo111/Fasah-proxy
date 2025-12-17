@@ -2,9 +2,11 @@ const axios = require('axios');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const https = require('https');
 require('dotenv').config();
+const loggerService = require('./loggerSerivce');
 
 class FasahClient {
   constructor() {
+    this.loggerService = loggerService;
     // Support both broker and transporter endpoints
     this.brokerBaseUrl = process.env.FASAH_BROKER_BASE_URL || 'https://fasah.zatca.gov.sa';
     this.transporterBaseUrl = process.env.FASAH_TRANSPORTER_BASE_URL || 'https://oga.fasah.sa';
@@ -612,7 +614,14 @@ async createTransitAppointment(params) {
     const httpsAgent = this.createProxyAgent(proxy);
     
     console.log(`📅 إنشاء موعد نقل عابر باستخدام البروكسي: ${proxy.username}@${proxy.host}:${proxy.port}`);
-
+    await loggerService.createLogger({
+      message: `📅 إنشاع موعد نقل عابر باستخدام البروكسي: ${proxy.username}@${proxy.host}:${proxy.port}`,
+      data: {
+        proxy: proxy,
+        requestData: requestData
+      },
+      type: 'info_request'
+    });
     // إعدادات TLS للبروكسي
     const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     const shouldRejectUnauthorized = proxy.rejectUnauthorized !== undefined 
@@ -632,8 +641,14 @@ async createTransitAppointment(params) {
           return status >= 200 && status < 500;
         }
       });
-
-      // استعادة إعدادات TLS الأصلية
+      await loggerService.createLogger({
+        message: `📅تم طلب حجز موعد بجاح موعد نقل عابر باستخدام البروكسي: ${proxy.username}@${proxy.host}:${proxy.port}`,
+        data: {
+          response: response.data
+        },
+        type: 'info_response'
+      });     
+      throw new Error('test'); // استعادة إعدادات TLS الأصلية
       if (originalRejectUnauthorized !== undefined) {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
       } else {
@@ -643,6 +658,13 @@ async createTransitAppointment(params) {
       return response.data;
     } catch (error) {
       // استعادة الإعدادات في حالة الخطأ
+      this.loggerService.createLogger({
+        message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
+        data: {
+          error: JSON.stringify(error)
+        },
+        type: 'error'
+      });
       if (originalRejectUnauthorized !== undefined) {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
       } else {
@@ -652,6 +674,13 @@ async createTransitAppointment(params) {
     }
 
   } catch (error) {
+    this.loggerService.createLogger({
+      message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
+      data: {
+        error: JSON.stringify(error)
+      },
+      type: 'error'
+    });
     this.handleError(error);
   }
 }
@@ -704,7 +733,7 @@ async createTransitAppointment(params) {
       
     } else {
       // Something happened in setting up the request that triggered an Error
-      throw new Error(`Request setup error: ${error.message}`);
+      throw new Error(`Request setup error: ${JSON.stringify(error.message)}`);
 
     }
   }

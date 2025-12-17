@@ -58,7 +58,7 @@ class ScheduleCron {
     try {
       // هنا يمكنك الاتصال بقاعدة البيانات الخاصة بك
       // مثال: MongoDB
-      const Schedule = require('../models/Schedule');
+      const Schedule = require('../routes/models/Schedule');
       await Schedule.create(scheduleData);
       
       console.log(`[${new Date().toISOString()}] 💾 تم حفظ ${scheduleData?.data?.length || 0} موعد`);
