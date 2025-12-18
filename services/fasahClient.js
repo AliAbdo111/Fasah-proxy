@@ -635,7 +635,7 @@ async createTransitAppointment(params) {
     try {
       const response = await axios.post(url, requestData, {
         headers,
-        httpsAgent,
+        // httpsAgent,
         timeout: 30000,
         validateStatus: function (status) {
           return status >= 200 && status < 500;
@@ -648,7 +648,6 @@ async createTransitAppointment(params) {
         },
         type: 'info_response'
       });     
-      throw new Error('test'); // استعادة إعدادات TLS الأصلية
       if (originalRejectUnauthorized !== undefined) {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
       } else {
