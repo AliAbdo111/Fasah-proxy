@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const Schedule = require('./routes/models/Schedule');
 const fasahRoutes = require('./routes/fasahRoutes');
+const authRoutes = require('./routes/authRoutes');
+const authMiddleware = require('./middleware/authMiddleware');
 const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-mongoose.connect('mongodb+srv://Aliomran_11:aliomran11@bookstore.2p8vi6j.mongodb.net/?retryWrites=true&w=majority&appName=fasah-proxy');
+mongoose.connect(process.env.MONGO_URI);
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', () => {
@@ -41,8 +43,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/fasah', fasahRoutes);
+// API Routes (FASAH requires auth)
+app.use('/api/fasah', authMiddleware, fasahRoutes);
+app.use('/api/auth', authRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -52,7 +55,18 @@ app.get('/', (req, res) => {
     description: 'Proxy service for FASAH schedule management API',
     endpoints: {
       health: '/health',
-      schedule: '/api/fasah/schedule/land'
+      schedule: '/api/fasah/schedule/land',
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        forgotPassword: 'POST /api/auth/forgot-password',
+        resetPassword: 'POST /api/auth/reset-password',
+        verifyOtp: 'POST /api/auth/verify-otp',
+        resendOtp: 'POST /api/auth/resend-otp',
+        me: 'GET /api/auth/me',
+        activateUser: 'PATCH /api/auth/users/:userId/activate',
+        deactivateUser: 'PATCH /api/auth/users/:userId/deactivate'
+      }
     }
   });
 });

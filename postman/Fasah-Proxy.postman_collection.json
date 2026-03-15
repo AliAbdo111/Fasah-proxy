@@ -1,0 +1,252 @@
+{
+  "info": {
+    "name": "FASAH Proxy API",
+    "description": "Auth + FASAH proxy endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3001" },
+    { "key": "auth_token", "value": "" },
+    { "key": "fasah_token", "value": "" },
+    { "key": "userId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+966501234567\",\n  \"username\": \"myuser\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/forgot-password"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<reset-token-from-forgot-password>\",\n  \"newPassword\": \"newpassword123\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/reset-password"
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\",\n  \"type\": \"email\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/verify-otp"
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/resend-otp"
+          }
+        },
+        {
+          "name": "Me (current user)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/auth/me"
+          }
+        },
+        {
+          "name": "Activate User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/auth/users/{{userId}}/activate"
+          }
+        },
+        {
+          "name": "Deactivate User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/auth/users/{{userId}}/deactivate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "General",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Root (API info)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          }
+        },
+        {
+          "name": "Schedule (internal)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/schedule"
+          }
+        },
+        {
+          "name": "Loggers",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/loggers"
+          }
+        }
+      ]
+    },
+    {
+      "name": "FASAH",
+      "item": [
+        {
+          "name": "Schedule Land",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/fasah/schedule/land?departure=AGF&arrival=31&type=TRANSIT&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "fasah", "schedule", "land"],
+              "query": [
+                { "key": "departure", "value": "AGF" },
+                { "key": "arrival", "value": "31" },
+                { "key": "type", "value": "TRANSIT" },
+                { "key": "userType", "value": "broker" },
+                { "key": "economicOperator", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Drivers Verified For Add",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/fasah/drivers/verified/all/forAdd?port=&appointmentTime=&page=1&size=10&order=desc&sortby=licenseNo&q=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "fasah", "drivers", "verified", "all", "forAdd"],
+              "query": [
+                { "key": "port", "value": "" },
+                { "key": "appointmentTime", "value": "" },
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "order", "value": "desc" },
+                { "key": "sortby", "value": "licenseNo" },
+                { "key": "q", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Trucks Verified For Add",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/fasah/trucks/verified/all/forAdd?port=&appointmentTime=&page=1&size=10&order=desc&sortby=plateNumberEn&q=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "fasah", "trucks", "verified", "all", "forAdd"],
+              "query": [
+                { "key": "port", "value": "" },
+                { "key": "appointmentTime", "value": "" },
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "order", "value": "desc" },
+                { "key": "sortby", "value": "plateNumberEn" },
+                { "key": "q", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Transit Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"port_code\": \"\",\n  \"zone_schedule_id\": \"\",\n  \"purpose\": \"\",\n  \"cargo_type\": \"\",\n  \"declaration_number\": \"\",\n  \"fleet_info\": {},\n  \"bayan_appointment\": {},\n  \"userType\": \"broker\"\n}"
+            },
+            "url": "{{base_url}}/api/fasah/appointment/transit/create"
+          }
+        }
+      ]
+    }
+  ]
+}
