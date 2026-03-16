@@ -11,7 +11,7 @@ const client = new FasahClient();
  * Query: departure (required), arrival (required), type (required), economicOperator (optional), userType (optional)
  * Headers: x-fasah-token or token or Authorization (FASAH token)
  */
-router.get('/zone/schedule/land/import', async (req, res) => {
+router.get('/zone/schedule/land/server-one', async (req, res) => {
   try {
     const { departure='AGF', arrival='31', type='TRANSIT', economicOperator, userType } = req.query;
 
@@ -58,7 +58,7 @@ router.get('/zone/schedule/land/import', async (req, res) => {
   }
 });
 
-router.get('/zone/schedule/land/transit', async (req, res) => {
+router.get('/zone/schedule/land/server-two', async (req, res) => {
  try {
    const { departure='AGF', arrival='31', type='TRANSIT', economicOperator, userType } = req.query;
 
@@ -105,7 +105,7 @@ router.get('/zone/schedule/land/transit', async (req, res) => {
  }
 });
 
-router.get('/zone/schedule/land/empty-truck', async (req, res) => {
+router.get('/zone/schedule/land/server-three', async (req, res) => {
  try {
    const { departure='AGF', arrival='31', type='EMPTY_TRUCK', economicOperator, userType } = req.query;
 
