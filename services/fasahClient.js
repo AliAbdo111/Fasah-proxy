@@ -682,6 +682,56 @@ async getDeclarationInfo(params) {
   }
 }
 
+/**
+ * Generate land appointment PDF (ZATCA v1)
+ * @param {Object} params
+ * @param {string} params.ref - Appointment reference (e.g. TAS20260316234829745)
+ * @param {string} params.token - Bearer token
+ * @param {string} [params.userType='broker'] - 'broker' or 'transporter'
+ * @returns {Promise<{ data: Buffer, contentType: string }|Object>} PDF buffer and content-type, or error payload
+ */
+async getLandAppointmentPdf(params) {
+  try {
+    const { ref, token, userType = 'broker' } = params;
+    if (!ref || !token) {
+      throw new Error('ref and token are required');
+    }
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}/api/zatca-tas/v1/appoint/pdf/generateLand`;
+    const headers = {
+      'Accept': 'application/pdf, application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=utf-8',
+      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+    };
+    const axiosConfig = {
+      params: { ref },
+      headers,
+      timeout: 30000,
+      responseType: 'arraybuffer',
+      validateStatus: (status) => status >= 200 && status < 500
+    };
+    const response = await axios.get(url, axiosConfig);
+    const contentType = response.headers['content-type'] || 'application/pdf';
+    if (response.status >= 400) {
+      const data = Buffer.isBuffer(response.data) ? response.data.toString('utf8') : response.data;
+      let parsed;
+      try {
+        parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      } catch (_) {
+        parsed = { message: data };
+      }
+      const err = new Error(parsed.message || `Request failed with ${response.status}`);
+      err.status = response.status;
+      err.data = parsed;
+      throw err;
+    }
+    return { data: response.data, contentType };
+  } catch (error) {
+    this.handleError(error);
+  }
+}
+
   /**
    * Handle API errors
    * @param {Error} error - Error object

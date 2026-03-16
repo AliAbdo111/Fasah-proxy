@@ -60,7 +60,7 @@ router.get('/zone/schedule/land/server-one', async (req, res) => {
 
 router.get('/zone/schedule/land/server-two', async (req, res) => {
  try {
-   const { departure='AGF', arrival='31', type='TRANSIT', economicOperator, userType } = req.query;
+   const { departure='AGF', arrival='31', type='IMPORT', economicOperator, userType } = req.query;
 
    const token =
      req.headers['x-fasah-token'] ||
