@@ -247,6 +247,110 @@
           }
         }
       ]
+    },
+    {
+      "name": "Zatza",
+      "description": "ZATCA/FASAH schedule and declaration APIs (same params as ZATCA docs)",
+      "item": [
+        {
+          "name": "Get schedule import",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" },
+              { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/fasah/schedule/land?departure=AGF&arrival=31&type=IMPORT&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "fasah", "schedule", "land"],
+              "query": [
+                { "key": "departure", "value": "AGF", "description": "AGF, ABUSAMRAH, DRH, HDH, KFJ, HMR, RAQ, ARRC, OMANRK, YEMWAD" },
+                { "key": "arrival", "value": "31" },
+                { "key": "type", "value": "IMPORT" },
+                { "key": "userType", "value": "broker" },
+                { "key": "economicOperator", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get schedules truck empty",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" },
+              { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/fasah/schedule/land?departure=AGF&arrival=31&type=EMPTY_TRUCK&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "fasah", "schedule", "land"],
+              "query": [
+                { "key": "departure", "value": "AGF", "description": "AGF, ABUSAMRAH, DRH, HDH, KFJ, HMR, RAQ, ARRC, OMANRK, YEMWAD" },
+                { "key": "arrival", "value": "31" },
+                { "key": "type", "value": "EMPTY_TRUCK" },
+                { "key": "userType", "value": "broker" },
+                { "key": "economicOperator", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate declaration number",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" },
+              { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/fasah/appointment/transit/getDeclarationInfo?decNo=1234&arrivalPort=31&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "fasah", "appointment", "transit", "getDeclarationInfo"],
+              "query": [
+                { "key": "decNo", "value": "1234" },
+                { "key": "arrivalPort", "value": "31" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get schedules (TRANSIT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" },
+              { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/fasah/schedule/land?departure=AGF&arrival=31&type=TRANSIT&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "fasah", "schedule", "land"],
+              "query": [
+                { "key": "departure", "value": "AGF" },
+                { "key": "arrival", "value": "31" },
+                { "key": "type", "value": "TRANSIT" },
+                { "key": "userType", "value": "broker" },
+                { "key": "economicOperator", "value": "", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

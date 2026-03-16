@@ -683,6 +683,45 @@ async createTransitAppointment(params) {
     this.handleError(error);
   }
 }
+
+/**
+ * Validate declaration number / get declaration info for transit appointment
+ * @param {Object} params
+ * @param {string} params.decNo - Declaration number
+ * @param {string} params.arrivalPort - Arrival port code (e.g. '31')
+ * @param {string} params.token - Bearer token
+ * @param {string} [params.userType='broker'] - 'broker' or 'transporter'
+ * @returns {Promise<Object>}
+ */
+async getDeclarationInfo(params) {
+  try {
+    const { decNo, arrivalPort, token, userType = 'broker' } = params;
+    if (!decNo || !arrivalPort) {
+      throw new Error('Missing required parameters: decNo and arrivalPort are required');
+    }
+    if (!token) {
+      throw new Error('Authentication token is required');
+    }
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}${this.apiPath}/appointment/transit/getDeclarationInfo`;
+    const headers = {
+      'Accept': 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=utf-8',
+      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+    };
+    const response = await axios.get(url, {
+      params: { decNo, arrivalPort },
+      headers,
+      timeout: 30000,
+      validateStatus: (status) => status >= 200 && status < 500
+    });
+    return response.data;
+  } catch (error) {
+    this.handleError(error);
+  }
+}
+
   /**
    * Handle API errors
    * @param {Error} error - Error object

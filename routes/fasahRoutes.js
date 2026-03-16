@@ -166,6 +166,47 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/fasah/appointment/transit/getDeclarationInfo
+ * Validate declaration number / get declaration info
+ * Query: decNo (required), arrivalPort (required), userType (optional, default broker)
+ */
+router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
+  try {
+    const { decNo, arrivalPort, userType = 'broker' } = req.query;
+    const token = req.headers['x-fasah-token'] ||
+                  req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+                  req.headers['token']?.replace(/^Bearer\s+/i, '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token is required.',
+        error: 'Missing authentication token'
+      });
+    }
+    if (!decNo || !arrivalPort) {
+      return res.status(400).json({
+        success: false,
+        message: 'decNo and arrivalPort are required'
+      });
+    }
+    const result = await client.getDeclarationInfo({
+      decNo,
+      arrivalPort,
+      token,
+      userType
+    });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to get declaration info',
+      ...(error.data && { details: error.data })
+    });
+  }
+});
+
 router.post('/appointment/transit/create', async (req, res) => {
   try {
     // استخراج البيانات من request body

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const Schedule = require('./routes/models/Schedule');
 const fasahRoutes = require('./routes/fasahRoutes');
+const zatcaCompatRoutes = require('./routes/zatcaCompatRoutes');
 const authRoutes = require('./routes/authRoutes');
 const authMiddleware = require('./middleware/authMiddleware');
 const mongoose = require('mongoose');
@@ -45,6 +46,8 @@ app.get('/health', (req, res) => {
 
 // API Routes (FASAH requires auth)
 app.use('/api/fasah', authMiddleware, fasahRoutes);
+// ZATCA-compatible path: same URL and params as ZATCA (e.g. type=IMPORT)
+app.use('/api/zatca', authMiddleware, zatcaCompatRoutes);
 app.use('/api/auth', authRoutes);
 
 // Root endpoint
@@ -56,6 +59,10 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       schedule: '/api/fasah/schedule/land',
+      zatcaScheduleLand: 'GET /api/zatca-tas/v2/zone/schedule/land?departure=&arrival=&type=',
+      scheduleImport: 'GET /api/fasah/schedule/land?type=IMPORT',
+      scheduleEmptyTruck: 'GET /api/fasah/schedule/land?type=EMPTY_TRUCK',
+      getDeclarationInfo: 'GET /api/fasah/appointment/transit/getDeclarationInfo?decNo=&arrivalPort=',
       auth: {
         register: 'POST /api/auth/register',
         login: 'POST /api/auth/login',
