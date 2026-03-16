@@ -7,7 +7,7 @@ const User = require('../routes/models/User');
  */
 async function authMiddleware(req, res, next) {
   try {
-    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    const token = req.headers['x-auth-token'];
     const decoded = authService.verifyToken(token);
     const user = await User.findById(decoded.userId).select('-password -otp -otpExpires -resetPasswordToken -resetPasswordExpires');
     if (!user) {
