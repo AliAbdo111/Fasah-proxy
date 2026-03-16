@@ -49,7 +49,7 @@ async function login(email, password) {
   if (!valid) throw { status: 401, message: 'Invalid email or password' };
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   return {
-    user: { _id: user._id, email: user.email, phone: user.phone, username: user.username, emailVerified: user.emailVerified, phoneVerified: user.phoneVerified, isActive: user.isActive },
+    user: { _id: user._id, email: user.email, phone: user.phone, username: user.username, emailVerified: user.emailVerified, phoneVerified: user.phoneVerified, isActive: user.isActive, bookingCount: user.bookingCount },
     token
   };
 }
