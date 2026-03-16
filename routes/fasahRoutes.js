@@ -174,7 +174,8 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
  */
 router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
   try {
-    const { decNo, arrivalPort, userType = 'broker' } = req.query;
+    const { decNo, arrivalPort, userType: userTypeQ, usertype: usertypeQ } = req.query;
+    const userType = userTypeQ || usertypeQ || 'broker';
     const token = req.headers['x-fasah-token'] ||
                   req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
                   req.headers['token']?.replace(/^Bearer\s+/i, '');
@@ -197,6 +198,16 @@ router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
       token,
       userType
     });
+    // Handle FASAH API returning success: false with errors (e.g. invalid declaration)
+    if (result && result.success === false && result.errors && result.errors.length > 0) {
+      const firstError = result.errors[0];
+      const message = firstError.message || firstError.code || 'Declaration validation failed';
+      return res.status(400).json({
+        success: false,
+        message,
+        errors: result.errors
+      });
+    }
     res.json({ success: true, data: result });
   } catch (error) {
     const status = error.status || 500;
