@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  bookingCount: {
+    type: Number,
+    default: 0
+  },
   otp: {
     type: String,
     select: false

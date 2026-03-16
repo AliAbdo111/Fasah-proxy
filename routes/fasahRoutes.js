@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
+const User = require('./models/User');
 
 // Initialize client
 const client = new FasahClient();
@@ -262,6 +263,11 @@ router.post('/appointment/transit/create', async (req, res) => {
         success: false,
         data: result,
       });
+    }
+
+    // زيادة عداد الحجوزات للمستخدم بعد النجاح
+    if (req.user && req.user._id) {
+      await User.findByIdAndUpdate(req.user._id, { $inc: { bookingCount: 1 } });
     }
 
     // إرجاع النتيجة الناجحة
