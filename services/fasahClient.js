@@ -11,8 +11,10 @@ class FasahClient {
     this.brokerBaseUrl = process.env.FASAH_BROKER_BASE_URL || 'https://fasah.zatca.gov.sa';
     this.transporterBaseUrl = process.env.FASAH_TRANSPORTER_BASE_URL || 'https://oga.fasah.sa';
     this.apiPath = '/api/zatca-tas/v2';
-    
-    
+
+    // Set to 'true' in .env to use proxy; default is direct requests (no proxy)
+    this.useProxy = process.env.FASAH_USE_PROXY === 'false';
+
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.proxies = [
@@ -323,50 +325,36 @@ class FasahClient {
         'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
       };
       console.log('headers', headers);
-      // Get next proxy in rotation
-      const proxy = this.getNextProxy();
-      const httpsAgent = this.createProxyAgent(proxy);
-      
-      console.log(`🔄 Using proxy: ${proxy.username}@${proxy.host}:${proxy.port}`);
 
-            const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      const shouldRejectUnauthorized = proxy.rejectUnauthorized !== undefined 
-        ? proxy.rejectUnauthorized 
-        : false; // Default to false for compatibility
-      
-      if (!shouldRejectUnauthorized) {
+      const axiosConfig = {
+        params: queryParams,
+        headers,
+        timeout: 30000,
+        validateStatus: function (status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.useProxy) {
+        const proxy = this.getNextProxy();
+        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
       }
 
-      try {
-        const response = await axios.get(url, {
-          params: queryParams,
-          headers,
-          httpsAgent,
-          timeout: 30000, // 30 seconds timeout
-          // Also configure axios to accept self-signed certificates
-          validateStatus: function (status) {
-            return status >= 200 && status < 500; // Accept 4xx as valid responses
-          }
-        });
-        console.log('response', response.data);
-        // Restore original setting
-        if (originalRejectUnauthorized !== undefined) {
-          process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
-        } else {
-          delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        }
-        
-        return response.data;
-      } catch (error) {
-        // Restore original setting on error
-        if (originalRejectUnauthorized !== undefined) {
-          process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
-        } else {
-          delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        }
-        throw error;
-      }
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
 
     } catch (error) {
       console.log(error);
@@ -609,68 +597,40 @@ async createTransitAppointment(params) {
       'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
     };
 
-    // استخدام البروكسي
-    const proxy = this.getNextProxy();
-    const httpsAgent = this.createProxyAgent(proxy);
-    
-    console.log(`📅 إنشاء موعد نقل عابر باستخدام البروكسي: ${proxy.username}@${proxy.host}:${proxy.port}`);
-    await loggerService.createLogger({
-      message: `📅 إنشاع موعد نقل عابر باستخدام البروكسي: ${proxy.username}@${proxy.host}:${proxy.port}`,
-      data: {
-        proxy: proxy,
-        requestData: requestData
-      },
-      type: 'info_request'
-    });
-    // إعدادات TLS للبروكسي
-    const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-    const shouldRejectUnauthorized = proxy.rejectUnauthorized !== undefined 
-      ? proxy.rejectUnauthorized 
-      : false;
-    
-    if (!shouldRejectUnauthorized) {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    }
-
-    try {
-      const response = await axios.post(url, requestData, {
-        headers,
-        // httpsAgent,
-        timeout: 30000,
-        validateStatus: function (status) {
-          return status >= 200 && status < 500;
-        }
-      });
+    const postConfig = {
+      headers,
+      timeout: 30000,
+      validateStatus: function (status) {
+        return status >= 200 && status < 500;
+      }
+    };
+    if (this.useProxy) {
+      const proxy = this.getNextProxy();
+      postConfig.httpsAgent = this.createProxyAgent(proxy);
+      console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
       await loggerService.createLogger({
-        message: `📅تم طلب حجز موعد بجاح موعد نقل عابر باستخدام البروكسي: ${proxy.username}@${proxy.host}:${proxy.port}`,
-        data: {
-          response: response.data
-        },
-        type: 'info_response'
-      });     
-      if (originalRejectUnauthorized !== undefined) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
-      } else {
-        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      }
-      
-      return response.data;
-    } catch (error) {
-      // استعادة الإعدادات في حالة الخطأ
-      this.loggerService.createLogger({
-        message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
-        data: {
-          error: JSON.stringify(error)
-        },
-        type: 'error'
+        message: `Create transit appointment via proxy: ${proxy.host}:${proxy.port}`,
+        data: { requestData },
+        type: 'info_request'
       });
-      if (originalRejectUnauthorized !== undefined) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
-      } else {
-        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      try {
+        const response = await axios.post(url, requestData, postConfig);
+        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
+        return response.data;
+      } catch (error) {
+        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        this.loggerService.createLogger({ message: `Create transit appointment error: ${error}`, data: { error: String(error) }, type: 'error' });
+        throw error;
       }
-      throw error;
     }
+    const response = await axios.post(url, requestData, postConfig);
+    await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
+    return response.data;
 
   } catch (error) {
     this.loggerService.createLogger({
