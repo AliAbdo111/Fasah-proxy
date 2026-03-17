@@ -712,7 +712,7 @@ async getLandAppointmentPdf(params) {
       validateStatus: (status) => status >= 200 && status < 500
     };
     const response = await axios.get(url, axiosConfig);
-    const contentType = response.headers['content-type'] || 'application/pdf';
+    const responseContentType = (response.headers['content-type'] || '').toLowerCase();
     if (response.status >= 400) {
       const data = Buffer.isBuffer(response.data) ? response.data.toString('utf8') : response.data;
       let parsed;
@@ -726,7 +726,34 @@ async getLandAppointmentPdf(params) {
       err.data = parsed;
       throw err;
     }
-    return { data: response.data, contentType };
+    // Upstream may return JSON with base64 PDF, or raw PDF (sometimes with wrong content-type)
+    const rawBytes = response.data;
+    const firstByte = Buffer.isBuffer(rawBytes) ? rawBytes[0] : (rawBytes && new Uint8Array(rawBytes)[0]);
+    const looksLikeJson = firstByte === 0x7b; // '{'
+    if (looksLikeJson) {
+      const raw = Buffer.isBuffer(rawBytes) ? rawBytes.toString('utf8') : String(rawBytes);
+      let json;
+      try {
+        json = JSON.parse(raw);
+      } catch (_) {
+        return { data: rawBytes, contentType: 'application/pdf' };
+      }
+      const base64Pdf = json.pdf || json.data || json.content || json.file || json.base64 || json.fileContent || json.pdfBase64;
+      if (base64Pdf && typeof base64Pdf === 'string') {
+        return { data: Buffer.from(base64Pdf, 'base64'), contentType: 'application/pdf' };
+      }
+      if (json.success === false && (json.errors || json.message)) {
+        const err = new Error(json.message || (json.errors && json.errors[0] && json.errors[0].message) || 'PDF generation failed');
+        err.status = 400;
+        err.data = json;
+        throw err;
+      }
+    }
+    // Raw PDF (or unknown binary): always use application/pdf so client displays correctly
+    const contentType = responseContentType.includes('application/pdf')
+      ? responseContentType
+      : 'application/pdf';
+    return { data: rawBytes, contentType };
   } catch (error) {
     this.handleError(error);
   }

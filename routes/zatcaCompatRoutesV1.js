@@ -43,8 +43,11 @@ router.get('/appoint/pdf/generateLand', async (req, res) => {
     });
 
     if (result.data) {
-      res.set('Content-Type', result.contentType || 'application/pdf');
-      return res.send(Buffer.from(result.data));
+      const pdfBuffer = Buffer.isBuffer(result.data) ? result.data : Buffer.from(result.data);
+      res.set('Content-Type', 'application/pdf');
+      res.set('Content-Disposition', 'attachment; filename="land-appointment.pdf"');
+      res.set('Cache-Control', 'no-store');
+      return res.send(pdfBuffer);
     }
 
     res.json(result);
