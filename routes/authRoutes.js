@@ -145,7 +145,7 @@ router.patch('/users/:userId/deactivate', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    // authService.verifyToken(token);
+    authService.verifyToken(token);
     const { page, limit, q } = req.query;
     const result = await authService.listUsers({ page, limit, q });
     res.json({ success: true, ...result });
@@ -159,7 +159,7 @@ router.get('/users', async (req, res) => {
 router.patch('/users/:userId/reset-booking-count', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    // authService.verifyToken(token);
+    authService.verifyToken(token);
     const result = await authService.resetBookingCount(req.params.userId);
     res.json({ success: true, ...result });
   } catch (err) {
