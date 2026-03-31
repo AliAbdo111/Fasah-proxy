@@ -111,6 +111,44 @@ async function deactivateUser(userId) {
   return { user: { _id: user._id, email: user.email, isActive: user.isActive } };
 }
 
+async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
+  const filter = {};
+  if (q && String(q).trim()) {
+    const needle = String(q).trim();
+    filter.$or = [
+      { email: { $regex: needle, $options: 'i' } },
+      { username: { $regex: needle, $options: 'i' } },
+      { phone: { $regex: needle, $options: 'i' } }
+    ];
+  }
+  const [items, total] = await Promise.all([
+    User.find(filter)
+      .select('email phone username isActive bookingCount emailVerified phoneVerified createdAt updatedAt')
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum),
+    User.countDocuments(filter)
+  ]);
+  return { items, page: pageNum, limit: limitNum, total };
+}
+
+async function resetBookingCount(userId) {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { bookingCount: 0 },
+    { new: true }
+  ).select('email bookingCount');
+  if (!user) throw { status: 404, message: 'User not found' };
+  return { user: { _id: user._id, email: user.email, bookingCount: user.bookingCount } };
+}
+
+async function resetAllBookingCounts() {
+  const result = await User.updateMany({}, { $set: { bookingCount: 0 } });
+  return { matched: result.matchedCount ?? result.n ?? 0, modified: result.modifiedCount ?? result.nModified ?? 0 };
+}
+
 async function resendOtp(email) {
   const user = await User.findOne({ email }).select('+otp +otpExpires');
   if (!user) throw { status: 404, message: 'User not found' };
@@ -136,6 +174,9 @@ module.exports = {
   resendOtp,
   activateUser,
   deactivateUser,
+  listUsers,
+  resetBookingCount,
+  resetAllBookingCounts,
   verifyToken,
   JWT_SECRET
 };

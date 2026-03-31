@@ -141,4 +141,44 @@ router.patch('/users/:userId/deactivate', async (req, res) => {
   }
 });
 
+// GET /api/auth/users (protected) - list users
+router.get('/users', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    // authService.verifyToken(token);
+    const { page, limit, q } = req.query;
+    const result = await authService.listUsers({ page, limit, q });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to list users' });
+  }
+});
+
+// PATCH /api/auth/users/:userId/reset-booking-count (protected)
+router.patch('/users/:userId/reset-booking-count', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    // authService.verifyToken(token);
+    const result = await authService.resetBookingCount(req.params.userId);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to reset booking count' });
+  }
+});
+
+// PATCH /api/auth/users/reset-booking-count/all (protected)
+router.patch('/users/reset-booking-count/all', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    authService.verifyToken(token);
+    const result = await authService.resetAllBookingCounts();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to reset all booking counts' });
+  }
+});
+
 module.exports = router;
