@@ -16,11 +16,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-mongoose.connect(process.env.MONGO_URI);
 const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
+db.on('error', (err) => {
+  console.error('MongoDB connection error:', err.message);
+});
 db.once('open', () => {
   console.log('Connected to MongoDB');
+});
+
+// Do not crash the API if MongoDB is temporarily unreachable
+mongoose.connect(process.env.MONGO_URI).catch((err) => {
+  console.error('MongoDB initial connection failed:', err.message);
+  console.error('Server will continue running without DB until MongoDB is reachable.');
 });
 
 app.get('/schedule', async (req, res) => {
