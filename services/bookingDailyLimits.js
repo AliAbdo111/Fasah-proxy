@@ -1,5 +1,12 @@
 const User = require('../routes/models/User');
 
+/** Enable POST /api/fasah/appointment/transit/create */
+const FEATURE_TRANSIT_BOOKING = 'transit_booking';
+/** Enable POST /api/zatca-tas/v2/appointment/land/create */
+const FEATURE_IMPORT_BOOKING = 'import_booking';
+
+const DEFAULT_USER_FEATURES = [FEATURE_TRANSIT_BOOKING, FEATURE_IMPORT_BOOKING];
+
 function utcYmd(d = new Date()) {
   return d.toISOString().slice(0, 10);
 }
@@ -33,10 +40,41 @@ async function syncUserBookingDay(userId) {
   );
 }
 
+function userHasFeature(user, feature) {
+  const f = user.features;
+  if (f === undefined || f === null) return true;
+  if (!Array.isArray(f)) return true;
+  return f.includes(feature);
+}
+
+function totalDailyBookings(user) {
+  return (user.transitBookingCount || 0) + (user.importBookingCount || 0);
+}
+
+/** For API: missing features on document → show defaults (legacy full access). */
+function resolveFeaturesForApi(user) {
+  const f = user.features;
+  if (f === undefined || f === null) return [...DEFAULT_USER_FEATURES];
+  return Array.isArray(f) ? [...f] : [...DEFAULT_USER_FEATURES];
+}
+
+function bookingStatsPayload(user) {
+  return {
+    bookingCount: user.bookingCount,
+    transitBookingCount: user.transitBookingCount,
+    importBookingCount: user.importBookingCount,
+    totalDailyBookings: totalDailyBookings(user),
+    maxTransitBookingCount: effectiveMaxTransit(user),
+    maxImportBookingCount: effectiveMaxImport(user),
+    lastBookingCountDay: user.lastBookingCountDay,
+    features: resolveFeaturesForApi(user)
+  };
+}
+
 async function loadUserBookingState(userId) {
   await syncUserBookingDay(userId);
   return User.findById(userId).select(
-    'transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay bookingCount'
+    'transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay bookingCount features'
   );
 }
 
@@ -53,6 +91,9 @@ function effectiveMaxImport(u) {
 async function assertCanTransitBook(userId) {
   const u = await loadUserBookingState(userId);
   if (!u) throw { status: 404, message: 'User not found' };
+  if (!userHasFeature(u, FEATURE_TRANSIT_BOOKING)) {
+    throw { status: 403, message: 'Transit booking is not enabled for this account (missing transit_booking feature)' };
+  }
   const max = effectiveMaxTransit(u);
   if ((u.transitBookingCount || 0) >= max) {
     throw { status: 403, message: `Daily transit booking limit reached (${max} per day)` };
@@ -63,6 +104,9 @@ async function assertCanTransitBook(userId) {
 async function assertCanImportBook(userId) {
   const u = await loadUserBookingState(userId);
   if (!u) throw { status: 404, message: 'User not found' };
+  if (!userHasFeature(u, FEATURE_IMPORT_BOOKING)) {
+    throw { status: 403, message: 'Import (land) booking is not enabled for this account (missing import_booking feature)' };
+  }
   const max = effectiveMaxImport(u);
   if ((u.importBookingCount || 0) >= max) {
     throw { status: 403, message: `Daily import (land) booking limit reached (${max} per day)` };
@@ -81,11 +125,18 @@ async function recordImportBookingSuccess(userId) {
 }
 
 module.exports = {
+  FEATURE_TRANSIT_BOOKING,
+  FEATURE_IMPORT_BOOKING,
+  DEFAULT_USER_FEATURES,
   utcYmd,
   defaultMaxTransit,
   defaultMaxImport,
   syncUserBookingDay,
   loadUserBookingState,
+  userHasFeature,
+  totalDailyBookings,
+  resolveFeaturesForApi,
+  bookingStatsPayload,
   effectiveMaxTransit,
   effectiveMaxImport,
   assertCanTransitBook,

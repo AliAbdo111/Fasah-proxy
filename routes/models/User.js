@@ -74,6 +74,15 @@ const userSchema = new mongoose.Schema({
     },
     min: 0
   },
+  /**
+   * Capability flags (extend over time). Examples: transit_booking, import_booking.
+   * If undefined/null (legacy users), all known booking features are allowed.
+   * Empty array disables all gated actions that require a flag.
+   */
+  features: {
+    type: [String],
+    default: undefined
+  },
   otp: {
     type: String,
     select: false

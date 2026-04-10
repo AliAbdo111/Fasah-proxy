@@ -28,7 +28,8 @@ async function register({ email, password, phone, username }) {
     email,
     password,
     phone: phone || '',
-    username: username || ''
+    username: username || '',
+    features: [...bookingDailyLimits.DEFAULT_USER_FEATURES]
   });
   const otp = generateOtp();
   user.otp = otp;
@@ -36,7 +37,16 @@ async function register({ email, password, phone, username }) {
   await user.save({ validateBeforeSave: false });
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   return {
-    user: { _id: user._id, email: user.email, phone: user.phone, username: user.username, emailVerified: user.emailVerified, phoneVerified: user.phoneVerified, isActive: user.isActive },
+    user: {
+      _id: user._id,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      isActive: user.isActive,
+      ...bookingDailyLimits.bookingStatsPayload(user)
+    },
     token,
     otpForVerification: otp
   };
@@ -62,12 +72,7 @@ async function login(email, password) {
       emailVerified: refreshed.emailVerified,
       phoneVerified: refreshed.phoneVerified,
       isActive: refreshed.isActive,
-      bookingCount: refreshed.bookingCount,
-      transitBookingCount: refreshed.transitBookingCount,
-      importBookingCount: refreshed.importBookingCount,
-      maxTransitBookingCount: bookingDailyLimits.effectiveMaxTransit(refreshed),
-      maxImportBookingCount: bookingDailyLimits.effectiveMaxImport(refreshed),
-      lastBookingCountDay: refreshed.lastBookingCountDay
+      ...bookingDailyLimits.bookingStatsPayload(refreshed)
     },
     token
   };
@@ -143,7 +148,8 @@ async function updateUser(userId, payload = {}) {
     emailVerified,
     phoneVerified,
     maxTransitBookingCount,
-    maxImportBookingCount
+    maxImportBookingCount,
+    features
   } = payload;
 
   const hasAnyField =
@@ -155,7 +161,8 @@ async function updateUser(userId, payload = {}) {
     emailVerified !== undefined ||
     phoneVerified !== undefined ||
     maxTransitBookingCount !== undefined ||
-    maxImportBookingCount !== undefined;
+    maxImportBookingCount !== undefined ||
+    features !== undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -199,6 +206,11 @@ async function updateUser(userId, payload = {}) {
     user.maxImportBookingCount = n;
   }
 
+  if (features !== undefined) {
+    if (!Array.isArray(features)) throw { status: 400, message: 'features must be an array of strings' };
+    user.features = features.map((x) => String(x).trim()).filter(Boolean);
+  }
+
   await user.save();
 
   return {
@@ -210,12 +222,7 @@ async function updateUser(userId, payload = {}) {
       isActive: user.isActive,
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
-      bookingCount: user.bookingCount,
-      transitBookingCount: user.transitBookingCount,
-      importBookingCount: user.importBookingCount,
-      maxTransitBookingCount: bookingDailyLimits.effectiveMaxTransit(user),
-      maxImportBookingCount: bookingDailyLimits.effectiveMaxImport(user),
-      lastBookingCountDay: user.lastBookingCountDay
+      ...bookingDailyLimits.bookingStatsPayload(user)
     }
   };
 }
@@ -235,14 +242,22 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   const [items, total] = await Promise.all([
     User.find(filter)
       .select(
-        'email phone username isActive bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay emailVerified phoneVerified createdAt updatedAt'
+        'email phone username isActive bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay features emailVerified phoneVerified createdAt updatedAt'
       )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum),
     User.countDocuments(filter)
   ]);
-  return { items, page: pageNum, limit: limitNum, total };
+  const itemsOut = items.map((doc) => {
+    const o = doc.toObject();
+    return {
+      ...o,
+      totalDailyBookings: bookingDailyLimits.totalDailyBookings(o),
+      features: bookingDailyLimits.resolveFeaturesForApi(o)
+    };
+  });
+  return { items: itemsOut, page: pageNum, limit: limitNum, total };
 }
 
 async function resetBookingCount(userId) {
@@ -259,19 +274,14 @@ async function resetBookingCount(userId) {
     },
     { new: true }
   ).select(
-    'email bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay'
+    'email bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay features'
   );
   if (!user) throw { status: 404, message: 'User not found' };
   return {
     user: {
       _id: user._id,
       email: user.email,
-      bookingCount: user.bookingCount,
-      transitBookingCount: user.transitBookingCount,
-      importBookingCount: user.importBookingCount,
-      maxTransitBookingCount: bookingDailyLimits.effectiveMaxTransit(user),
-      maxImportBookingCount: bookingDailyLimits.effectiveMaxImport(user),
-      lastBookingCountDay: user.lastBookingCountDay
+      ...bookingDailyLimits.bookingStatsPayload(user)
     }
   };
 }

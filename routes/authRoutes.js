@@ -110,7 +110,14 @@ router.get('/me', async (req, res) => {
     await bookingDailyLimits.syncUserBookingDay(decoded.userId);
     const user = await User.findById(decoded.userId).select('-password -otp -otpExpires -resetPasswordToken -resetPasswordExpires');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    res.json({ success: true, user });
+    const u = user.toObject();
+    res.json({
+      success: true,
+      user: {
+        ...u,
+        ...bookingDailyLimits.bookingStatsPayload(user)
+      }
+    });
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ success: false, message: err.message || 'Unauthorized' });
