@@ -1,0 +1,13 @@
+# Local MongoDB for development — matches default MONGO_URI in .env
+# Start: docker compose up -d
+# Stop:  docker compose down
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - '27017:27017'
+    volumes:
+      - fasah_mongo_data:/data/db
+
+volumes:
+  fasah_mongo_data:

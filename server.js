@@ -6,7 +6,9 @@ const fasahRoutes = require('./routes/fasahRoutes');
 const zatcaCompatRoutes = require('./routes/zatcaCompatRoutes');
 const zatcaCompatRoutesV1 = require('./routes/zatcaCompatRoutesV1');
 const zatcaTasV2Routes = require('./routes/zatcaTasV2Routes');
+const zatcaTasCustomsRoutes = require('./routes/zatcaTasCustomsRoutes');
 const zatcaFleetCompatRoutes = require('./routes/zatcaFleetCompatRoutes');
+const zatcaFleetV1Routes = require('./routes/zatcaFleetV1Routes');
 const authRoutes = require('./routes/authRoutes');
 const authMiddleware = require('./middleware/authMiddleware');
 const mongoose = require('mongoose');
@@ -19,10 +21,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const db = mongoose.connection;
+let mongoHasConnected = false;
 db.on('error', (err) => {
+  // First ECONNREFUSED is already logged by mongoose.connect().catch — skip duplicate line
+  if (!mongoHasConnected && String(err.message || '').includes('ECONNREFUSED')) {
+    return;
+  }
   console.error('MongoDB connection error:', err.message);
 });
 db.once('open', () => {
+  mongoHasConnected = true;
   console.log('Connected to MongoDB');
 });
 
@@ -30,6 +38,7 @@ db.once('open', () => {
 mongoose.connect(process.env.MONGO_URI).catch((err) => {
   console.error('MongoDB initial connection failed:', err.message);
   console.error('Server will continue running without DB until MongoDB is reachable.');
+  console.error('Tip: run Mongo locally (e.g. docker compose up -d) or set MONGO_URI to your cluster.');
 });
 
 app.get('/schedule', async (req, res) => {
@@ -59,6 +68,9 @@ app.use('/api/fasah', authMiddleware, fasahRoutes);
 // ZATCA-compatible path: same URL and params as ZATCA (e.g. type=IMPORT)
 app.use('/api/zatca', authMiddleware, zatcaCompatRoutes);
 app.use('/api/zatca-tas/v1', authMiddleware, zatcaCompatRoutesV1);
+app.use('/api/zatca-tas/v2', authMiddleware, zatcaTasV2Routes);
+app.use('/api/zatca-tas/customs', authMiddleware, zatcaTasCustomsRoutes);
+app.use('/api/zatca-fleet/v1', authMiddleware, zatcaFleetV1Routes);
 app.use('/api/zatca-fleet/v2', authMiddleware, zatcaFleetCompatRoutes);
 app.use('/api/auth', authRoutes);
 
@@ -73,7 +85,14 @@ app.get('/', (req, res) => {
       schedule: '/api/fasah/schedule/land',
       zatcaScheduleLand: 'GET /api/zatca/zone/schedule/land/server-one?departure=&arrival=&type=',
       zatcaLandAppointmentCreate: 'POST /api/zatca-tas/v2/appointment/land/create',
+      zatcaTasCustomsDriverTruckInfo:
+        'GET /api/zatca-tas/customs/forigen/driver-truck-info?purpose=&consignmentNumber=',
       zatcaLandAppointmentPdf: 'GET /api/zatca-tas/v1/appoint/pdf/generateLand?ref=',
+      zatcaFleetResidentCountries: 'GET /api/zatca-fleet/v1/lookup/resident/countries',
+      zatcaFleetNationality: 'GET /api/zatca-fleet/v1/nationality',
+      zatcaFleetTruckColors: 'GET /api/zatca-fleet/v1/lookup/truck/colors?q=',
+      zatcaFleetV2TruckBrands: 'GET /api/zatca-fleet/v2/truck/lookup/brands?q=',
+      zatcaFleetV2TruckModels: 'GET /api/zatca-fleet/v2/truck/lookup/models/:brandCode?q=',
       scheduleImport: 'GET /api/fasah/schedule/land?type=IMPORT',
       scheduleEmptyTruck: 'GET /api/fasah/schedule/land?type=EMPTY_TRUCK',
       getDeclarationInfo: 'GET /api/fasah/appointment/transit/getDeclarationInfo?decNo=&arrivalPort=',

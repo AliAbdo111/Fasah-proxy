@@ -264,6 +264,60 @@
           }
         },
         {
+          "name": "ZATCA Fleet V1 - Resident countries lookup",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-fleet/v1/lookup/resident/countries?userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-fleet", "v1", "lookup", "resident", "countries"],
+              "query": [{ "key": "userType", "value": "broker" }]
+            }
+          }
+        },
+        {
+          "name": "ZATCA Fleet V1 - Nationality lookup",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-fleet/v1/nationality?userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-fleet", "v1", "nationality"],
+              "query": [{ "key": "userType", "value": "broker" }]
+            }
+          }
+        },
+        {
+          "name": "ZATCA Fleet V1 - Truck colors lookup",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-fleet/v1/lookup/truck/colors?q=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-fleet", "v1", "lookup", "truck", "colors"],
+              "query": [
+                { "key": "q", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
           "name": "ZATCA Fleet V2 - Drivers verified forAdd",
           "request": {
             "method": "GET",
@@ -342,6 +396,46 @@
           }
         },
         {
+          "name": "ZATCA Fleet V2 - Truck brands lookup",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-fleet/v2/truck/lookup/brands?q=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-fleet", "v2", "truck", "lookup", "brands"],
+              "query": [
+                { "key": "q", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ZATCA Fleet V2 - Truck models lookup",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-fleet/v2/truck/lookup/models/1?q=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-fleet", "v2", "truck", "lookup", "models", "1"],
+              "query": [
+                { "key": "q", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
           "name": "Create Transit Appointment",
           "request": {
             "method": "POST",
@@ -372,6 +466,27 @@
               "raw": "{\n  \"arraival_port\": \"31\",\n  \"declaration_no\": [\"145542\"],\n  \"departure_port\": \"AGF\",\n  \"fleetInformation\": [\n    {\n      \"consignmentNumber\": \"260409-17380451\",\n      \"modelYear\": \"2020\",\n      \"ownerName\": \"^ ^ ^ ^ ^  ^ ^ ^ ^  ^ ^ ^ \",\n      \"ownerNationalityCode\": \"101\",\n      \"brandCode\": \"1\",\n      \"modelCode\": \"0\",\n      \"plateColorCode\": \"1\",\n      \"residentCountry\": \"110\",\n      \"passportIssueDate\": \"2026-04-06\"\n    }\n  ],\n  \"purpose\": \"1\",\n  \"saudi_port\": \"31\",\n  \"to_ref_no\": null,\n  \"transit_port\": \"\",\n  \"transit_schedule_id\": \"\",\n  \"zone_schedule_id\": \"31311775732831327\",\n  \"userType\": \"broker\"\n}"
             },
             "url": "{{base_url}}/api/zatca-tas/v2/appointment/land/create"
+          }
+        },
+        {
+          "name": "ZATCA TAS - Customs foreign driver-truck info",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-tas/customs/forigen/driver-truck-info?purpose=1&consignmentNumber=260409-17380451&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-tas", "customs", "forigen", "driver-truck-info"],
+              "query": [
+                { "key": "purpose", "value": "1" },
+                { "key": "consignmentNumber", "value": "260409-17380451" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
           }
         }
       ]

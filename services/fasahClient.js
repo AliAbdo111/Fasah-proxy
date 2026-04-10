@@ -362,7 +362,358 @@ class FasahClient {
     }
   }
 
+  /**
+   * GET /api/zatca-fleet/v1/lookup/resident/countries
+   * @param {Object} params
+   * @param {string} params.token
+   * @param {string} [params.userType='broker']
+   * @param {Object} [params.query] - optional query string params forwarded upstream
+   */
+  async getFleetResidentCountriesLookup(params) {
+    try {
+      const { token, userType = 'broker', query = {} } = params;
+      if (!token) {
+        throw new Error('Authentication token is required');
+      }
 
+      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+      const url = `${baseUrl}/api/zatca-fleet/v1/lookup/resident/countries`;
+
+      const headers = {
+        Accept: 'application/json',
+        'Accept-Language': 'ar',
+        'Content-Type': 'application/json; charset=utf-8',
+        token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      };
+
+      const axiosConfig = {
+        params: query,
+        headers,
+        timeout: 30000,
+        validateStatus(status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.useProxy) {
+        const proxy = this.getNextProxy();
+        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy (fleet lookup): ${proxy.host}:${proxy.port}`);
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
+      }
+
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * GET /api/zatca-fleet/v1/nationality
+   * @param {Object} params
+   * @param {string} params.token
+   * @param {string} [params.userType='broker']
+   * @param {Object} [params.query] - optional query string params forwarded upstream
+   */
+  async getFleetNationalityLookup(params) {
+    try {
+      const { token, userType = 'broker', query = {} } = params;
+      if (!token) {
+        throw new Error('Authentication token is required');
+      }
+
+      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+      const url = `${baseUrl}/api/zatca-fleet/v1/nationality`;
+
+      const headers = {
+        Accept: 'application/json',
+        'Accept-Language': 'ar',
+        'Content-Type': 'application/json; charset=utf-8',
+        token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      };
+
+      const axiosConfig = {
+        params: query,
+        headers,
+        timeout: 30000,
+        validateStatus(status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.useProxy) {
+        const proxy = this.getNextProxy();
+        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy (fleet nationality): ${proxy.host}:${proxy.port}`);
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
+      }
+
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * GET /api/zatca-fleet/v1/lookup/truck/colors
+   * @param {Object} params
+   * @param {string} params.token
+   * @param {string} [params.userType='broker']
+   * @param {Object} [params.query] - optional query string params (e.g. q) forwarded upstream
+   */
+  async getFleetTruckColorsLookup(params) {
+    try {
+      const { token, userType = 'broker', query = {} } = params;
+      if (!token) {
+        throw new Error('Authentication token is required');
+      }
+
+      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+      const url = `${baseUrl}/api/zatca-fleet/v1/lookup/truck/colors`;
+
+      const headers = {
+        Accept: 'application/json',
+        'Accept-Language': 'ar',
+        'Content-Type': 'application/json; charset=utf-8',
+        token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      };
+
+      const axiosConfig = {
+        params: query,
+        headers,
+        timeout: 30000,
+        validateStatus(status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.useProxy) {
+        const proxy = this.getNextProxy();
+        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy (fleet truck colors): ${proxy.host}:${proxy.port}`);
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
+      }
+
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * GET /api/zatca-fleet/v2/truck/lookup/brands
+   * @param {Object} params
+   * @param {string} params.token
+   * @param {string} [params.userType='broker']
+   * @param {Object} [params.query] - optional query string params (e.g. q) forwarded upstream
+   */
+  async getFleetV2TruckBrandsLookup(params) {
+    try {
+      const { token, userType = 'broker', query = {} } = params;
+      if (!token) {
+        throw new Error('Authentication token is required');
+      }
+
+      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+      const url = `${baseUrl}/api/zatca-fleet/v2/truck/lookup/brands`;
+
+      const headers = {
+        Accept: 'application/json',
+        'Accept-Language': 'ar',
+        'Content-Type': 'application/json; charset=utf-8',
+        token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      };
+
+      const axiosConfig = {
+        params: query,
+        headers,
+        timeout: 30000,
+        validateStatus(status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.useProxy) {
+        const proxy = this.getNextProxy();
+        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy (fleet v2 truck brands): ${proxy.host}:${proxy.port}`);
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
+      }
+
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * GET /api/zatca-fleet/v2/truck/lookup/models/:brandCode
+   * @param {Object} params
+   * @param {string} params.brandCode - brand id in path (e.g. "1")
+   * @param {string} params.token
+   * @param {string} [params.userType='broker']
+   * @param {Object} [params.query] - optional query string params (e.g. q) forwarded upstream
+   */
+  async getFleetV2TruckModelsLookup(params) {
+    try {
+      const { brandCode, token, userType = 'broker', query = {} } = params;
+      if (!token) {
+        throw new Error('Authentication token is required');
+      }
+      if (brandCode === undefined || brandCode === null || String(brandCode).trim() === '') {
+        throw new Error('brandCode is required');
+      }
+
+      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+      const encoded = encodeURIComponent(String(brandCode));
+      const url = `${baseUrl}/api/zatca-fleet/v2/truck/lookup/models/${encoded}`;
+
+      const headers = {
+        Accept: 'application/json',
+        'Accept-Language': 'ar',
+        'Content-Type': 'application/json; charset=utf-8',
+        token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      };
+
+      const axiosConfig = {
+        params: query,
+        headers,
+        timeout: 30000,
+        validateStatus(status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.useProxy) {
+        const proxy = this.getNextProxy();
+        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy (fleet v2 truck models): ${proxy.host}:${proxy.port}`);
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
+      }
+
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * GET /api/zatca-tas/customs/forigen/driver-truck-info
+   * @param {Object} params
+   * @param {string} params.token
+   * @param {string} [params.userType='broker']
+   * @param {Object} [params.query] - query string forwarded upstream (e.g. purpose, consignmentNumber)
+   */
+  async getZatcaTasCustomsForeignDriverTruckInfo(params) {
+    try {
+      const { token, userType = 'broker', query = {} } = params;
+      if (!token) {
+        throw new Error('Authentication token is required');
+      }
+
+      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+      const url = `${baseUrl}/api/zatca-tas/customs/forigen/driver-truck-info`;
+
+      const headers = {
+        Accept: 'application/json',
+        'Accept-Language': 'ar',
+        'Content-Type': 'application/json; charset=utf-8',
+        token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      };
+
+      const axiosConfig = {
+        params: query,
+        headers,
+        timeout: 30000,
+        validateStatus(status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.useProxy) {
+        const proxy = this.getNextProxy();
+        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy (zatca-tas customs driver-truck-info): ${proxy.host}:${proxy.port}`);
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
+      }
+
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
 
   /**
  * Get a paginated list of verified drivers for a specific port and appointment time.
