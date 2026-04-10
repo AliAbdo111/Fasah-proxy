@@ -74,7 +74,7 @@ router.get('/schedule/land', async (req, res) => {
 router.get('/drivers/verified/all/forAdd', async (req, res) => {
   try {
     // Extract query parameters
-    const { port, appointmentTime, page, size, order, sortby, q, userType='broker' } = req.query;
+    const { port, appointmentTime, page, size, order, sortby, q, localTrucks, userType='broker' } = req.query;
     
     // Get token from header (same method as existing route)
     const token = req.headers['x-fasah-token'] || 
@@ -99,6 +99,7 @@ router.get('/drivers/verified/all/forAdd', async (req, res) => {
       order: order || 'desc',
       sortby: sortby || 'licenseNo',
       q: q || '',
+      localTrucks,
       userType: userType // This endpoint is for transporter portal
     });
 
@@ -122,7 +123,7 @@ router.get('/drivers/verified/all/forAdd', async (req, res) => {
 router.get('/trucks/verified/all/forAdd', async (req, res) => {
   try {
     // استخراج معاملات البحث من query parameters
-    const { port, appointmentTime, page, size, order, sortby, q, userType='broker' } = req.query;
+    const { port, appointmentTime, page, size, order, sortby, q, localTrucks, userType='broker' } = req.query;
     
     // الحصول على رمز المصادقة من الهيدرات
     const token = req.headers['x-fasah-token'] || 
@@ -147,6 +148,7 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
       order: order || 'desc',
       sortby: sortby || 'plateNumberEn',
       q: q || '',
+      localTrucks,
       userType: userType
     });
 

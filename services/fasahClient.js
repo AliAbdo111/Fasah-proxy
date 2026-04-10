@@ -389,6 +389,7 @@ async getVerifiedDrivers(params) {
       order = 'desc',
       sortby = 'licenseNo',
       q = '',
+      localTrucks,
       userType = 'transporter' // This endpoint is specific to transporter portal
     } = params;
 
@@ -414,6 +415,10 @@ async getVerifiedDrivers(params) {
       sortby,
       q
     };
+    if (localTrucks !== undefined && localTrucks !== '') {
+      queryParams.localTrucks =
+        localTrucks === true || localTrucks === 'true' || localTrucks === '1';
+    }
 
     // Prepare headers (matching the curl request)
     const headers = {
@@ -471,6 +476,7 @@ async getVerifiedTrucks(params) {
       order = 'desc',
       sortby = 'plateNumberEn',
       q = '',
+      localTrucks,
       userType = 'transporter'
     } = params;
 
@@ -496,6 +502,10 @@ async getVerifiedTrucks(params) {
       sortby,
       q
     };
+    if (localTrucks !== undefined && localTrucks !== '') {
+      queryParams.localTrucks =
+        localTrucks === true || localTrucks === 'true' || localTrucks === '1';
+    }
 
     // إعداد الهيدرات (نفس إعدادات السائقين)
     const headers = {
@@ -638,6 +648,92 @@ async createTransitAppointment(params) {
       data: {
         error: JSON.stringify(error)
       },
+      type: 'error'
+    });
+    this.handleError(error);
+  }
+}
+
+/**
+ * Create land appointment (ZATCA TAS v2)
+ * @param {Object} params
+ * @param {Object} params.body - JSON body as required by upstream (e.g. arraival_port, zone_schedule_id, fleetInformation, …)
+ * @param {string} params.token - Bearer token
+ * @param {string} [params.userType='broker'] - broker | transporter
+ */
+async createLandAppointment({ body, token, userType = 'broker' }) {
+  try {
+    if (!token) {
+      throw new Error('رمز المصادقة مطلوب');
+    }
+    if (!body || typeof body !== 'object') {
+      throw new Error('Request body is required');
+    }
+
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}/api/zatca-tas/v2/appointment/land/create`;
+
+    const headers = {
+      Accept: 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=UTF-8',
+      Origin: baseUrl,
+      Referer: `${baseUrl}/ar/broker/2.0/`,
+      token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+    };
+
+    const postConfig = {
+      headers,
+      timeout: 30000,
+      validateStatus(status) {
+        return status >= 200 && status < 500;
+      }
+    };
+
+    if (this.useProxy) {
+      const proxy = this.getNextProxy();
+      postConfig.httpsAgent = this.createProxyAgent(proxy);
+      console.log(`Using proxy for create land appointment: ${proxy.host}:${proxy.port}`);
+      await loggerService.createLogger({
+        message: `Create land appointment via proxy: ${proxy.host}:${proxy.port}`,
+        data: { body },
+        type: 'info_request'
+      });
+      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      try {
+        const response = await axios.post(url, body, postConfig);
+        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        await loggerService.createLogger({
+          message: 'Create land appointment response',
+          data: { response: response.data },
+          type: 'info_response'
+        });
+        return response.data;
+      } catch (error) {
+        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        this.loggerService.createLogger({
+          message: `Create land appointment error: ${error}`,
+          data: { error: String(error) },
+          type: 'error'
+        });
+        throw error;
+      }
+    }
+
+    const response = await axios.post(url, body, postConfig);
+    await loggerService.createLogger({
+      message: 'Create land appointment response',
+      data: { response: response.data },
+      type: 'info_response'
+    });
+    return response.data;
+  } catch (error) {
+    this.loggerService.createLogger({
+      message: `Land appointment create error: ${error}`,
+      data: { error: JSON.stringify(error) },
       type: 'error'
     });
     this.handleError(error);

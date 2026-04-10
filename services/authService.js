@@ -111,6 +111,76 @@ async function deactivateUser(userId) {
   return { user: { _id: user._id, email: user.email, isActive: user.isActive } };
 }
 
+async function updateUser(userId, payload = {}) {
+  const user = await User.findById(userId);
+  if (!user) throw { status: 404, message: 'User not found' };
+
+  const {
+    email,
+    password,
+    phone,
+    username,
+    isActive,
+    emailVerified,
+    phoneVerified
+  } = payload;
+
+  const hasAnyField =
+    email !== undefined ||
+    password !== undefined ||
+    phone !== undefined ||
+    username !== undefined ||
+    isActive !== undefined ||
+    emailVerified !== undefined ||
+    phoneVerified !== undefined;
+
+  if (!hasAnyField) {
+    throw { status: 400, message: 'No fields provided to update' };
+  }
+
+  if (email !== undefined) {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!normalizedEmail) throw { status: 400, message: 'Email cannot be empty' };
+    const existingEmail = await User.findOne({ email: normalizedEmail, _id: { $ne: userId } }).select('_id');
+    if (existingEmail) throw { status: 400, message: 'Email already registered' };
+    user.email = normalizedEmail;
+  }
+
+  if (username !== undefined) {
+    const normalizedUsername = String(username).trim();
+    if (normalizedUsername) {
+      const existingUsername = await User.findOne({ username: normalizedUsername, _id: { $ne: userId } }).select('_id');
+      if (existingUsername) throw { status: 400, message: 'Username already taken' };
+    }
+    user.username = normalizedUsername;
+  }
+
+  if (phone !== undefined) user.phone = String(phone).trim();
+  if (isActive !== undefined) user.isActive = Boolean(isActive);
+  if (emailVerified !== undefined) user.emailVerified = Boolean(emailVerified);
+  if (phoneVerified !== undefined) user.phoneVerified = Boolean(phoneVerified);
+
+  if (password !== undefined) {
+    if (String(password).length < 6) throw { status: 400, message: 'Password must be at least 6 characters' };
+    user.password = String(password);
+  }
+
+  await user.save();
+
+  return {
+    user: {
+      _id: user._id,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
+      isActive: user.isActive,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      bookingCount: user.bookingCount
+    }
+  };
+}
+
 async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
@@ -174,6 +244,7 @@ module.exports = {
   resendOtp,
   activateUser,
   deactivateUser,
+  updateUser,
   listUsers,
   resetBookingCount,
   resetAllBookingCounts,

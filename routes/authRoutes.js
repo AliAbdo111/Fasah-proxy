@@ -141,6 +141,19 @@ router.patch('/users/:userId/deactivate', async (req, res) => {
   }
 });
 
+// PATCH /api/auth/users/:userId (protected) - update user including password
+router.patch('/users/:userId', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    authService.verifyToken(token);
+    const result = await authService.updateUser(req.params.userId, req.body || {});
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to update user' });
+  }
+});
+
 // GET /api/auth/users (protected) - list users
 router.get('/users', async (req, res) => {
   try {

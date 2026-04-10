@@ -120,6 +120,21 @@
           }
         },
         {
+          "name": "Update User (with password)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"phone\": \"+966500000000\",\n  \"username\": \"updated_user\",\n  \"password\": \"newpassword123\",\n  \"isActive\": true,\n  \"emailVerified\": true,\n  \"phoneVerified\": false\n}"
+            },
+            "url": "{{base_url}}/api/auth/users/{{userId}}"
+          }
+        },
+        {
           "name": "List Users",
           "request": {
             "method": "GET",
@@ -231,12 +246,39 @@
               { "key": "x-fasah-token", "value": "{{fasah_token}}" }
             ],
             "url": {
-              "raw": "{{base_url}}/api/fasah/drivers/verified/all/forAdd?port=&appointmentTime=&page=1&size=10&order=desc&sortby=licenseNo&q=&userType=broker",
+              "raw": "{{base_url}}/api/fasah/drivers/verified/all/forAdd?port=&appointmentTime=&localTrucks=true&page=1&size=10&order=desc&sortby=licenseNo&q=&userType=broker",
               "host": ["{{base_url}}"],
               "path": ["api", "fasah", "drivers", "verified", "all", "forAdd"],
               "query": [
                 { "key": "port", "value": "" },
                 { "key": "appointmentTime", "value": "" },
+                { "key": "localTrucks", "value": "true" },
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "order", "value": "desc" },
+                { "key": "sortby", "value": "licenseNo" },
+                { "key": "q", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ZATCA Fleet V2 - Drivers verified forAdd",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-fleet/v2/driver/verified/all/forAdd?port=31&appointmentTime=2026/04/10&localTrucks=true&page=1&size=10&order=desc&sortby=licenseNo&q=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-fleet", "v2", "driver", "verified", "all", "forAdd"],
+              "query": [
+                { "key": "port", "value": "31" },
+                { "key": "appointmentTime", "value": "2026/04/10" },
+                { "key": "localTrucks", "value": "true" },
                 { "key": "page", "value": "1" },
                 { "key": "size", "value": "10" },
                 { "key": "order", "value": "desc" },
@@ -256,12 +298,39 @@
               { "key": "x-fasah-token", "value": "{{fasah_token}}" }
             ],
             "url": {
-              "raw": "{{base_url}}/api/fasah/trucks/verified/all/forAdd?port=&appointmentTime=&page=1&size=10&order=desc&sortby=plateNumberEn&q=&userType=broker",
+              "raw": "{{base_url}}/api/fasah/trucks/verified/all/forAdd?port=&appointmentTime=&localTrucks=true&page=1&size=10&order=desc&sortby=plateNumberEn&q=&userType=broker",
               "host": ["{{base_url}}"],
               "path": ["api", "fasah", "trucks", "verified", "all", "forAdd"],
               "query": [
                 { "key": "port", "value": "" },
                 { "key": "appointmentTime", "value": "" },
+                { "key": "localTrucks", "value": "true" },
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "order", "value": "desc" },
+                { "key": "sortby", "value": "plateNumberEn" },
+                { "key": "q", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ZATCA Fleet V2 - Trucks verified forAdd",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-fleet/v2/truck/verified/all/forAdd?port=31&appointmentTime=2026/04/10&localTrucks=true&page=1&size=10&order=desc&sortby=plateNumberEn&q=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-fleet", "v2", "truck", "verified", "all", "forAdd"],
+              "query": [
+                { "key": "port", "value": "31" },
+                { "key": "appointmentTime", "value": "2026/04/10" },
+                { "key": "localTrucks", "value": "true" },
                 { "key": "page", "value": "1" },
                 { "key": "size", "value": "10" },
                 { "key": "order", "value": "desc" },
@@ -286,6 +355,23 @@
               "raw": "{\n  \"port_code\": \"\",\n  \"zone_schedule_id\": \"\",\n  \"purpose\": \"\",\n  \"cargo_type\": \"\",\n  \"declaration_number\": \"\",\n  \"fleet_info\": {},\n  \"bayan_appointment\": {},\n  \"userType\": \"broker\"\n}"
             },
             "url": "{{base_url}}/api/fasah/appointment/transit/create"
+          }
+        },
+        {
+          "name": "Create Land Appointment (ZATCA TAS v2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"arraival_port\": \"31\",\n  \"declaration_no\": [\"145542\"],\n  \"departure_port\": \"AGF\",\n  \"fleetInformation\": [\n    {\n      \"consignmentNumber\": \"260409-17380451\",\n      \"modelYear\": \"2020\",\n      \"ownerName\": \"^ ^ ^ ^ ^  ^ ^ ^ ^  ^ ^ ^ \",\n      \"ownerNationalityCode\": \"101\",\n      \"brandCode\": \"1\",\n      \"modelCode\": \"0\",\n      \"plateColorCode\": \"1\",\n      \"residentCountry\": \"110\",\n      \"passportIssueDate\": \"2026-04-06\"\n    }\n  ],\n  \"purpose\": \"1\",\n  \"saudi_port\": \"31\",\n  \"to_ref_no\": null,\n  \"transit_port\": \"\",\n  \"transit_schedule_id\": \"\",\n  \"zone_schedule_id\": \"31311775732831327\",\n  \"userType\": \"broker\"\n}"
+            },
+            "url": "{{base_url}}/api/zatca-tas/v2/appointment/land/create"
           }
         }
       ]
