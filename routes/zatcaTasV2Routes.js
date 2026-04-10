@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
-const User = require('./models/User');
+const bookingDailyLimits = require('../services/bookingDailyLimits');
 
 const client = new FasahClient();
 
@@ -32,6 +32,15 @@ router.post('/appointment/land/create', async (req, res) => {
       });
     }
 
+    if (req.user && req.user._id) {
+      try {
+        await bookingDailyLimits.assertCanImportBook(req.user._id);
+      } catch (e) {
+        const status = e.status || 403;
+        return res.status(status).json({ success: false, message: e.message });
+      }
+    }
+
     const payload = { ...req.body };
     const userType = payload.userType || 'broker';
     delete payload.userType;
@@ -50,7 +59,7 @@ router.post('/appointment/land/create', async (req, res) => {
     }
 
     if (req.user && req.user._id) {
-      await User.findByIdAndUpdate(req.user._id, { $inc: { bookingCount: 1 } });
+      await bookingDailyLimits.recordImportBookingSuccess(req.user._id);
     }
 
     res.json({ success: true, data: result });

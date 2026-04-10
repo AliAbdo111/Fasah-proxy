@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
 const User = require('./models/User');
+const bookingDailyLimits = require('../services/bookingDailyLimits');
 
 // Initialize client
 const client = new FasahClient();
@@ -257,6 +258,15 @@ router.post('/appointment/transit/create', async (req, res) => {
       });
     }
 
+    if (req.user && req.user._id) {
+      try {
+        await bookingDailyLimits.assertCanTransitBook(req.user._id);
+      } catch (e) {
+        const status = e.status || 403;
+        return res.status(status).json({ success: false, message: e.message });
+      }
+    }
+
     // استدعاء Method إنشاء الموعد
     const result = await client.createTransitAppointment({
       port_code,
@@ -278,9 +288,8 @@ router.post('/appointment/transit/create', async (req, res) => {
       });
     }
 
-    // زيادة عداد الحجوزات للمستخدم بعد النجاح
     if (req.user && req.user._id) {
-      await User.findByIdAndUpdate(req.user._id, { $inc: { bookingCount: 1 } });
+      await bookingDailyLimits.recordTransitBookingSuccess(req.user._id);
     }
 
     // إرجاع النتيجة الناجحة

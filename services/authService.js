@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../routes/models/User');
+const bookingDailyLimits = require('./bookingDailyLimits');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -47,9 +48,27 @@ async function login(email, password) {
   if (!user.isActive) throw { status: 403, message: 'Account is deactivated' };
   const valid = await user.comparePassword(password);
   if (!valid) throw { status: 401, message: 'Invalid email or password' };
+  await bookingDailyLimits.syncUserBookingDay(user._id);
+  const refreshed = await User.findById(user._id).select(
+    '-password -otp -otpExpires -resetPasswordToken -resetPasswordExpires'
+  );
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   return {
-    user: { _id: user._id, email: user.email, phone: user.phone, username: user.username, emailVerified: user.emailVerified, phoneVerified: user.phoneVerified, isActive: user.isActive, bookingCount: user.bookingCount },
+    user: {
+      _id: refreshed._id,
+      email: refreshed.email,
+      phone: refreshed.phone,
+      username: refreshed.username,
+      emailVerified: refreshed.emailVerified,
+      phoneVerified: refreshed.phoneVerified,
+      isActive: refreshed.isActive,
+      bookingCount: refreshed.bookingCount,
+      transitBookingCount: refreshed.transitBookingCount,
+      importBookingCount: refreshed.importBookingCount,
+      maxTransitBookingCount: bookingDailyLimits.effectiveMaxTransit(refreshed),
+      maxImportBookingCount: bookingDailyLimits.effectiveMaxImport(refreshed),
+      lastBookingCountDay: refreshed.lastBookingCountDay
+    },
     token
   };
 }
@@ -122,7 +141,9 @@ async function updateUser(userId, payload = {}) {
     username,
     isActive,
     emailVerified,
-    phoneVerified
+    phoneVerified,
+    maxTransitBookingCount,
+    maxImportBookingCount
   } = payload;
 
   const hasAnyField =
@@ -132,7 +153,9 @@ async function updateUser(userId, payload = {}) {
     username !== undefined ||
     isActive !== undefined ||
     emailVerified !== undefined ||
-    phoneVerified !== undefined;
+    phoneVerified !== undefined ||
+    maxTransitBookingCount !== undefined ||
+    maxImportBookingCount !== undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -165,6 +188,17 @@ async function updateUser(userId, payload = {}) {
     user.password = String(password);
   }
 
+  if (maxTransitBookingCount !== undefined) {
+    const n = Number(maxTransitBookingCount);
+    if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'maxTransitBookingCount must be a non-negative number' };
+    user.maxTransitBookingCount = n;
+  }
+  if (maxImportBookingCount !== undefined) {
+    const n = Number(maxImportBookingCount);
+    if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'maxImportBookingCount must be a non-negative number' };
+    user.maxImportBookingCount = n;
+  }
+
   await user.save();
 
   return {
@@ -176,7 +210,12 @@ async function updateUser(userId, payload = {}) {
       isActive: user.isActive,
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
-      bookingCount: user.bookingCount
+      bookingCount: user.bookingCount,
+      transitBookingCount: user.transitBookingCount,
+      importBookingCount: user.importBookingCount,
+      maxTransitBookingCount: bookingDailyLimits.effectiveMaxTransit(user),
+      maxImportBookingCount: bookingDailyLimits.effectiveMaxImport(user),
+      lastBookingCountDay: user.lastBookingCountDay
     }
   };
 }
@@ -195,7 +234,9 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   }
   const [items, total] = await Promise.all([
     User.find(filter)
-      .select('email phone username isActive bookingCount emailVerified phoneVerified createdAt updatedAt')
+      .select(
+        'email phone username isActive bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay emailVerified phoneVerified createdAt updatedAt'
+      )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum),
@@ -205,17 +246,49 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
 }
 
 async function resetBookingCount(userId) {
+  const today = bookingDailyLimits.utcYmd();
   const user = await User.findByIdAndUpdate(
     userId,
-    { bookingCount: 0 },
+    {
+      $set: {
+        bookingCount: 0,
+        transitBookingCount: 0,
+        importBookingCount: 0,
+        lastBookingCountDay: today
+      }
+    },
     { new: true }
-  ).select('email bookingCount');
+  ).select(
+    'email bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay'
+  );
   if (!user) throw { status: 404, message: 'User not found' };
-  return { user: { _id: user._id, email: user.email, bookingCount: user.bookingCount } };
+  return {
+    user: {
+      _id: user._id,
+      email: user.email,
+      bookingCount: user.bookingCount,
+      transitBookingCount: user.transitBookingCount,
+      importBookingCount: user.importBookingCount,
+      maxTransitBookingCount: bookingDailyLimits.effectiveMaxTransit(user),
+      maxImportBookingCount: bookingDailyLimits.effectiveMaxImport(user),
+      lastBookingCountDay: user.lastBookingCountDay
+    }
+  };
 }
 
 async function resetAllBookingCounts() {
-  const result = await User.updateMany({}, { $set: { bookingCount: 0 } });
+  const today = bookingDailyLimits.utcYmd();
+  const result = await User.updateMany(
+    {},
+    {
+      $set: {
+        bookingCount: 0,
+        transitBookingCount: 0,
+        importBookingCount: 0,
+        lastBookingCountDay: today
+      }
+    }
+  );
   return { matched: result.matchedCount ?? result.n ?? 0, modified: result.modifiedCount ?? result.nModified ?? 0 };
 }
 

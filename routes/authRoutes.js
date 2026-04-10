@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authService = require('../services/authService');
+const bookingDailyLimits = require('../services/bookingDailyLimits');
 
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
@@ -106,6 +107,7 @@ router.get('/me', async (req, res) => {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
     const decoded = authService.verifyToken(token);
     const User = require('./models/User');
+    await bookingDailyLimits.syncUserBookingDay(decoded.userId);
     const user = await User.findById(decoded.userId).select('-password -otp -otpExpires -resetPasswordToken -resetPasswordExpires');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, user });

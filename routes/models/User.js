@@ -41,6 +41,39 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  /** UTC calendar day (YYYY-MM-DD) for which transit/import counts below apply */
+  lastBookingCountDay: {
+    type: String,
+    default: ''
+  },
+  /** Successful transit appointments today (resets when lastBookingCountDay changes) */
+  transitBookingCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  /** Successful land/import appointments today */
+  importBookingCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  maxTransitBookingCount: {
+    type: Number,
+    default: () => {
+      const n = parseInt(process.env.MAX_TRANSIT_BOOKINGS_PER_DAY || '50', 10);
+      return Number.isFinite(n) && n >= 0 ? n : 50;
+    },
+    min: 0
+  },
+  maxImportBookingCount: {
+    type: Number,
+    default: () => {
+      const n = parseInt(process.env.MAX_IMPORT_BOOKINGS_PER_DAY || '50', 10);
+      return Number.isFinite(n) && n >= 0 ? n : 50;
+    },
+    min: 0
+  },
   otp: {
     type: String,
     select: false
