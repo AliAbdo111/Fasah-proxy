@@ -85,6 +85,8 @@ app.get('/', (req, res) => {
       schedule: '/api/fasah/schedule/land',
       zatcaScheduleLand: 'GET /api/zatca/zone/schedule/land/server-one?departure=&arrival=&type=',
       zatcaLandAppointmentCreate: 'POST /api/zatca-tas/v2/appointment/land/create',
+      zatcaBulkGetDeclarationInfo:
+        'GET /api/zatca-tas/v2/appointment/bulk/getDeclarationInfo?decNo=&port=&purpose=&toRefNo=',
       zatcaTasCustomsDriverTruckInfo:
         'GET /api/zatca-tas/customs/forigen/driver-truck-info?purpose=&consignmentNumber=',
       zatcaLandAppointmentPdf: 'GET /api/zatca-tas/v1/appoint/pdf/generateLand?ref=',

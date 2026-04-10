@@ -1130,6 +1130,44 @@ async getDeclarationInfo(params) {
 }
 
 /**
+ * GET /api/zatca-tas/v2/appointment/bulk/getDeclarationInfo
+ * @param {Object} params
+ * @param {string} params.token
+ * @param {string} [params.userType='broker']
+ * @param {Object} params.query - forwarded as axios params (decNo, port, purpose, toRefNo, …)
+ */
+async getBulkDeclarationInfo(params) {
+  try {
+    const { token, userType = 'broker', query = {} } = params;
+    if (!token) {
+      throw new Error('Authentication token is required');
+    }
+    const decNo = query.decNo;
+    const port = query.port;
+    if (!decNo || !port) {
+      throw new Error('Missing required parameters: decNo and port are required');
+    }
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}${this.apiPath}/appointment/bulk/getDeclarationInfo`;
+    const headers = {
+      Accept: 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=utf-8',
+      token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+    };
+    const response = await axios.get(url, {
+      params: query,
+      headers,
+      timeout: 30000,
+      validateStatus: (status) => status >= 200 && status < 500
+    });
+    return response.data;
+  } catch (error) {
+    this.handleError(error);
+  }
+}
+
+/**
  * Generate land appointment PDF (ZATCA v1)
  * @param {Object} params
  * @param {string} params.ref - Appointment reference (e.g. TAS20260316234829745)

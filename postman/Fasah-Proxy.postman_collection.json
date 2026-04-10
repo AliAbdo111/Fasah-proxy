@@ -469,6 +469,29 @@
           }
         },
         {
+          "name": "ZATCA TAS v2 - Bulk getDeclarationInfo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-auth-token", "value": "{{auth_token}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "x-fasah-token", "value": "{{fasah_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/zatca-tas/v2/appointment/bulk/getDeclarationInfo?decNo=48433&port=31&purpose=1&toRefNo=&userType=broker",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zatca-tas", "v2", "appointment", "bulk", "getDeclarationInfo"],
+              "query": [
+                { "key": "decNo", "value": "48433" },
+                { "key": "port", "value": "31" },
+                { "key": "purpose", "value": "1" },
+                { "key": "toRefNo", "value": "" },
+                { "key": "userType", "value": "broker" }
+              ]
+            }
+          }
+        },
+        {
           "name": "ZATCA TAS - Customs foreign driver-truck info",
           "request": {
             "method": "GET",

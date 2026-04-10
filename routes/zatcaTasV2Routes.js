@@ -6,6 +6,55 @@ const bookingDailyLimits = require('../services/bookingDailyLimits');
 const client = new FasahClient();
 
 /**
+ * GET /api/zatca-tas/v2/appointment/bulk/getDeclarationInfo
+ * Query: decNo, port (required), purpose, toRefNo, … (forwarded); userType only for broker/transporter base URL.
+ */
+router.get('/appointment/bulk/getDeclarationInfo', async (req, res) => {
+  try {
+    const token =
+      req.headers['x-fasah-token'] ||
+      req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+      req.headers['token']?.replace(/^Bearer\s+/i, '');
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token is required.',
+        error: 'Missing authentication token'
+      });
+    }
+
+    const { userType: userTypeQ, usertype: usertypeQ, ...upstreamQuery } = req.query;
+    const userType = userTypeQ || usertypeQ || 'broker';
+
+    const result = await client.getBulkDeclarationInfo({
+      token,
+      userType,
+      query: upstreamQuery
+    });
+
+    if (result && result.success === false && result.errors && result.errors.length > 0) {
+      const firstError = result.errors[0];
+      const message = firstError.message || firstError.code || 'Declaration validation failed';
+      return res.status(400).json({
+        success: false,
+        message,
+        errors: result.errors
+      });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to get bulk declaration info',
+      ...(error.data && { details: error.data })
+    });
+  }
+});
+
+/**
  * POST /api/zatca-tas/v2/appointment/land/create
  * Same path and JSON body shape as ZATCA TAS v2 land appointment create.
  * Optional body field userType: broker | transporter (stripped before upstream).
