@@ -36,6 +36,7 @@
         <th>Username</th>
         <th>Phone</th>
         <th>Active</th>
+        <th>Booking Count</th>
         <th>Total Daily Bookings</th>
         <th>Daily Max Bookings</th>
         <th>Monthly Bookings</th>
@@ -99,6 +100,7 @@
               <td>${esc(u.username || '')}</td>
               <td>${esc(u.phone || '')}</td>
               <td>${u.isActive ? 'Yes' : 'No'}</td>
+              <td>${u.bookingCount || 0}</td>
               <td>Transit: ${u.transitBookingCount || 0} / Import: ${u.importBookingCount || 0} / Sum: ${u.totalDailyBookings || 0}</td>
               <td>Transit: ${u.maxTransitBookingCount || 0} / Import: ${u.maxImportBookingCount || 0}</td>
               <td>Transit: ${u.totalMonthlyTransitBookingCount || 0} / Import: ${u.totalMonthlyImportBookingCount || 0}</td>
