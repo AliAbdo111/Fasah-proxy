@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FASAH Proxy - Users</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { margin-bottom: 8px; }
+    .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    input, button { padding: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    th { background: #f5f5f5; }
+    .muted { color: #666; font-size: 12px; }
+    .error { color: #b00020; margin: 8px 0; }
+    .chip { display: inline-block; border: 1px solid #ccc; border-radius: 12px; padding: 2px 8px; margin-right: 4px; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>Users</h1>
+  <div class="toolbar">
+    <label>Search <input id="q" placeholder="email / username / phone" /></label>
+    <label>Page <input id="page" type="number" min="1" value="1" style="width:80px" /></label>
+    <label>Limit <input id="limit" type="number" min="1" max="200" value="20" style="width:90px" /></label>
+    <button id="loadBtn">Load</button>
+    <button id="logoutBtn">Logout</button>
+  </div>
+  <div id="meta" class="muted"></div>
+  <div id="err" class="error"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Username</th>
+        <th>Phone</th>
+        <th>Active</th>
+        <th>Total Daily Bookings</th>
+        <th>Daily Max Bookings</th>
+        <th>Monthly Bookings</th>
+        <th>Features</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    const token = localStorage.getItem('fasah.authToken');
+    const baseUrl = (localStorage.getItem('fasah.baseUrl') || window.location.origin).replace(/\/+$/, '');
+    if (!token) {
+      window.location.href = '/login.html';
+    }
+
+    const rows = document.getElementById('rows');
+    const err = document.getElementById('err');
+    const meta = document.getElementById('meta');
+
+    function esc(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    async function loadUsers() {
+      err.textContent = '';
+      rows.innerHTML = '';
+      const q = document.getElementById('q').value.trim();
+      const page = document.getElementById('page').value || '1';
+      const limit = document.getElementById('limit').value || '20';
+
+      const url = new URL(baseUrl + '/api/auth/users');
+      url.searchParams.set('page', page);
+      url.searchParams.set('limit', limit);
+      if (q) url.searchParams.set('q', q);
+
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'x-auth-token': token,
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || 'Failed to load users');
+        }
+
+        meta.textContent = `Page ${data.page} | Limit ${data.limit} | Total ${data.total}`;
+        for (const u of data.items || []) {
+          const features = Array.isArray(u.features) ? u.features : [];
+          const chips = features.map((f) => `<span class="chip">${esc(f)}</span>`).join('');
+          rows.insertAdjacentHTML('beforeend', `
+            <tr>
+              <td>${esc(u.email)}</td>
+              <td>${esc(u.username || '')}</td>
+              <td>${esc(u.phone || '')}</td>
+              <td>${u.isActive ? 'Yes' : 'No'}</td>
+              <td>Transit: ${u.transitBookingCount || 0} / Import: ${u.importBookingCount || 0} / Sum: ${u.totalDailyBookings || 0}</td>
+              <td>Transit: ${u.maxTransitBookingCount || 0} / Import: ${u.maxImportBookingCount || 0}</td>
+              <td>Transit: ${u.totalMonthlyTransitBookingCount || 0} / Import: ${u.totalMonthlyImportBookingCount || 0}</td>
+              <td>${chips}</td>
+            </tr>
+          `);
+        }
+      } catch (e) {
+        err.textContent = e.message || 'Load failed';
+      }
+    }
+
+    document.getElementById('loadBtn').addEventListener('click', loadUsers);
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('fasah.authToken');
+      window.location.href = '/login.html';
+    });
+
+    loadUsers();
+  </script>
+</body>
+</html>

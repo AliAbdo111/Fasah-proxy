@@ -15,10 +15,12 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const loggerService = require('./services/loggerSerivce');
+const path = require('path');
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const db = mongoose.connection;
 let mongoHasConnected = false;
@@ -73,6 +75,14 @@ app.use('/api/zatca-tas/customs', authMiddleware, zatcaTasCustomsRoutes);
 app.use('/api/zatca-fleet/v1', authMiddleware, zatcaFleetV1Routes);
 app.use('/api/zatca-fleet/v2', authMiddleware, zatcaFleetCompatRoutes);
 app.use('/api/auth', authRoutes);
+
+// Simple admin pages
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.get('/users', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'users.html'));
+});
 
 // Root endpoint
 app.get('/', (req, res) => {
