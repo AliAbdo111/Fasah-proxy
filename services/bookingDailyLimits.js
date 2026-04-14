@@ -11,6 +11,10 @@ function utcYmd(d = new Date()) {
   return d.toISOString().slice(0, 10);
 }
 
+function utcYm(d = new Date()) {
+  return d.toISOString().slice(0, 7);
+}
+
 function defaultMaxTransit() {
   const n = parseInt(process.env.MAX_TRANSIT_BOOKINGS_PER_DAY || '50', 10);
   return Number.isFinite(n) && n >= 0 ? n : 50;
@@ -22,10 +26,13 @@ function defaultMaxImport() {
 }
 
 /**
- * If stored day !== today (UTC), reset daily counters and set lastBookingCountDay.
+ * Sync daily and monthly windows in UTC:
+ * - day change => reset transitBookingCount/importBookingCount
+ * - month change => reset totalMonthlyTransitBookingCount/totalMonthlyImportBookingCount
  */
 async function syncUserBookingDay(userId) {
   const today = utcYmd();
+  const month = utcYm();
   await User.updateOne(
     {
       _id: userId,
@@ -37,6 +44,24 @@ async function syncUserBookingDay(userId) {
       ]
     },
     { $set: { transitBookingCount: 0, importBookingCount: 0, lastBookingCountDay: today } }
+  );
+  await User.updateOne(
+    {
+      _id: userId,
+      $or: [
+        { lastBookingCountMonth: { $exists: false } },
+        { lastBookingCountMonth: null },
+        { lastBookingCountMonth: '' },
+        { lastBookingCountMonth: { $ne: month } }
+      ]
+    },
+    {
+      $set: {
+        totalMonthlyTransitBookingCount: 0,
+        totalMonthlyImportBookingCount: 0,
+        lastBookingCountMonth: month
+      }
+    }
   );
 }
 
@@ -63,10 +88,13 @@ function bookingStatsPayload(user) {
     bookingCount: user.bookingCount,
     transitBookingCount: user.transitBookingCount,
     importBookingCount: user.importBookingCount,
+    totalMonthlyTransitBookingCount: user.totalMonthlyTransitBookingCount || 0,
+    totalMonthlyImportBookingCount: user.totalMonthlyImportBookingCount || 0,
     totalDailyBookings: totalDailyBookings(user),
     maxTransitBookingCount: effectiveMaxTransit(user),
     maxImportBookingCount: effectiveMaxImport(user),
     lastBookingCountDay: user.lastBookingCountDay,
+    lastBookingCountMonth: user.lastBookingCountMonth,
     features: resolveFeaturesForApi(user)
   };
 }
@@ -74,7 +102,7 @@ function bookingStatsPayload(user) {
 async function loadUserBookingState(userId) {
   await syncUserBookingDay(userId);
   return User.findById(userId).select(
-    'transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay bookingCount features'
+    'transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth bookingCount features'
   );
 }
 
@@ -116,12 +144,24 @@ async function assertCanImportBook(userId) {
 
 async function recordTransitBookingSuccess(userId) {
   await syncUserBookingDay(userId);
-  await User.findByIdAndUpdate(userId, { $inc: { transitBookingCount: 1, bookingCount: 1 } });
+  await User.findByIdAndUpdate(userId, {
+    $inc: {
+      transitBookingCount: 1,
+      totalMonthlyTransitBookingCount: 1,
+      bookingCount: 1
+    }
+  });
 }
 
 async function recordImportBookingSuccess(userId) {
   await syncUserBookingDay(userId);
-  await User.findByIdAndUpdate(userId, { $inc: { importBookingCount: 1, bookingCount: 1 } });
+  await User.findByIdAndUpdate(userId, {
+    $inc: {
+      importBookingCount: 1,
+      totalMonthlyImportBookingCount: 1,
+      bookingCount: 1
+    }
+  });
 }
 
 module.exports = {
@@ -129,6 +169,7 @@ module.exports = {
   FEATURE_IMPORT_BOOKING,
   DEFAULT_USER_FEATURES,
   utcYmd,
+  utcYm,
   defaultMaxTransit,
   defaultMaxImport,
   syncUserBookingDay,

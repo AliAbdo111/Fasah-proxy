@@ -242,7 +242,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   const [items, total] = await Promise.all([
     User.find(filter)
       .select(
-        'email phone username isActive bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay features emailVerified phoneVerified createdAt updatedAt'
+        'email phone username isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified createdAt updatedAt'
       )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
@@ -253,8 +253,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
     const o = doc.toObject();
     return {
       ...o,
-      totalDailyBookings: bookingDailyLimits.totalDailyBookings(o),
-      features: bookingDailyLimits.resolveFeaturesForApi(o)
+      ...bookingDailyLimits.bookingStatsPayload(o)
     };
   });
   return { items: itemsOut, page: pageNum, limit: limitNum, total };
@@ -269,12 +268,15 @@ async function resetBookingCount(userId) {
         bookingCount: 0,
         transitBookingCount: 0,
         importBookingCount: 0,
-        lastBookingCountDay: today
+        totalMonthlyTransitBookingCount: 0,
+        totalMonthlyImportBookingCount: 0,
+        lastBookingCountDay: today,
+        lastBookingCountMonth: bookingDailyLimits.utcYm()
       }
     },
     { new: true }
   ).select(
-    'email bookingCount transitBookingCount importBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay features'
+    'email bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features'
   );
   if (!user) throw { status: 404, message: 'User not found' };
   return {
@@ -295,7 +297,10 @@ async function resetAllBookingCounts() {
         bookingCount: 0,
         transitBookingCount: 0,
         importBookingCount: 0,
-        lastBookingCountDay: today
+        totalMonthlyTransitBookingCount: 0,
+        totalMonthlyImportBookingCount: 0,
+        lastBookingCountDay: today,
+        lastBookingCountMonth: bookingDailyLimits.utcYm()
       }
     }
   );

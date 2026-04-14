@@ -58,6 +58,23 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  /** UTC month (YYYY-MM) for which monthly totals below apply */
+  lastBookingCountMonth: {
+    type: String,
+    default: ''
+  },
+  /** Successful transit appointments in current UTC month */
+  totalMonthlyTransitBookingCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  /** Successful import/land appointments in current UTC month */
+  totalMonthlyImportBookingCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   maxTransitBookingCount: {
     type: Number,
     default: () => {
