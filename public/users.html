@@ -8,13 +8,20 @@
     body { font-family: Arial, sans-serif; margin: 20px; }
     h1 { margin-bottom: 8px; }
     .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-    input, button { padding: 8px; }
+    input, button, select, textarea { padding: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     th { background: #f5f5f5; }
     .muted { color: #666; font-size: 12px; }
     .error { color: #b00020; margin: 8px 0; }
+    .ok { color: #0b6b2f; margin: 8px 0; }
     .chip { display: inline-block; border: 1px solid #ccc; border-radius: 12px; padding: 2px 8px; margin-right: 4px; font-size: 11px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 12px 0; background: #fafafa; }
+    .card h2 { margin: 0 0 8px 0; font-size: 17px; }
+    .hidden { display: none; }
+    .actions-col { white-space: nowrap; }
+    .small-btn { padding: 6px 8px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -23,15 +30,58 @@
     <label>Search <input id="q" placeholder="email / username / phone" /></label>
     <label>Page <input id="page" type="number" min="1" value="1" style="width:80px" /></label>
     <label>Limit <input id="limit" type="number" min="1" max="200" value="20" style="width:90px" /></label>
+    <button id="openAddBtn">Add User</button>
     <button id="loadBtn">Load</button>
     <button id="logoutBtn">Logout</button>
   </div>
   <div id="meta" class="muted"></div>
   <div id="err" class="error"></div>
+  <div id="ok" class="ok"></div>
+
+  <div class="card hidden" id="addCard">
+    <h2>Add User</h2>
+    <form id="addForm" class="grid">
+      <label>Email <input id="addEmail" type="email" required /></label>
+      <label>Password <input id="addPassword" type="password" minlength="6" required /></label>
+      <label>Username <input id="addUsername" /></label>
+      <label>Phone <input id="addPhone" /></label>
+      <div>
+        <button type="submit">Create User</button>
+        <button type="button" id="cancelAddBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card hidden" id="editCard">
+    <h2>Edit User</h2>
+    <form id="editForm" class="grid">
+      <input id="editUserId" type="hidden" />
+      <label>Email <input id="editEmail" type="email" /></label>
+      <label>Username <input id="editUsername" /></label>
+      <label>Phone <input id="editPhone" /></label>
+      <label>Active
+        <select id="editIsActive">
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      </label>
+      <label>Max Transit / Day <input id="editMaxTransit" type="number" min="0" /></label>
+      <label>Max Import / Day <input id="editMaxImport" type="number" min="0" /></label>
+      <label style="grid-column: 1 / -1;">
+        Features (comma separated, e.g. transit_booking,import_booking)
+        <input id="editFeatures" />
+      </label>
+      <div>
+        <button type="submit">Save Changes</button>
+        <button type="button" id="cancelEditBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
 
   <table>
     <thead>
       <tr>
+        <th>Actions</th>
         <th>Email</th>
         <th>Username</th>
         <th>Phone</th>
@@ -53,9 +103,13 @@
       window.location.href = '/login.html';
     }
 
+    const usersById = new Map();
     const rows = document.getElementById('rows');
     const err = document.getElementById('err');
+    const ok = document.getElementById('ok');
     const meta = document.getElementById('meta');
+    const addCard = document.getElementById('addCard');
+    const editCard = document.getElementById('editCard');
 
     function esc(s) {
       return String(s ?? '')
@@ -66,9 +120,43 @@
         .replace(/'/g, '&#39;');
     }
 
-    async function loadUsers() {
+    function showError(message) {
+      ok.textContent = '';
+      err.textContent = message || '';
+    }
+
+    function showOk(message) {
       err.textContent = '';
+      ok.textContent = message || '';
+    }
+
+    function authHeaders(includeJson) {
+      const h = {
+        'x-auth-token': token,
+        'Authorization': 'Bearer ' + token
+      };
+      if (includeJson) h['Content-Type'] = 'application/json';
+      return h;
+    }
+
+    function openEdit(u) {
+      addCard.classList.add('hidden');
+      document.getElementById('editUserId').value = u._id;
+      document.getElementById('editEmail').value = u.email || '';
+      document.getElementById('editUsername').value = u.username || '';
+      document.getElementById('editPhone').value = u.phone || '';
+      document.getElementById('editIsActive').value = String(Boolean(u.isActive));
+      document.getElementById('editMaxTransit').value = u.maxTransitBookingCount ?? 0;
+      document.getElementById('editMaxImport').value = u.maxImportBookingCount ?? 0;
+      document.getElementById('editFeatures').value = Array.isArray(u.features) ? u.features.join(',') : '';
+      editCard.classList.remove('hidden');
+      editCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function loadUsers() {
+      showError('');
       rows.innerHTML = '';
+      usersById.clear();
       const q = document.getElementById('q').value.trim();
       const page = document.getElementById('page').value || '1';
       const limit = document.getElementById('limit').value || '20';
@@ -80,10 +168,7 @@
 
       try {
         const res = await fetch(url, {
-          headers: {
-            'x-auth-token': token,
-            'Authorization': 'Bearer ' + token
-          }
+          headers: authHeaders(false)
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
@@ -92,10 +177,12 @@
 
         meta.textContent = `Page ${data.page} | Limit ${data.limit} | Total ${data.total}`;
         for (const u of data.items || []) {
+          usersById.set(u._id, u);
           const features = Array.isArray(u.features) ? u.features : [];
           const chips = features.map((f) => `<span class="chip">${esc(f)}</span>`).join('');
           rows.insertAdjacentHTML('beforeend', `
             <tr>
+              <td class="actions-col"><button class="small-btn edit-btn" data-id="${esc(u._id)}">Edit</button></td>
               <td>${esc(u.email)}</td>
               <td>${esc(u.username || '')}</td>
               <td>${esc(u.phone || '')}</td>
@@ -108,12 +195,92 @@
             </tr>
           `);
         }
+        document.querySelectorAll('.edit-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const user = usersById.get(id);
+            if (user) openEdit(user);
+          });
+        });
       } catch (e) {
-        err.textContent = e.message || 'Load failed';
+        showError(e.message || 'Load failed');
+      }
+    }
+
+    async function addUser(e) {
+      e.preventDefault();
+      showError('');
+      const payload = {
+        email: document.getElementById('addEmail').value.trim(),
+        password: document.getElementById('addPassword').value,
+        username: document.getElementById('addUsername').value.trim(),
+        phone: document.getElementById('addPhone').value.trim()
+      };
+      try {
+        const res = await fetch(baseUrl + '/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Create user failed');
+        document.getElementById('addForm').reset();
+        addCard.classList.add('hidden');
+        showOk('User created successfully.');
+        await loadUsers();
+      } catch (e2) {
+        showError(e2.message || 'Create user failed');
+      }
+    }
+
+    async function saveEdit(e) {
+      e.preventDefault();
+      showError('');
+      const userId = document.getElementById('editUserId').value;
+      if (!userId) return;
+
+      const featuresRaw = document.getElementById('editFeatures').value.trim();
+      const payload = {
+        email: document.getElementById('editEmail').value.trim(),
+        username: document.getElementById('editUsername').value.trim(),
+        phone: document.getElementById('editPhone').value.trim(),
+        isActive: document.getElementById('editIsActive').value === 'true',
+        maxTransitBookingCount: Number(document.getElementById('editMaxTransit').value || 0),
+        maxImportBookingCount: Number(document.getElementById('editMaxImport').value || 0),
+        features: featuresRaw ? featuresRaw.split(',').map((x) => x.trim()).filter(Boolean) : []
+      };
+
+      try {
+        const res = await fetch(baseUrl + '/api/auth/users/' + encodeURIComponent(userId), {
+          method: 'PATCH',
+          headers: authHeaders(true),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Update user failed');
+        editCard.classList.add('hidden');
+        showOk('User updated successfully.');
+        await loadUsers();
+      } catch (e2) {
+        showError(e2.message || 'Update user failed');
       }
     }
 
     document.getElementById('loadBtn').addEventListener('click', loadUsers);
+    document.getElementById('openAddBtn').addEventListener('click', () => {
+      editCard.classList.add('hidden');
+      addCard.classList.remove('hidden');
+      addCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('addEmail').focus();
+    });
+    document.getElementById('addForm').addEventListener('submit', addUser);
+    document.getElementById('cancelAddBtn').addEventListener('click', () => {
+      addCard.classList.add('hidden');
+    });
+    document.getElementById('editForm').addEventListener('submit', saveEdit);
+    document.getElementById('cancelEditBtn').addEventListener('click', () => {
+      editCard.classList.add('hidden');
+    });
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('fasah.authToken');
       window.location.href = '/login.html';
