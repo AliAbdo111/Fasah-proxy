@@ -116,6 +116,14 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  /**
+   * Used to invalidate existing JWTs after password changes.
+   * Any JWT with iat < passwordChangedAt will be rejected by auth middleware.
+   */
+  passwordChangedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });

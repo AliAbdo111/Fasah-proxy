@@ -16,6 +16,15 @@ async function authMiddleware(req, res, next) {
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: 'Account is deactivated' });
     }
+
+    if (user.passwordChangedAt && decoded.iat) {
+      const tokenIssuedAtMs = decoded.iat * 1000;
+      const changedAtMs = new Date(user.passwordChangedAt).getTime();
+      if (Number.isFinite(changedAtMs) && tokenIssuedAtMs < changedAtMs) {
+        return res.status(401).json({ success: false, message: 'Token expired (password changed). Please login again.' });
+      }
+    }
+
     req.auth = decoded;
     req.user = user;
     next();

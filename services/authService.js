@@ -96,6 +96,7 @@ async function resetPassword(token, newPassword) {
   }).select('+password +resetPasswordToken +resetPasswordExpires');
   if (!user) throw { status: 400, message: 'Invalid or expired reset token' };
   user.password = newPassword;
+  user.passwordChangedAt = new Date();
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
   await user.save();
@@ -132,6 +133,7 @@ async function changeMyPassword({ userId, currentPassword, newPassword }) {
   const ok = await user.comparePassword(String(currentPassword));
   if (!ok) throw { status: 400, message: 'Current password is incorrect' };
   user.password = String(newPassword);
+  user.passwordChangedAt = new Date();
   await user.save();
   return { message: 'Password updated' };
 }
@@ -142,6 +144,7 @@ async function setUserPassword(userId, newPassword) {
   if (!newPassword) throw { status: 400, message: 'newPassword is required' };
   if (String(newPassword).length < 6) throw { status: 400, message: 'Password must be at least 6 characters' };
   user.password = String(newPassword);
+  user.passwordChangedAt = new Date();
   await user.save();
   return { user: { _id: user._id, email: user.email }, message: 'Password updated' };
 }
