@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authService = require('../services/authService');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
+const bookingHistoryService = require('../services/bookingHistoryService');
 
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
@@ -232,6 +233,44 @@ router.patch('/users/reset-booking-count/all', async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ success: false, message: err.message || 'Failed to reset all booking counts' });
+  }
+});
+
+// GET /api/auth/me/bookings/history (protected)
+router.get('/me/bookings/history', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    const decoded = authService.verifyToken(token);
+    const { page, limit, q } = req.query;
+    const result = await bookingHistoryService.listUserBookings({
+      userId: decoded.userId,
+      page,
+      limit,
+      q
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to list my booking history' });
+  }
+});
+
+// GET /api/auth/users/:userId/bookings/history (protected)
+router.get('/users/:userId/bookings/history', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    authService.verifyToken(token);
+    const { page, limit, q } = req.query;
+    const result = await bookingHistoryService.listUserBookings({
+      userId: req.params.userId,
+      page,
+      limit,
+      q
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to list user booking history' });
   }
 });
 

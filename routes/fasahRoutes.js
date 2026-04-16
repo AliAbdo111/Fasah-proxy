@@ -3,6 +3,7 @@ const router = express.Router();
 const FasahClient = require('../services/fasahClient');
 const User = require('./models/User');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
+const bookingHistoryService = require('../services/bookingHistoryService');
 
 // Initialize client
 const client = new FasahClient();
@@ -282,6 +283,17 @@ router.post('/appointment/transit/create', async (req, res) => {
 
     // التحقق من نتيجة الإنشاء
     if (result?.success === false) {
+      await bookingHistoryService.logBooking({
+        userId: req.user && req.user._id,
+        endpoint: '/api/fasah/appointment/transit/create',
+        kind: 'transit',
+        success: false,
+        httpStatus: 400,
+        message: 'Booking not created',
+        requestBody: req.body || {},
+        requestQuery: req.query || {},
+        responseBody: result
+      });
       return res.status(400).json({
         success: false,
         data: result,
@@ -292,6 +304,18 @@ router.post('/appointment/transit/create', async (req, res) => {
       await bookingDailyLimits.recordTransitBookingSuccess(req.user._id);
     }
 
+    await bookingHistoryService.logBooking({
+      userId: req.user && req.user._id,
+      endpoint: '/api/fasah/appointment/transit/create',
+      kind: 'transit',
+      success: true,
+      httpStatus: 200,
+      message: 'Booking created',
+      requestBody: req.body || {},
+      requestQuery: req.query || {},
+      responseBody: result
+    });
+
     // إرجاع النتيجة الناجحة
     res.json({
       success: true,
@@ -300,6 +324,17 @@ router.post('/appointment/transit/create', async (req, res) => {
   } catch (error) {
     const status = error.status || 500;
     console.error('خطأ في إنشاء موعد النقل العابر:', error);
+    await bookingHistoryService.logBooking({
+      userId: req.user && req.user._id,
+      endpoint: '/api/fasah/appointment/transit/create',
+      kind: 'transit',
+      success: false,
+      httpStatus: status,
+      message: error?.message || 'Booking error',
+      requestBody: req.body || {},
+      requestQuery: req.query || {},
+      responseBody: error?.data || {}
+    });
     res.status(status).json({
       success: false,
       error: error?.message,

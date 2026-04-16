@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
+const bookingHistoryService = require('../services/bookingHistoryService');
 
 const client = new FasahClient();
 
@@ -101,6 +102,17 @@ router.post('/appointment/land/create', async (req, res) => {
     });
 
     if (result?.success === false) {
+      await bookingHistoryService.logBooking({
+        userId: req.user && req.user._id,
+        endpoint: '/api/zatca-tas/v2/appointment/land/create',
+        kind: 'import',
+        success: false,
+        httpStatus: 400,
+        message: 'Booking not created',
+        requestBody: req.body || {},
+        requestQuery: req.query || {},
+        responseBody: result
+      });
       return res.status(400).json({
         success: false,
         data: result
@@ -111,9 +123,32 @@ router.post('/appointment/land/create', async (req, res) => {
       await bookingDailyLimits.recordImportBookingSuccess(req.user._id);
     }
 
+    await bookingHistoryService.logBooking({
+      userId: req.user && req.user._id,
+      endpoint: '/api/zatca-tas/v2/appointment/land/create',
+      kind: 'import',
+      success: true,
+      httpStatus: 200,
+      message: 'Booking created',
+      requestBody: req.body || {},
+      requestQuery: req.query || {},
+      responseBody: result
+    });
+
     res.json({ success: true, data: result });
   } catch (error) {
     const status = error.status || 500;
+    await bookingHistoryService.logBooking({
+      userId: req.user && req.user._id,
+      endpoint: '/api/zatca-tas/v2/appointment/land/create',
+      kind: 'import',
+      success: false,
+      httpStatus: status,
+      message: error?.message || 'Booking error',
+      requestBody: req.body || {},
+      requestQuery: req.query || {},
+      responseBody: error?.data || {}
+    });
     res.status(status).json({
       success: false,
       message: error.message || 'Failed to create land appointment',
