@@ -76,6 +76,15 @@
         <button type="button" id="cancelEditBtn">Cancel</button>
       </div>
     </form>
+    <hr style="margin: 12px 0; border: none; border-top: 1px solid #e5e5e5;" />
+    <form id="setPasswordForm" class="grid">
+      <label style="grid-column: 1 / -1; font-weight: 700;">Set User Password</label>
+      <label>New Password <input id="setPasswordNew" type="password" minlength="6" required /></label>
+      <label>Confirm Password <input id="setPasswordConfirm" type="password" minlength="6" required /></label>
+      <div>
+        <button type="submit">Update Password</button>
+      </div>
+    </form>
   </div>
 
   <table>
@@ -149,6 +158,7 @@
       document.getElementById('editMaxTransit').value = u.maxTransitBookingCount ?? 0;
       document.getElementById('editMaxImport').value = u.maxImportBookingCount ?? 0;
       document.getElementById('editFeatures').value = Array.isArray(u.features) ? u.features.join(',') : '';
+      document.getElementById('setPasswordForm').reset();
       editCard.classList.remove('hidden');
       editCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -266,6 +276,34 @@
       }
     }
 
+    async function setUserPassword(e) {
+      e.preventDefault();
+      showError('');
+      const userId = document.getElementById('editUserId').value;
+      if (!userId) return;
+      const p1 = document.getElementById('setPasswordNew').value;
+      const p2 = document.getElementById('setPasswordConfirm').value;
+      if (p1 !== p2) {
+        return showError('Password confirmation does not match');
+      }
+      if (!p1 || String(p1).length < 6) {
+        return showError('Password must be at least 6 characters');
+      }
+      try {
+        const res = await fetch(baseUrl + '/api/auth/users/' + encodeURIComponent(userId) + '/password', {
+          method: 'PATCH',
+          headers: authHeaders(true),
+          body: JSON.stringify({ newPassword: p1 })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Update password failed');
+        document.getElementById('setPasswordForm').reset();
+        showOk('Password updated successfully.');
+      } catch (e2) {
+        showError(e2.message || 'Update password failed');
+      }
+    }
+
     document.getElementById('loadBtn').addEventListener('click', loadUsers);
     document.getElementById('openAddBtn').addEventListener('click', () => {
       editCard.classList.add('hidden');
@@ -278,6 +316,7 @@
       addCard.classList.add('hidden');
     });
     document.getElementById('editForm').addEventListener('submit', saveEdit);
+    document.getElementById('setPasswordForm').addEventListener('submit', setUserPassword);
     document.getElementById('cancelEditBtn').addEventListener('click', () => {
       editCard.classList.add('hidden');
     });

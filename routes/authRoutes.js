@@ -101,6 +101,24 @@ router.post('/resend-otp', async (req, res) => {
   }
 });
 
+// PATCH /api/auth/change-password (protected) - change my password
+router.patch('/change-password', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    const decoded = authService.verifyToken(token);
+    const { currentPassword, newPassword } = req.body || {};
+    const result = await authService.changeMyPassword({
+      userId: decoded.userId,
+      currentPassword,
+      newPassword
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to change password' });
+  }
+});
+
 // GET /api/auth/me (protected)
 router.get('/me', async (req, res) => {
   try {
@@ -160,6 +178,20 @@ router.patch('/users/:userId', async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ success: false, message: err.message || 'Failed to update user' });
+  }
+});
+
+// PATCH /api/auth/users/:userId/password (protected) - set user password
+router.patch('/users/:userId/password', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    authService.verifyToken(token);
+    const { newPassword } = req.body || {};
+    const result = await authService.setUserPassword(req.params.userId, newPassword);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to set user password' });
   }
 });
 

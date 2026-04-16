@@ -123,6 +123,29 @@ async function verifyOtp(email, otp, type = 'email') {
   };
 }
 
+async function changeMyPassword({ userId, currentPassword, newPassword }) {
+  const user = await User.findById(userId).select('+password');
+  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user.isActive) throw { status: 403, message: 'Account is deactivated' };
+  if (!currentPassword || !newPassword) throw { status: 400, message: 'currentPassword and newPassword are required' };
+  if (String(newPassword).length < 6) throw { status: 400, message: 'Password must be at least 6 characters' };
+  const ok = await user.comparePassword(String(currentPassword));
+  if (!ok) throw { status: 400, message: 'Current password is incorrect' };
+  user.password = String(newPassword);
+  await user.save();
+  return { message: 'Password updated' };
+}
+
+async function setUserPassword(userId, newPassword) {
+  const user = await User.findById(userId).select('+password');
+  if (!user) throw { status: 404, message: 'User not found' };
+  if (!newPassword) throw { status: 400, message: 'newPassword is required' };
+  if (String(newPassword).length < 6) throw { status: 400, message: 'Password must be at least 6 characters' };
+  user.password = String(newPassword);
+  await user.save();
+  return { user: { _id: user._id, email: user.email }, message: 'Password updated' };
+}
+
 async function activateUser(userId) {
   const user = await User.findByIdAndUpdate(userId, { isActive: true }, { new: true });
   if (!user) throw { status: 404, message: 'User not found' };
@@ -330,6 +353,8 @@ module.exports = {
   resetPassword,
   verifyOtp,
   resendOtp,
+  changeMyPassword,
+  setUserPassword,
   activateUser,
   deactivateUser,
   updateUser,
