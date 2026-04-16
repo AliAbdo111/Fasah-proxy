@@ -41,10 +41,20 @@ async function logBooking({
   }
 }
 
-async function listUserBookings({ userId, page = 1, limit = 20, q = '' }) {
+const KIND_VALUES = ['transit', 'import', 'other'];
+
+async function listUserBookings({ userId, page = 1, limit = 20, q = '', kind, success }) {
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const filter = { userId };
+  const k = kind != null && String(kind).trim() ? String(kind).trim() : '';
+  if (k && KIND_VALUES.includes(k)) {
+    filter.kind = k;
+  }
+  const s = success != null ? String(success).trim().toLowerCase() : '';
+  if (s === 'true' || s === 'false') {
+    filter.success = s === 'true';
+  }
   if (q && String(q).trim()) {
     const needle = String(q).trim();
     filter.$or = [

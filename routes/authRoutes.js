@@ -242,12 +242,14 @@ router.get('/me/bookings/history', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
     const decoded = authService.verifyToken(token);
-    const { page, limit, q } = req.query;
+    const { page, limit, q, kind, success } = req.query;
     const result = await bookingHistoryService.listUserBookings({
       userId: decoded.userId,
       page,
       limit,
-      q
+      q,
+      kind,
+      success
     });
     res.json({ success: true, ...result });
   } catch (err) {
@@ -268,12 +270,14 @@ router.get('/users/:userId/bookings/history', async (req, res) => {
         message: 'Invalid userId. Use a real Mongo ObjectId (not :userId placeholder).'
       });
     }
-    const { page, limit, q } = req.query;
+    const { page, limit, q, kind, success } = req.query;
     const result = await bookingHistoryService.listUserBookings({
       userId,
       page,
       limit,
-      q
+      q,
+      kind,
+      success
     });
     res.json({ success: true, ...result });
   } catch (err) {

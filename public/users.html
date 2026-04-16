@@ -22,6 +22,32 @@
     .hidden { display: none; }
     .actions-col { white-space: nowrap; }
     .small-btn { padding: 6px 8px; font-size: 12px; }
+    .tabs { display: flex; gap: 4px; margin: 0 0 12px 0; border-bottom: 1px solid #ccc; flex-wrap: wrap; }
+    .tab-btn {
+      border: 1px solid transparent;
+      border-bottom: none;
+      background: #e8e8e8;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+      font-size: 14px;
+    }
+    .tab-btn:hover { background: #ddd; }
+    .tab-btn.active {
+      background: #fff;
+      border-color: #ccc;
+      border-bottom-color: #fff;
+      margin-bottom: -1px;
+      font-weight: 600;
+    }
+    .tab-panel { margin-top: 4px; }
+    .tab-panel.hidden { display: none; }
+    .mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; word-break: break-all; }
+    .bh-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .bh-meta { color: #555; font-size: 12px; margin-bottom: 8px; }
+    .bh-err { color: #b00020; font-size: 13px; margin-bottom: 8px; }
+    details.bh-json { margin: 4px 0; }
+    details.bh-json pre { margin: 4px 0 0 0; max-height: 200px; overflow: auto; background: #f0f0f0; padding: 6px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -54,37 +80,89 @@
 
   <div class="card hidden" id="editCard">
     <h2>Edit User</h2>
-    <form id="editForm" class="grid">
-      <input id="editUserId" type="hidden" />
-      <label>Email <input id="editEmail" type="email" /></label>
-      <label>Username <input id="editUsername" /></label>
-      <label>Phone <input id="editPhone" /></label>
-      <label>Active
-        <select id="editIsActive">
-          <option value="true">true</option>
-          <option value="false">false</option>
-        </select>
-      </label>
-      <label>Max Transit / Day <input id="editMaxTransit" type="number" min="0" /></label>
-      <label>Max Import / Day <input id="editMaxImport" type="number" min="0" /></label>
-      <label style="grid-column: 1 / -1;">
-        Features (comma separated, e.g. transit_booking,import_booking)
-        <input id="editFeatures" />
-      </label>
-      <div>
-        <button type="submit">Save Changes</button>
-        <button type="button" id="cancelEditBtn">Cancel</button>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab-btn active" id="tabBtnProfile" data-tab="profile" role="tab" aria-selected="true">Profile</button>
+      <button type="button" class="tab-btn" id="tabBtnHistory" data-tab="history" role="tab" aria-selected="false">Booking History</button>
+    </div>
+
+    <div id="tabPanelProfile" class="tab-panel" role="tabpanel">
+      <form id="editForm" class="grid">
+        <input id="editUserId" type="hidden" />
+        <label>Email <input id="editEmail" type="email" /></label>
+        <label>Username <input id="editUsername" /></label>
+        <label>Phone <input id="editPhone" /></label>
+        <label>Active
+          <select id="editIsActive">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label>Max Transit / Day <input id="editMaxTransit" type="number" min="0" /></label>
+        <label>Max Import / Day <input id="editMaxImport" type="number" min="0" /></label>
+        <label style="grid-column: 1 / -1;">
+          Features (comma separated, e.g. transit_booking,import_booking)
+          <input id="editFeatures" />
+        </label>
+        <div>
+          <button type="submit">Save Changes</button>
+          <button type="button" id="cancelEditBtn">Cancel</button>
+        </div>
+      </form>
+      <hr style="margin: 12px 0; border: none; border-top: 1px solid #e5e5e5;" />
+      <form id="setPasswordForm" class="grid">
+        <label style="grid-column: 1 / -1; font-weight: 700;">Set User Password</label>
+        <label>New Password <input id="setPasswordNew" type="password" minlength="6" required /></label>
+        <label>Confirm Password <input id="setPasswordConfirm" type="password" minlength="6" required /></label>
+        <div>
+          <button type="submit">Update Password</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="tabPanelHistory" class="tab-panel hidden" role="tabpanel">
+      <p class="muted" style="margin-top:0">Booking attempts logged for this user (transit / import create calls).</p>
+      <div class="bh-toolbar">
+        <label>Search <input id="bhQ" placeholder="endpoint / message" style="min-width:180px" /></label>
+        <label>Kind
+          <select id="bhKind">
+            <option value="">All</option>
+            <option value="transit">transit</option>
+            <option value="import">import</option>
+            <option value="other">other</option>
+          </select>
+        </label>
+        <label>Result
+          <select id="bhSuccess">
+            <option value="">All</option>
+            <option value="true">Success</option>
+            <option value="false">Failed</option>
+          </select>
+        </label>
+        <label>Page <input id="bhPage" type="number" min="1" value="1" style="width:72px" /></label>
+        <label>Limit <input id="bhLimit" type="number" min="1" max="200" value="20" style="width:72px" /></label>
+        <button type="button" id="bhLoadBtn" class="small-btn">Load history</button>
       </div>
-    </form>
-    <hr style="margin: 12px 0; border: none; border-top: 1px solid #e5e5e5;" />
-    <form id="setPasswordForm" class="grid">
-      <label style="grid-column: 1 / -1; font-weight: 700;">Set User Password</label>
-      <label>New Password <input id="setPasswordNew" type="password" minlength="6" required /></label>
-      <label>Confirm Password <input id="setPasswordConfirm" type="password" minlength="6" required /></label>
-      <div>
-        <button type="submit">Update Password</button>
+      <div id="bhMeta" class="bh-meta"></div>
+      <div id="bhErr" class="bh-err"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Kind</th>
+            <th>OK</th>
+            <th>HTTP</th>
+            <th>Endpoint</th>
+            <th>Message</th>
+            <th>Payload</th>
+          </tr>
+        </thead>
+        <tbody id="bhRows"></tbody>
+      </table>
+      <div class="bh-toolbar" style="margin-top:10px">
+        <button type="button" id="bhPrevBtn" class="small-btn">Previous page</button>
+        <button type="button" id="bhNextBtn" class="small-btn">Next page</button>
       </div>
-    </form>
+    </div>
   </div>
 
   <table>
@@ -148,6 +226,110 @@
       return h;
     }
 
+    function safeJsonPreview(obj, maxLen) {
+      const max = maxLen || 8000;
+      try {
+        let s = JSON.stringify(obj == null ? {} : obj, null, 2);
+        if (s.length > max) s = s.slice(0, max) + '\n… (truncated)';
+        return esc(s);
+      } catch {
+        return esc(String(obj));
+      }
+    }
+
+    function setEditTab(which) {
+      const profilePanel = document.getElementById('tabPanelProfile');
+      const historyPanel = document.getElementById('tabPanelHistory');
+      const btnP = document.getElementById('tabBtnProfile');
+      const btnH = document.getElementById('tabBtnHistory');
+      const isProfile = which === 'profile';
+      profilePanel.classList.toggle('hidden', !isProfile);
+      historyPanel.classList.toggle('hidden', isProfile);
+      btnP.classList.toggle('active', isProfile);
+      btnH.classList.toggle('active', !isProfile);
+      btnP.setAttribute('aria-selected', isProfile ? 'true' : 'false');
+      btnH.setAttribute('aria-selected', !isProfile ? 'true' : 'false');
+      if (!isProfile) {
+        loadBookingHistory();
+      }
+    }
+
+    function bhSetError(msg) {
+      document.getElementById('bhErr').textContent = msg || '';
+    }
+
+    function updateBhPaginationButtons(total, page, limit) {
+      const prev = document.getElementById('bhPrevBtn');
+      const next = document.getElementById('bhNextBtn');
+      prev.disabled = page <= 1;
+      next.disabled = page * limit >= total;
+    }
+
+    async function loadBookingHistory() {
+      const userId = document.getElementById('editUserId').value;
+      if (!userId) return;
+      bhSetError('');
+      const q = document.getElementById('bhQ').value.trim();
+      const kind = document.getElementById('bhKind').value;
+      const success = document.getElementById('bhSuccess').value;
+      const page = Math.max(1, parseInt(document.getElementById('bhPage').value, 10) || 1);
+      const limit = Math.min(200, Math.max(1, parseInt(document.getElementById('bhLimit').value, 10) || 20));
+      document.getElementById('bhPage').value = String(page);
+      document.getElementById('bhLimit').value = String(limit);
+
+      const url = new URL(baseUrl + '/api/auth/users/' + encodeURIComponent(userId) + '/bookings/history');
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('limit', String(limit));
+      if (q) url.searchParams.set('q', q);
+      if (kind) url.searchParams.set('kind', kind);
+      if (success) url.searchParams.set('success', success);
+
+      const tbody = document.getElementById('bhRows');
+      const meta = document.getElementById('bhMeta');
+      tbody.innerHTML = '';
+
+      try {
+        const res = await fetch(url, { headers: authHeaders(false) });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || 'Failed to load booking history');
+        }
+        const items = data.items || [];
+        const total = data.total ?? 0;
+        meta.textContent = `Page ${data.page} of ${Math.max(1, Math.ceil(total / limit))} | Limit ${data.limit} | Total ${total}`;
+        updateBhPaginationButtons(total, data.page, data.limit);
+
+        for (const row of items) {
+          const when = row.createdAt
+            ? new Date(row.createdAt).toLocaleString()
+            : '';
+          const ok = row.success ? 'Yes' : 'No';
+          const reqStr = safeJsonPreview(row.requestBody, 4000);
+          const resStr = safeJsonPreview(row.responseBody, 4000);
+          const payloadCell = `
+            <details class="bh-json"><summary class="small-btn" style="cursor:pointer;display:inline-block">Request / Response</summary>
+              <div><strong>Request</strong></div><pre class="mono">${reqStr}</pre>
+              <div><strong>Response</strong></div><pre class="mono">${resStr}</pre>
+            </details>`;
+          tbody.insertAdjacentHTML('beforeend', `
+            <tr>
+              <td class="mono">${esc(when)}</td>
+              <td>${esc(row.kind || '')}</td>
+              <td>${esc(ok)}</td>
+              <td>${esc(row.httpStatus != null ? row.httpStatus : '')}</td>
+              <td class="mono">${esc(row.endpoint || '')}</td>
+              <td>${esc(row.message || '')}</td>
+              <td>${payloadCell}</td>
+            </tr>
+          `);
+        }
+      } catch (e) {
+        bhSetError(e.message || 'Load failed');
+        meta.textContent = '';
+        updateBhPaginationButtons(0, 1, limit);
+      }
+    }
+
     function openEdit(u) {
       addCard.classList.add('hidden');
       document.getElementById('editUserId').value = u._id;
@@ -159,7 +341,16 @@
       document.getElementById('editMaxImport').value = u.maxImportBookingCount ?? 0;
       document.getElementById('editFeatures').value = Array.isArray(u.features) ? u.features.join(',') : '';
       document.getElementById('setPasswordForm').reset();
+      document.getElementById('bhQ').value = '';
+      document.getElementById('bhKind').value = '';
+      document.getElementById('bhSuccess').value = '';
+      document.getElementById('bhPage').value = '1';
+      document.getElementById('bhLimit').value = '20';
+      document.getElementById('bhRows').innerHTML = '';
+      document.getElementById('bhMeta').textContent = '';
+      bhSetError('');
       editCard.classList.remove('hidden');
+      setEditTab('profile');
       editCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -319,6 +510,20 @@
     document.getElementById('setPasswordForm').addEventListener('submit', setUserPassword);
     document.getElementById('cancelEditBtn').addEventListener('click', () => {
       editCard.classList.add('hidden');
+    });
+    document.getElementById('tabBtnProfile').addEventListener('click', () => setEditTab('profile'));
+    document.getElementById('tabBtnHistory').addEventListener('click', () => setEditTab('history'));
+    document.getElementById('bhLoadBtn').addEventListener('click', () => loadBookingHistory());
+    document.getElementById('bhPrevBtn').addEventListener('click', () => {
+      const p = document.getElementById('bhPage');
+      const n = Math.max(1, (parseInt(p.value, 10) || 1) - 1);
+      p.value = String(n);
+      loadBookingHistory();
+    });
+    document.getElementById('bhNextBtn').addEventListener('click', () => {
+      const p = document.getElementById('bhPage');
+      p.value = String((parseInt(p.value, 10) || 1) + 1);
+      loadBookingHistory();
     });
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('fasah.authToken');
