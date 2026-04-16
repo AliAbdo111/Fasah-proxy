@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const authService = require('../services/authService');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
@@ -260,9 +261,16 @@ router.get('/users/:userId/bookings/history', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
     authService.verifyToken(token);
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid userId. Use a real Mongo ObjectId (not :userId placeholder).'
+      });
+    }
     const { page, limit, q } = req.query;
     const result = await bookingHistoryService.listUserBookings({
-      userId: req.params.userId,
+      userId,
       page,
       limit,
       q
