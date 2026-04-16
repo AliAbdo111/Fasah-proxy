@@ -286,7 +286,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
 }
 
 async function resetBookingCount(userId) {
-  const today = bookingDailyLimits.utcYmd();
+  const today = bookingDailyLimits.bookingDayYmd();
   const user = await User.findByIdAndUpdate(
     userId,
     {
@@ -297,7 +297,7 @@ async function resetBookingCount(userId) {
         totalMonthlyTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
         lastBookingCountDay: today,
-        lastBookingCountMonth: bookingDailyLimits.utcYm()
+        lastBookingCountMonth: bookingDailyLimits.bookingDayYm()
       }
     },
     { new: true }
@@ -315,7 +315,7 @@ async function resetBookingCount(userId) {
 }
 
 async function resetAllBookingCounts() {
-  const today = bookingDailyLimits.utcYmd();
+  const today = bookingDailyLimits.bookingDayYmd();
   const result = await User.updateMany(
     {},
     {
@@ -326,7 +326,7 @@ async function resetAllBookingCounts() {
         totalMonthlyTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
         lastBookingCountDay: today,
-        lastBookingCountMonth: bookingDailyLimits.utcYm()
+        lastBookingCountMonth: bookingDailyLimits.bookingDayYm()
       }
     }
   );

@@ -7,6 +7,25 @@ const FEATURE_IMPORT_BOOKING = 'import_booking';
 
 const DEFAULT_USER_FEATURES = [FEATURE_TRANSIT_BOOKING, FEATURE_IMPORT_BOOKING];
 
+/** Daily/month windows follow this IANA zone (default Cairo). Override with BOOKING_DAY_TIMEZONE or BOOKING_DAILY_RESET_TZ. */
+function bookingDayTimezone() {
+  return process.env.BOOKING_DAY_TIMEZONE || process.env.BOOKING_DAILY_RESET_TZ || 'Africa/Cairo';
+}
+
+function bookingDayYmd(d = new Date()) {
+  const tz = bookingDayTimezone();
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d);
+}
+
+function bookingDayYm(d = new Date()) {
+  return bookingDayYmd(d).slice(0, 7);
+}
+
 function utcYmd(d = new Date()) {
   return d.toISOString().slice(0, 10);
 }
@@ -26,13 +45,13 @@ function defaultMaxImport() {
 }
 
 /**
- * Sync daily and monthly windows in UTC:
+ * Sync daily and monthly windows in bookingDayTimezone() (default Africa/Cairo):
  * - day change => reset transitBookingCount/importBookingCount
  * - month change => reset totalMonthlyTransitBookingCount/totalMonthlyImportBookingCount
  */
 async function syncUserBookingDay(userId) {
-  const today = utcYmd();
-  const month = utcYm();
+  const today = bookingDayYmd();
+  const month = bookingDayYm();
   await User.updateOne(
     {
       _id: userId,
@@ -164,10 +183,36 @@ async function recordImportBookingSuccess(userId) {
   });
 }
 
+/**
+ * Reset daily transit/import counters for all users (cron / admin).
+ * Does not change bookingCount or monthly totals.
+ */
+async function resetAllUsersDailyBookingCounters() {
+  const today = bookingDayYmd();
+  const res = await User.updateMany(
+    {},
+    {
+      $set: {
+        transitBookingCount: 0,
+        importBookingCount: 0,
+        lastBookingCountDay: today
+      }
+    }
+  );
+  return {
+    matched: res.matchedCount ?? res.n ?? 0,
+    modified: res.modifiedCount ?? res.nModified ?? 0,
+    day: today
+  };
+}
+
 module.exports = {
   FEATURE_TRANSIT_BOOKING,
   FEATURE_IMPORT_BOOKING,
   DEFAULT_USER_FEATURES,
+  bookingDayTimezone,
+  bookingDayYmd,
+  bookingDayYm,
   utcYmd,
   utcYm,
   defaultMaxTransit,
@@ -183,5 +228,6 @@ module.exports = {
   assertCanTransitBook,
   assertCanImportBook,
   recordTransitBookingSuccess,
-  recordImportBookingSuccess
+  recordImportBookingSuccess,
+  resetAllUsersDailyBookingCounters
 };

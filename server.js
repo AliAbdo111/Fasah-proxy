@@ -55,6 +55,7 @@ app.get('/loggers', async (req, res) => {
 const ScheduleCron = require('./services/scheduleCron'); // الجديد
 
 const scheduleCron = new ScheduleCron();
+const dailyBookingResetCron = require('./services/dailyBookingResetCron');
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -148,7 +149,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
     // بدء Cron Job تلقائياً عند تشغيل السيرفر (اختياري)
       // scheduleCron.startCronJob();
-    
+  dailyBookingResetCron.start();
 });
 
 module.exports = app;
