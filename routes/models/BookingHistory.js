@@ -43,6 +43,17 @@ const bookingHistorySchema = new mongoose.Schema(
     responseBody: {
       type: mongoose.Schema.Types.Mixed,
       default: {}
+    },
+    consumptionType: {
+      type: String,
+      enum: ['daily', 'monthly', 'paid_extra', 'open', ''],
+      default: '',
+      index: true
+    },
+    extraPriceApplied: {
+      type: Number,
+      default: 0,
+      min: 0
     }
   },
   { timestamps: true }

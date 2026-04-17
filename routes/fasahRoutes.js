@@ -259,9 +259,11 @@ router.post('/appointment/transit/create', async (req, res) => {
       });
     }
 
+    let bookingDecision = null;
     if (req.user && req.user._id) {
       try {
-        await bookingDailyLimits.assertCanTransitBook(req.user._id);
+        const gate = await bookingDailyLimits.assertCanTransitBook(req.user._id);
+        bookingDecision = gate && gate.decision ? gate.decision : null;
       } catch (e) {
         const status = e.status || 403;
         return res.status(status).json({ success: false, message: e.message });
@@ -292,7 +294,9 @@ router.post('/appointment/transit/create', async (req, res) => {
         message: 'Booking not created',
         requestBody: req.body || {},
         requestQuery: req.query || {},
-        responseBody: result
+        responseBody: result,
+        consumptionType: bookingDecision && bookingDecision.consumptionType,
+        extraPriceApplied: bookingDecision && bookingDecision.extraPriceApplied
       });
       return res.status(400).json({
         success: false,
@@ -301,7 +305,7 @@ router.post('/appointment/transit/create', async (req, res) => {
     }
 
     if (req.user && req.user._id) {
-      await bookingDailyLimits.recordTransitBookingSuccess(req.user._id);
+      await bookingDailyLimits.recordTransitBookingSuccess(req.user._id, bookingDecision);
     }
 
     await bookingHistoryService.logBooking({
@@ -313,7 +317,9 @@ router.post('/appointment/transit/create', async (req, res) => {
       message: 'Booking created',
       requestBody: req.body || {},
       requestQuery: req.query || {},
-      responseBody: result
+      responseBody: result,
+      consumptionType: bookingDecision && bookingDecision.consumptionType,
+      extraPriceApplied: bookingDecision && bookingDecision.extraPriceApplied
     });
 
     // إرجاع النتيجة الناجحة
@@ -333,7 +339,9 @@ router.post('/appointment/transit/create', async (req, res) => {
       message: error?.message || 'Booking error',
       requestBody: req.body || {},
       requestQuery: req.query || {},
-      responseBody: error?.data || {}
+      responseBody: error?.data || {},
+      consumptionType: '',
+      extraPriceApplied: 0
     });
     res.status(status).json({
       success: false,

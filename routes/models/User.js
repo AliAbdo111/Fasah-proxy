@@ -44,11 +44,52 @@ const userSchema = new mongoose.Schema({
     default: 'user',
     index: true
   },
+  /** Booking package mode: limited(daily+monthly), monthly_only, or open (unlimited). */
+  planType: {
+    type: String,
+    enum: ['limited', 'monthly_only', 'open'],
+    default: 'limited',
+    index: true
+  },
+  /** For monthly_only package: enforce daily cap in addition to monthly cap. */
+  dailyLimitEnabled: {
+    type: Boolean,
+    default: false
+  },
+  /** Extra paid bookings are allowed after monthly quota is exhausted. */
+  allowPaidExtra: {
+    type: Boolean,
+    default: false
+  },
+  /** Per-booking extra charge when allowPaidExtra=true. */
+  extraBookingPrice: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  /** Unified daily cap used by policy engine (separate from legacy per-kind max values). */
+  maxDailyBookings: {
+    type: Number,
+    default: () => {
+      const n = parseInt(process.env.MAX_BOOKINGS_PER_DAY || '50', 10);
+      return Number.isFinite(n) && n >= 0 ? n : 50;
+    },
+    min: 0
+  },
+  /** Unified monthly cap used by policy engine. */
+  maxMonthlyBookings: {
+    type: Number,
+    default: () => {
+      const n = parseInt(process.env.MAX_BOOKINGS_PER_MONTH || '1000', 10);
+      return Number.isFinite(n) && n >= 0 ? n : 1000;
+    },
+    min: 0
+  },
   bookingCount: {
     type: Number,
     default: 0
   },
-  /** UTC calendar day (YYYY-MM-DD) for which transit/import counts below apply */
+  /** Calendar day key (YYYY-MM-DD) in booking timezone (see bookingDailyLimits). */
   lastBookingCountDay: {
     type: String,
     default: ''
@@ -65,7 +106,7 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
-  /** UTC month (YYYY-MM) for which monthly totals below apply */
+  /** Calendar month key (YYYY-MM) in booking timezone (see bookingDailyLimits). */
   lastBookingCountMonth: {
     type: String,
     default: ''
@@ -78,6 +119,18 @@ const userSchema = new mongoose.Schema({
   },
   /** Successful import/land appointments in current UTC month */
   totalMonthlyImportBookingCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  /** Extra bookings consumed after monthly quota is exhausted (for billing). */
+  paidExtraBookingsCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  /** Monetary total for paid extra bookings in current month window. */
+  paidExtraAmount: {
     type: Number,
     default: 0,
     min: 0

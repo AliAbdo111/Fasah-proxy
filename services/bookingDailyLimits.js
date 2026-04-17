@@ -1,13 +1,18 @@
 const User = require('../routes/models/User');
 
-/** Enable POST /api/fasah/appointment/transit/create */
 const FEATURE_TRANSIT_BOOKING = 'transit_booking';
-/** Enable POST /api/zatca-tas/v2/appointment/land/create */
 const FEATURE_IMPORT_BOOKING = 'import_booking';
-
 const DEFAULT_USER_FEATURES = [FEATURE_TRANSIT_BOOKING, FEATURE_IMPORT_BOOKING];
 
-/** Daily/month windows follow this IANA zone (default Cairo). Override with BOOKING_DAY_TIMEZONE or BOOKING_DAILY_RESET_TZ. */
+const PLAN_LIMITED = 'limited';
+const PLAN_MONTHLY_ONLY = 'monthly_only';
+const PLAN_OPEN = 'open';
+
+const CONSUMPTION_DAILY = 'daily';
+const CONSUMPTION_MONTHLY = 'monthly';
+const CONSUMPTION_PAID_EXTRA = 'paid_extra';
+const CONSUMPTION_OPEN = 'open';
+
 function bookingDayTimezone() {
   return process.env.BOOKING_DAY_TIMEZONE || process.env.BOOKING_DAILY_RESET_TZ || 'Africa/Cairo';
 }
@@ -44,11 +49,45 @@ function defaultMaxImport() {
   return Number.isFinite(n) && n >= 0 ? n : 50;
 }
 
-/**
- * Sync daily and monthly windows in bookingDayTimezone() (default Africa/Cairo):
- * - day change => reset transitBookingCount/importBookingCount
- * - month change => reset totalMonthlyTransitBookingCount/totalMonthlyImportBookingCount
- */
+function defaultMaxDailyBookings() {
+  const n = parseInt(process.env.MAX_BOOKINGS_PER_DAY || '50', 10);
+  return Number.isFinite(n) && n >= 0 ? n : 50;
+}
+
+function defaultMaxMonthlyBookings() {
+  const n = parseInt(process.env.MAX_BOOKINGS_PER_MONTH || '1000', 10);
+  return Number.isFinite(n) && n >= 0 ? n : 1000;
+}
+
+function normalizePlanType(user) {
+  const p = user && user.planType;
+  if (p === PLAN_MONTHLY_ONLY || p === PLAN_OPEN || p === PLAN_LIMITED) return p;
+  return PLAN_LIMITED;
+}
+
+function totalDailyBookings(user) {
+  return (user.transitBookingCount || 0) + (user.importBookingCount || 0);
+}
+
+function totalMonthlyBookings(user) {
+  return (user.totalMonthlyTransitBookingCount || 0) + (user.totalMonthlyImportBookingCount || 0);
+}
+
+function effectiveMaxDaily(user) {
+  if (user.maxDailyBookings != null && user.maxDailyBookings >= 0) return user.maxDailyBookings;
+  return defaultMaxDailyBookings();
+}
+
+function effectiveMaxMonthly(user) {
+  if (user.maxMonthlyBookings != null && user.maxMonthlyBookings >= 0) return user.maxMonthlyBookings;
+  return defaultMaxMonthlyBookings();
+}
+
+function effectiveExtraPrice(user) {
+  const n = Number(user.extraBookingPrice ?? 0);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 async function syncUserBookingDay(userId) {
   const today = bookingDayYmd();
   const month = bookingDayYm();
@@ -62,7 +101,13 @@ async function syncUserBookingDay(userId) {
         { lastBookingCountDay: { $ne: today } }
       ]
     },
-    { $set: { transitBookingCount: 0, importBookingCount: 0, lastBookingCountDay: today } }
+    {
+      $set: {
+        transitBookingCount: 0,
+        importBookingCount: 0,
+        lastBookingCountDay: today
+      }
+    }
   );
   await User.updateOne(
     {
@@ -78,6 +123,8 @@ async function syncUserBookingDay(userId) {
       $set: {
         totalMonthlyTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
+        paidExtraBookingsCount: 0,
+        paidExtraAmount: 0,
         lastBookingCountMonth: month
       }
     }
@@ -91,11 +138,6 @@ function userHasFeature(user, feature) {
   return f.includes(feature);
 }
 
-function totalDailyBookings(user) {
-  return (user.transitBookingCount || 0) + (user.importBookingCount || 0);
-}
-
-/** For API: missing features on document → show defaults (legacy full access). */
 function resolveFeaturesForApi(user) {
   const f = user.features;
   if (f === undefined || f === null) return [...DEFAULT_USER_FEATURES];
@@ -104,14 +146,23 @@ function resolveFeaturesForApi(user) {
 
 function bookingStatsPayload(user) {
   return {
-    bookingCount: user.bookingCount,
-    transitBookingCount: user.transitBookingCount,
-    importBookingCount: user.importBookingCount,
+    bookingCount: user.bookingCount || 0,
+    transitBookingCount: user.transitBookingCount || 0,
+    importBookingCount: user.importBookingCount || 0,
     totalMonthlyTransitBookingCount: user.totalMonthlyTransitBookingCount || 0,
     totalMonthlyImportBookingCount: user.totalMonthlyImportBookingCount || 0,
     totalDailyBookings: totalDailyBookings(user),
-    maxTransitBookingCount: effectiveMaxTransit(user),
-    maxImportBookingCount: effectiveMaxImport(user),
+    totalMonthlyBookings: totalMonthlyBookings(user),
+    maxTransitBookingCount: user.maxTransitBookingCount ?? defaultMaxTransit(),
+    maxImportBookingCount: user.maxImportBookingCount ?? defaultMaxImport(),
+    planType: normalizePlanType(user),
+    dailyLimitEnabled: Boolean(user.dailyLimitEnabled),
+    maxDailyBookings: effectiveMaxDaily(user),
+    maxMonthlyBookings: effectiveMaxMonthly(user),
+    allowPaidExtra: Boolean(user.allowPaidExtra),
+    extraBookingPrice: effectiveExtraPrice(user),
+    paidExtraBookingsCount: user.paidExtraBookingsCount || 0,
+    paidExtraAmount: user.paidExtraAmount || 0,
     lastBookingCountDay: user.lastBookingCountDay,
     lastBookingCountMonth: user.lastBookingCountMonth,
     features: resolveFeaturesForApi(user)
@@ -121,83 +172,97 @@ function bookingStatsPayload(user) {
 async function loadUserBookingState(userId) {
   await syncUserBookingDay(userId);
   return User.findById(userId).select(
-    'transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth bookingCount features'
+    'transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount bookingCount features lastBookingCountDay lastBookingCountMonth planType dailyLimitEnabled allowPaidExtra extraBookingPrice maxDailyBookings maxMonthlyBookings paidExtraBookingsCount paidExtraAmount'
   );
 }
 
-function effectiveMaxTransit(u) {
-  const m = u.maxTransitBookingCount;
-  return m != null && m >= 0 ? m : defaultMaxTransit();
+function resolveConsumptionDecision(user) {
+  const planType = normalizePlanType(user);
+  const dailyTotal = totalDailyBookings(user);
+  const monthlyTotal = totalMonthlyBookings(user);
+  const maxDaily = effectiveMaxDaily(user);
+  const maxMonthly = effectiveMaxMonthly(user);
+  const dailyEnabled = planType === PLAN_LIMITED || (planType === PLAN_MONTHLY_ONLY && Boolean(user.dailyLimitEnabled));
+  const dailyExceeded = dailyEnabled && dailyTotal >= maxDaily;
+  const monthlyExceeded = monthlyTotal >= maxMonthly;
+
+  if (planType === PLAN_OPEN) {
+    return { allowed: true, consumptionType: CONSUMPTION_OPEN, extraPriceApplied: 0 };
+  }
+  if (!dailyExceeded) {
+    return { allowed: true, consumptionType: CONSUMPTION_DAILY, extraPriceApplied: 0 };
+  }
+  if (!monthlyExceeded) {
+    return { allowed: true, consumptionType: CONSUMPTION_MONTHLY, extraPriceApplied: 0 };
+  }
+  if (Boolean(user.allowPaidExtra)) {
+    return {
+      allowed: true,
+      consumptionType: CONSUMPTION_PAID_EXTRA,
+      extraPriceApplied: effectiveExtraPrice(user)
+    };
+  }
+  return {
+    allowed: false,
+    status: 403,
+    message: `Monthly booking limit reached (${maxMonthly} per month)`
+  };
 }
 
-function effectiveMaxImport(u) {
-  const m = u.maxImportBookingCount;
-  return m != null && m >= 0 ? m : defaultMaxImport();
+async function assertCanBook(userId, kind) {
+  const user = await loadUserBookingState(userId);
+  if (!user) throw { status: 404, message: 'User not found' };
+  if (kind === 'transit' && !userHasFeature(user, FEATURE_TRANSIT_BOOKING)) {
+    throw { status: 403, message: 'Transit booking is not enabled for this account (missing transit_booking feature)' };
+  }
+  if (kind === 'import' && !userHasFeature(user, FEATURE_IMPORT_BOOKING)) {
+    throw { status: 403, message: 'Import (land) booking is not enabled for this account (missing import_booking feature)' };
+  }
+  const decision = resolveConsumptionDecision(user);
+  if (!decision.allowed) {
+    throw { status: decision.status || 403, message: decision.message || 'Booking limit reached' };
+  }
+  return { user, decision };
 }
 
 async function assertCanTransitBook(userId) {
-  const u = await loadUserBookingState(userId);
-  if (!u) throw { status: 404, message: 'User not found' };
-  if (!userHasFeature(u, FEATURE_TRANSIT_BOOKING)) {
-    throw { status: 403, message: 'Transit booking is not enabled for this account (missing transit_booking feature)' };
-  }
-  const max = effectiveMaxTransit(u);
-  if ((u.transitBookingCount || 0) >= max) {
-    throw { status: 403, message: `Daily transit booking limit reached (${max} per day)` };
-  }
-  return u;
+  return assertCanBook(userId, 'transit');
 }
 
 async function assertCanImportBook(userId) {
-  const u = await loadUserBookingState(userId);
-  if (!u) throw { status: 404, message: 'User not found' };
-  if (!userHasFeature(u, FEATURE_IMPORT_BOOKING)) {
-    throw { status: 403, message: 'Import (land) booking is not enabled for this account (missing import_booking feature)' };
-  }
-  const max = effectiveMaxImport(u);
-  if ((u.importBookingCount || 0) >= max) {
-    throw { status: 403, message: `Daily import (land) booking limit reached (${max} per day)` };
-  }
-  return u;
+  return assertCanBook(userId, 'import');
 }
 
-async function recordTransitBookingSuccess(userId) {
+async function recordBookingSuccess(userId, kind, decision) {
   await syncUserBookingDay(userId);
-  await User.findByIdAndUpdate(userId, {
-    $inc: {
-      transitBookingCount: 1,
-      totalMonthlyTransitBookingCount: 1,
-      bookingCount: 1
-    }
-  });
+  const inc = { bookingCount: 1 };
+  if (kind === 'transit') {
+    inc.transitBookingCount = 1;
+    inc.totalMonthlyTransitBookingCount = 1;
+  } else {
+    inc.importBookingCount = 1;
+    inc.totalMonthlyImportBookingCount = 1;
+  }
+  if (decision && decision.consumptionType === CONSUMPTION_PAID_EXTRA) {
+    inc.paidExtraBookingsCount = 1;
+    inc.paidExtraAmount = Number(decision.extraPriceApplied || 0);
+  }
+  await User.findByIdAndUpdate(userId, { $inc: inc });
 }
 
-async function recordImportBookingSuccess(userId) {
-  await syncUserBookingDay(userId);
-  await User.findByIdAndUpdate(userId, {
-    $inc: {
-      importBookingCount: 1,
-      totalMonthlyImportBookingCount: 1,
-      bookingCount: 1
-    }
-  });
+async function recordTransitBookingSuccess(userId, decision) {
+  return recordBookingSuccess(userId, 'transit', decision);
 }
 
-/**
- * Reset daily transit/import counters for all users (cron / admin).
- * Does not change bookingCount or monthly totals.
- */
+async function recordImportBookingSuccess(userId, decision) {
+  return recordBookingSuccess(userId, 'import', decision);
+}
+
 async function resetAllUsersDailyBookingCounters() {
   const today = bookingDayYmd();
   const res = await User.updateMany(
     {},
-    {
-      $set: {
-        transitBookingCount: 0,
-        importBookingCount: 0,
-        lastBookingCountDay: today
-      }
-    }
+    { $set: { transitBookingCount: 0, importBookingCount: 0, lastBookingCountDay: today } }
   );
   return {
     matched: res.matchedCount ?? res.n ?? 0,
@@ -210,6 +275,13 @@ module.exports = {
   FEATURE_TRANSIT_BOOKING,
   FEATURE_IMPORT_BOOKING,
   DEFAULT_USER_FEATURES,
+  PLAN_LIMITED,
+  PLAN_MONTHLY_ONLY,
+  PLAN_OPEN,
+  CONSUMPTION_DAILY,
+  CONSUMPTION_MONTHLY,
+  CONSUMPTION_PAID_EXTRA,
+  CONSUMPTION_OPEN,
   bookingDayTimezone,
   bookingDayYmd,
   bookingDayYm,
@@ -217,16 +289,20 @@ module.exports = {
   utcYm,
   defaultMaxTransit,
   defaultMaxImport,
+  defaultMaxDailyBookings,
+  defaultMaxMonthlyBookings,
   syncUserBookingDay,
   loadUserBookingState,
   userHasFeature,
   totalDailyBookings,
+  totalMonthlyBookings,
   resolveFeaturesForApi,
   bookingStatsPayload,
-  effectiveMaxTransit,
-  effectiveMaxImport,
+  resolveConsumptionDecision,
+  assertCanBook,
   assertCanTransitBook,
   assertCanImportBook,
+  recordBookingSuccess,
   recordTransitBookingSuccess,
   recordImportBookingSuccess,
   resetAllUsersDailyBookingCounters

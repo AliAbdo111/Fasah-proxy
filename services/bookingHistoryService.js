@@ -21,7 +21,9 @@ async function logBooking({
   message = '',
   requestBody = {},
   requestQuery = {},
-  responseBody = {}
+  responseBody = {},
+  consumptionType = '',
+  extraPriceApplied = 0
 }) {
   try {
     await BookingHistory.create({
@@ -33,7 +35,9 @@ async function logBooking({
       message: String(message || ''),
       requestBody: sanitize(requestBody),
       requestQuery: sanitize(requestQuery),
-      responseBody: sanitize(responseBody)
+      responseBody: sanitize(responseBody),
+      consumptionType: String(consumptionType || ''),
+      extraPriceApplied: Number(extraPriceApplied || 0)
     });
   } catch (err) {
     // history must never break booking flow
@@ -43,7 +47,7 @@ async function logBooking({
 
 const KIND_VALUES = ['transit', 'import', 'other'];
 
-async function listUserBookings({ userId, page = 1, limit = 20, q = '', kind, success }) {
+async function listUserBookings({ userId, page = 1, limit = 20, q = '', kind, success, consumptionType }) {
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const filter = { userId };
@@ -54,6 +58,10 @@ async function listUserBookings({ userId, page = 1, limit = 20, q = '', kind, su
   const s = success != null ? String(success).trim().toLowerCase() : '';
   if (s === 'true' || s === 'false') {
     filter.success = s === 'true';
+  }
+  const c = consumptionType != null ? String(consumptionType).trim() : '';
+  if (c) {
+    filter.consumptionType = c;
   }
   if (q && String(q).trim()) {
     const needle = String(q).trim();

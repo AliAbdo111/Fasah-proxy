@@ -103,6 +103,28 @@
             <option value="admin">admin</option>
           </select>
         </label>
+        <label>Plan Type
+          <select id="editPlanType">
+            <option value="limited">limited</option>
+            <option value="monthly_only">monthly_only</option>
+            <option value="open">open</option>
+          </select>
+        </label>
+        <label>Daily Limit Enabled
+          <select id="editDailyLimitEnabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label>Max Daily Bookings <input id="editMaxDailyBookings" type="number" min="0" /></label>
+        <label>Max Monthly Bookings <input id="editMaxMonthlyBookings" type="number" min="0" /></label>
+        <label>Allow Paid Extra
+          <select id="editAllowPaidExtra">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label>Extra Booking Price <input id="editExtraBookingPrice" type="number" min="0" step="0.01" /></label>
         <label>Max Transit / Day <input id="editMaxTransit" type="number" min="0" /></label>
         <label>Max Import / Day <input id="editMaxImport" type="number" min="0" /></label>
         <label style="grid-column: 1 / -1;">
@@ -144,6 +166,15 @@
             <option value="false">Failed</option>
           </select>
         </label>
+        <label>Consumption
+          <select id="bhConsumptionType">
+            <option value="">All</option>
+            <option value="daily">daily</option>
+            <option value="monthly">monthly</option>
+            <option value="paid_extra">paid_extra</option>
+            <option value="open">open</option>
+          </select>
+        </label>
         <label>Page <input id="bhPage" type="number" min="1" value="1" style="width:72px" /></label>
         <label>Limit <input id="bhLimit" type="number" min="1" max="200" value="20" style="width:72px" /></label>
         <button type="button" id="bhLoadBtn" class="small-btn">Load history</button>
@@ -158,6 +189,8 @@
             <th>OK</th>
             <th>HTTP</th>
             <th>Endpoint</th>
+            <th>Consumption</th>
+            <th>Extra Price</th>
             <th>Message</th>
             <th>Payload</th>
           </tr>
@@ -182,6 +215,9 @@
         <th>Role</th>
         <th>Booking Count</th>
         <th>Total Daily Bookings</th>
+        <th>Plan</th>
+        <th>Monthly Cap</th>
+        <th>Paid Extra</th>
         <th>Daily Max Bookings</th>
         <th>Monthly Bookings</th>
         <th>Features</th>
@@ -279,6 +315,7 @@
       const q = document.getElementById('bhQ').value.trim();
       const kind = document.getElementById('bhKind').value;
       const success = document.getElementById('bhSuccess').value;
+      const consumptionType = document.getElementById('bhConsumptionType').value;
       const page = Math.max(1, parseInt(document.getElementById('bhPage').value, 10) || 1);
       const limit = Math.min(200, Math.max(1, parseInt(document.getElementById('bhLimit').value, 10) || 20));
       document.getElementById('bhPage').value = String(page);
@@ -290,6 +327,7 @@
       if (q) url.searchParams.set('q', q);
       if (kind) url.searchParams.set('kind', kind);
       if (success) url.searchParams.set('success', success);
+      if (consumptionType) url.searchParams.set('consumptionType', consumptionType);
 
       const tbody = document.getElementById('bhRows');
       const meta = document.getElementById('bhMeta');
@@ -325,6 +363,8 @@
               <td>${esc(ok)}</td>
               <td>${esc(row.httpStatus != null ? row.httpStatus : '')}</td>
               <td class="mono">${esc(row.endpoint || '')}</td>
+              <td>${esc(row.consumptionType || '')}</td>
+              <td>${esc(row.extraPriceApplied != null ? row.extraPriceApplied : '')}</td>
               <td>${esc(row.message || '')}</td>
               <td>${payloadCell}</td>
             </tr>
@@ -345,6 +385,12 @@
       document.getElementById('editPhone').value = u.phone || '';
       document.getElementById('editIsActive').value = String(Boolean(u.isActive));
       document.getElementById('editRole').value = u.role === 'admin' ? 'admin' : 'user';
+      document.getElementById('editPlanType').value = u.planType || 'limited';
+      document.getElementById('editDailyLimitEnabled').value = String(Boolean(u.dailyLimitEnabled));
+      document.getElementById('editMaxDailyBookings').value = u.maxDailyBookings ?? 0;
+      document.getElementById('editMaxMonthlyBookings').value = u.maxMonthlyBookings ?? 0;
+      document.getElementById('editAllowPaidExtra').value = String(Boolean(u.allowPaidExtra));
+      document.getElementById('editExtraBookingPrice').value = u.extraBookingPrice ?? 0;
       document.getElementById('editMaxTransit').value = u.maxTransitBookingCount ?? 0;
       document.getElementById('editMaxImport').value = u.maxImportBookingCount ?? 0;
       document.getElementById('editFeatures').value = Array.isArray(u.features) ? u.features.join(',') : '';
@@ -352,6 +398,7 @@
       document.getElementById('bhQ').value = '';
       document.getElementById('bhKind').value = '';
       document.getElementById('bhSuccess').value = '';
+      document.getElementById('bhConsumptionType').value = '';
       document.getElementById('bhPage').value = '1';
       document.getElementById('bhLimit').value = '20';
       document.getElementById('bhRows').innerHTML = '';
@@ -399,6 +446,9 @@
               <td>${esc(u.role === 'admin' ? 'admin' : 'user')}</td>
               <td>${u.bookingCount || 0}</td>
               <td>Transit: ${u.transitBookingCount || 0} / Import: ${u.importBookingCount || 0} / Sum: ${u.totalDailyBookings || 0}</td>
+              <td>${esc(u.planType || 'limited')}${u.dailyLimitEnabled ? ' (daily on)' : ''}</td>
+              <td>${u.totalMonthlyBookings || 0} / ${u.maxMonthlyBookings || 0}</td>
+              <td>${u.allowPaidExtra ? 'Yes (' + (u.extraBookingPrice || 0) + ')' : 'No'} / Used: ${u.paidExtraBookingsCount || 0}</td>
               <td>Transit: ${u.maxTransitBookingCount || 0} / Import: ${u.maxImportBookingCount || 0}</td>
               <td>Transit: ${u.totalMonthlyTransitBookingCount || 0} / Import: ${u.totalMonthlyImportBookingCount || 0}</td>
               <td>${chips}</td>
@@ -456,6 +506,12 @@
         phone: document.getElementById('editPhone').value.trim(),
         isActive: document.getElementById('editIsActive').value === 'true',
         role: document.getElementById('editRole').value,
+        planType: document.getElementById('editPlanType').value,
+        dailyLimitEnabled: document.getElementById('editDailyLimitEnabled').value === 'true',
+        maxDailyBookings: Number(document.getElementById('editMaxDailyBookings').value || 0),
+        maxMonthlyBookings: Number(document.getElementById('editMaxMonthlyBookings').value || 0),
+        allowPaidExtra: document.getElementById('editAllowPaidExtra').value === 'true',
+        extraBookingPrice: Number(document.getElementById('editExtraBookingPrice').value || 0),
         maxTransitBookingCount: Number(document.getElementById('editMaxTransit').value || 0),
         maxImportBookingCount: Number(document.getElementById('editMaxImport').value || 0),
         features: featuresRaw ? featuresRaw.split(',').map((x) => x.trim()).filter(Boolean) : []
