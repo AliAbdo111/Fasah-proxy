@@ -257,19 +257,53 @@ router.get('/me/bookings/history', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
     const decoded = authService.verifyToken(token);
-    const { page, limit, q, kind, success } = req.query;
+    const { page, limit, q, kind, success, consumptionType, fromDate, toDate } = req.query;
     const result = await bookingHistoryService.listUserBookings({
       userId: decoded.userId,
       page,
       limit,
       q,
       kind,
-      success
+      success,
+      consumptionType,
+      fromDate,
+      toDate
     });
     res.json({ success: true, ...result });
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ success: false, message: err.message || 'Failed to list my booking history' });
+  }
+});
+
+// GET /api/auth/users/:userId/bookings/history/export (protected, admin only)
+router.get('/users/:userId/bookings/history/export', async (req, res) => {
+  try {
+    const token = req.headers['authorization'] || req.headers['x-auth-token'];
+    await authService.assertAdminToken(token);
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid userId. Use a real Mongo ObjectId (not :userId placeholder).'
+      });
+    }
+    const { q, kind, success, consumptionType, fromDate, toDate } = req.query;
+    const result = await bookingHistoryService.exportUserBookingsCsv({
+      userId,
+      q,
+      kind,
+      success,
+      consumptionType,
+      fromDate,
+      toDate
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send('\uFEFF' + result.csv);
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Failed to export user booking history' });
   }
 });
 
@@ -285,14 +319,17 @@ router.get('/users/:userId/bookings/history', async (req, res) => {
         message: 'Invalid userId. Use a real Mongo ObjectId (not :userId placeholder).'
       });
     }
-    const { page, limit, q, kind, success } = req.query;
+    const { page, limit, q, kind, success, consumptionType, fromDate, toDate } = req.query;
     const result = await bookingHistoryService.listUserBookings({
       userId,
       page,
       limit,
       q,
       kind,
-      success
+      success,
+      consumptionType,
+      fromDate,
+      toDate
     });
     res.json({ success: true, ...result });
   } catch (err) {

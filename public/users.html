@@ -144,9 +144,12 @@
             <option value="false">Failed</option>
           </select>
         </label>
+        <label>From <input id="bhFromDate" type="date" /></label>
+        <label>To <input id="bhToDate" type="date" /></label>
         <label>Page <input id="bhPage" type="number" min="1" value="1" style="width:72px" /></label>
         <label>Limit <input id="bhLimit" type="number" min="1" max="200" value="20" style="width:72px" /></label>
         <button type="button" id="bhLoadBtn" class="small-btn">Load history</button>
+        <button type="button" id="bhExportBtn" class="small-btn">Download Excel (CSV)</button>
       </div>
       <div id="bhMeta" class="bh-meta"></div>
       <div id="bhErr" class="bh-err"></div>
@@ -290,6 +293,10 @@
       if (q) url.searchParams.set('q', q);
       if (kind) url.searchParams.set('kind', kind);
       if (success) url.searchParams.set('success', success);
+      const fromDate = document.getElementById('bhFromDate').value;
+      const toDate = document.getElementById('bhToDate').value;
+      if (fromDate) url.searchParams.set('fromDate', fromDate);
+      if (toDate) url.searchParams.set('toDate', toDate);
 
       const tbody = document.getElementById('bhRows');
       const meta = document.getElementById('bhMeta');
@@ -337,6 +344,49 @@
       }
     }
 
+    async function exportBookingHistoryCsv() {
+      const userId = document.getElementById('editUserId').value;
+      if (!userId) return;
+      bhSetError('');
+      const q = document.getElementById('bhQ').value.trim();
+      const kind = document.getElementById('bhKind').value;
+      const success = document.getElementById('bhSuccess').value;
+      const fromDate = document.getElementById('bhFromDate').value;
+      const toDate = document.getElementById('bhToDate').value;
+      const url = new URL(baseUrl + '/api/auth/users/' + encodeURIComponent(userId) + '/bookings/history/export');
+      if (q) url.searchParams.set('q', q);
+      if (kind) url.searchParams.set('kind', kind);
+      if (success) url.searchParams.set('success', success);
+      if (fromDate) url.searchParams.set('fromDate', fromDate);
+      if (toDate) url.searchParams.set('toDate', toDate);
+      try {
+        const res = await fetch(url, { headers: authHeaders(false) });
+        if (!res.ok) {
+          let msg = 'Export failed';
+          try {
+            const j = await res.json();
+            msg = j.message || msg;
+          } catch (_) {}
+          throw new Error(msg);
+        }
+        const blob = await res.blob();
+        const contentDisposition = res.headers.get('content-disposition') || '';
+        const matched = /filename=\"?([^\";]+)\"?/.exec(contentDisposition);
+        const filename = (matched && matched[1]) || `booking-history-${userId}.csv`;
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+        showOk('Export downloaded successfully.');
+      } catch (e) {
+        bhSetError(e.message || 'Export failed');
+      }
+    }
+
     function openEdit(u) {
       addCard.classList.add('hidden');
       document.getElementById('editUserId').value = u._id;
@@ -352,6 +402,8 @@
       document.getElementById('bhQ').value = '';
       document.getElementById('bhKind').value = '';
       document.getElementById('bhSuccess').value = '';
+      document.getElementById('bhFromDate').value = '';
+      document.getElementById('bhToDate').value = '';
       document.getElementById('bhPage').value = '1';
       document.getElementById('bhLimit').value = '20';
       document.getElementById('bhRows').innerHTML = '';
@@ -524,6 +576,7 @@
     document.getElementById('tabBtnProfile').addEventListener('click', () => setEditTab('profile'));
     document.getElementById('tabBtnHistory').addEventListener('click', () => setEditTab('history'));
     document.getElementById('bhLoadBtn').addEventListener('click', () => loadBookingHistory());
+    document.getElementById('bhExportBtn').addEventListener('click', () => exportBookingHistoryCsv());
     document.getElementById('bhPrevBtn').addEventListener('click', () => {
       const p = document.getElementById('bhPage');
       const n = Math.max(1, (parseInt(p.value, 10) || 1) - 1);
