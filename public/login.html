@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FASAH Proxy - Login</title>
+  <title>FASAH Proxy - Admin Login</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
     h1 { font-size: 24px; margin-bottom: 6px; }
@@ -17,13 +17,10 @@
   </style>
 </head>
 <body>
-  <h1>Login</h1>
-  <p>Sign in, then open the users page.</p>
+  <h1>Admin login</h1>
+  <p>Only accounts with role <strong>admin</strong> can sign in here. Use <code>/api/auth/login</code> for normal API users.</p>
 
   <form id="loginForm">
-    <label for="baseUrl">Base URL</label>
-    <input id="baseUrl" name="baseUrl" value="" placeholder="http://localhost:3001" />
-
     <label for="email">Email</label>
     <input id="email" name="email" type="email" required />
 
@@ -34,27 +31,28 @@
   </form>
 
   <div id="message"></div>
-  <div class="small">Token is saved in browser localStorage.</div>
+  <div class="small">Token is saved in browser localStorage for the users admin page.</div>
 
   <script>
     const msg = document.getElementById('message');
     const form = document.getElementById('loginForm');
-    const baseUrlInput = document.getElementById('baseUrl');
 
-    const savedBase = localStorage.getItem('fasah.baseUrl');
-    baseUrlInput.value = savedBase || window.location.origin;
+    function baseUrl() {
+      const saved = localStorage.getItem('fasah.baseUrl');
+      return (saved || window.location.origin).replace(/\/+$/, '');
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       msg.textContent = '';
       msg.className = '';
 
-      const baseUrl = baseUrlInput.value.trim().replace(/\/+$/, '');
+      const origin = baseUrl();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
       try {
-        const res = await fetch(baseUrl + '/api/auth/login', {
+        const res = await fetch(origin + '/api/auth/admin/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -64,7 +62,7 @@
           throw new Error(data.message || 'Login failed');
         }
 
-        localStorage.setItem('fasah.baseUrl', baseUrl);
+        localStorage.setItem('fasah.baseUrl', origin);
         localStorage.setItem('fasah.authToken', data.token);
         msg.textContent = 'Login success. Redirecting to users page...';
         msg.className = 'ok';

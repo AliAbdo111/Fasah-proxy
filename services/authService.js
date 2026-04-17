@@ -5,6 +5,22 @@ const bookingDailyLimits = require('./bookingDailyLimits');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+const ROLE_USER = 'user';
+const ROLE_ADMIN = 'admin';
+
+function resolveRole(userOrDoc) {
+  if (!userOrDoc) return ROLE_USER;
+  return userOrDoc.role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER;
+}
+
+function signUserToken(userId, role) {
+  return jwt.sign(
+    { userId: String(userId), role: role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+}
 const OTP_EXPIRY_MINUTES = 10;
 const RESET_TOKEN_EXPIRY_MINUTES = 60;
 
@@ -35,7 +51,7 @@ async function register({ email, password, phone, username }) {
   user.otp = otp;
   user.otpExpires = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
   await user.save({ validateBeforeSave: false });
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const token = signUserToken(user._id, ROLE_USER);
   return {
     user: {
       _id: user._id,
@@ -45,6 +61,7 @@ async function register({ email, password, phone, username }) {
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
       isActive: user.isActive,
+      role: resolveRole(user),
       ...bookingDailyLimits.bookingStatsPayload(user)
     },
     token,
@@ -62,7 +79,7 @@ async function login(email, password) {
   const refreshed = await User.findById(user._id).select(
     '-password -otp -otpExpires -resetPasswordToken -resetPasswordExpires'
   );
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const token = signUserToken(refreshed._id, resolveRole(refreshed));
   return {
     user: {
       _id: refreshed._id,
@@ -72,6 +89,38 @@ async function login(email, password) {
       emailVerified: refreshed.emailVerified,
       phoneVerified: refreshed.phoneVerified,
       isActive: refreshed.isActive,
+      role: resolveRole(refreshed),
+      ...bookingDailyLimits.bookingStatsPayload(refreshed)
+    },
+    token
+  };
+}
+
+/** Same as login but only accounts with role admin receive a token (403 otherwise). */
+async function adminLogin(email, password) {
+  const user = await User.findOne({ email }).select('+password');
+  if (!user) throw { status: 401, message: 'Invalid email or password' };
+  if (!user.isActive) throw { status: 403, message: 'Account is deactivated' };
+  const valid = await user.comparePassword(password);
+  if (!valid) throw { status: 401, message: 'Invalid email or password' };
+  if (resolveRole(user) !== ROLE_ADMIN) {
+    throw { status: 403, message: 'Admin access only' };
+  }
+  await bookingDailyLimits.syncUserBookingDay(user._id);
+  const refreshed = await User.findById(user._id).select(
+    '-password -otp -otpExpires -resetPasswordToken -resetPasswordExpires'
+  );
+  const token = signUserToken(refreshed._id, ROLE_ADMIN);
+  return {
+    user: {
+      _id: refreshed._id,
+      email: refreshed.email,
+      phone: refreshed.phone,
+      username: refreshed.username,
+      emailVerified: refreshed.emailVerified,
+      phoneVerified: refreshed.phoneVerified,
+      isActive: refreshed.isActive,
+      role: ROLE_ADMIN,
       ...bookingDailyLimits.bookingStatsPayload(refreshed)
     },
     token
@@ -100,9 +149,16 @@ async function resetPassword(token, newPassword) {
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
   await user.save();
-  const jwtToken = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const jwtToken = signUserToken(user._id, resolveRole(user));
   return {
-    user: { _id: user._id, email: user.email, phone: user.phone, username: user.username, isActive: user.isActive },
+    user: {
+      _id: user._id,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
+      isActive: user.isActive,
+      role: resolveRole(user)
+    },
     token: jwtToken
   };
 }
@@ -117,9 +173,18 @@ async function verifyOtp(email, otp, type = 'email') {
   user.otp = undefined;
   user.otpExpires = undefined;
   await user.save({ validateBeforeSave: false });
-  const jwtToken = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const jwtToken = signUserToken(user._id, resolveRole(user));
   return {
-    user: { _id: user._id, email: user.email, phone: user.phone, username: user.username, emailVerified: user.emailVerified, phoneVerified: user.phoneVerified, isActive: user.isActive },
+    user: {
+      _id: user._id,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      isActive: user.isActive,
+      role: resolveRole(user)
+    },
     token: jwtToken
   };
 }
@@ -175,7 +240,8 @@ async function updateUser(userId, payload = {}) {
     phoneVerified,
     maxTransitBookingCount,
     maxImportBookingCount,
-    features
+    features,
+    role
   } = payload;
 
   const hasAnyField =
@@ -188,7 +254,8 @@ async function updateUser(userId, payload = {}) {
     phoneVerified !== undefined ||
     maxTransitBookingCount !== undefined ||
     maxImportBookingCount !== undefined ||
-    features !== undefined;
+    features !== undefined ||
+    role !== undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -237,6 +304,12 @@ async function updateUser(userId, payload = {}) {
     user.features = features.map((x) => String(x).trim()).filter(Boolean);
   }
 
+  if (role !== undefined) {
+    const r = String(role).trim();
+    if (r !== ROLE_USER && r !== ROLE_ADMIN) throw { status: 400, message: 'role must be user or admin' };
+    user.role = r;
+  }
+
   await user.save();
 
   return {
@@ -248,6 +321,7 @@ async function updateUser(userId, payload = {}) {
       isActive: user.isActive,
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
+      role: resolveRole(user),
       ...bookingDailyLimits.bookingStatsPayload(user)
     }
   };
@@ -268,7 +342,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   const [items, total] = await Promise.all([
     User.find(filter)
       .select(
-        'email phone username isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified createdAt updatedAt'
+        'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified createdAt updatedAt'
       )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
@@ -349,9 +423,31 @@ function verifyToken(bearerToken) {
   return jwt.verify(token, JWT_SECRET);
 }
 
+/** Validates JWT and that the user is active, still valid after password change, and role admin. */
+async function assertAdminToken(bearerToken) {
+  const decoded = verifyToken(bearerToken);
+  const user = await User.findById(decoded.userId).select('isActive role passwordChangedAt');
+  if (!user) throw { status: 401, message: 'User not found' };
+  if (!user.isActive) throw { status: 403, message: 'Account is deactivated' };
+  if (user.passwordChangedAt && decoded.iat) {
+    const tokenIssuedAtMs = decoded.iat * 1000;
+    const changedAtMs = new Date(user.passwordChangedAt).getTime();
+    if (Number.isFinite(changedAtMs) && tokenIssuedAtMs < changedAtMs) {
+      throw { status: 401, message: 'Token expired (password changed). Please login again.' };
+    }
+  }
+  if (resolveRole(user) !== ROLE_ADMIN) {
+    throw { status: 403, message: 'Admin role required' };
+  }
+  return { decoded, user };
+}
+
 module.exports = {
+  ROLE_USER,
+  ROLE_ADMIN,
   register,
   login,
+  adminLogin,
   forgotPassword,
   resetPassword,
   verifyOtp,
@@ -365,5 +461,6 @@ module.exports = {
   resetBookingCount,
   resetAllBookingCounts,
   verifyToken,
+  assertAdminToken,
   JWT_SECRET
 };

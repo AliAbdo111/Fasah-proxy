@@ -37,6 +37,13 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  /** Application role: normal API users vs admin UI / management APIs */
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user',
+    index: true
+  },
   bookingCount: {
     type: Number,
     default: 0

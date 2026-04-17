@@ -97,6 +97,12 @@
             <option value="false">false</option>
           </select>
         </label>
+        <label>Role
+          <select id="editRole">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+        </label>
         <label>Max Transit / Day <input id="editMaxTransit" type="number" min="0" /></label>
         <label>Max Import / Day <input id="editMaxImport" type="number" min="0" /></label>
         <label style="grid-column: 1 / -1;">
@@ -173,6 +179,7 @@
         <th>Username</th>
         <th>Phone</th>
         <th>Active</th>
+        <th>Role</th>
         <th>Booking Count</th>
         <th>Total Daily Bookings</th>
         <th>Daily Max Bookings</th>
@@ -337,6 +344,7 @@
       document.getElementById('editUsername').value = u.username || '';
       document.getElementById('editPhone').value = u.phone || '';
       document.getElementById('editIsActive').value = String(Boolean(u.isActive));
+      document.getElementById('editRole').value = u.role === 'admin' ? 'admin' : 'user';
       document.getElementById('editMaxTransit').value = u.maxTransitBookingCount ?? 0;
       document.getElementById('editMaxImport').value = u.maxImportBookingCount ?? 0;
       document.getElementById('editFeatures').value = Array.isArray(u.features) ? u.features.join(',') : '';
@@ -388,6 +396,7 @@
               <td>${esc(u.username || '')}</td>
               <td>${esc(u.phone || '')}</td>
               <td>${u.isActive ? 'Yes' : 'No'}</td>
+              <td>${esc(u.role === 'admin' ? 'admin' : 'user')}</td>
               <td>${u.bookingCount || 0}</td>
               <td>Transit: ${u.transitBookingCount || 0} / Import: ${u.importBookingCount || 0} / Sum: ${u.totalDailyBookings || 0}</td>
               <td>Transit: ${u.maxTransitBookingCount || 0} / Import: ${u.maxImportBookingCount || 0}</td>
@@ -446,6 +455,7 @@
         username: document.getElementById('editUsername').value.trim(),
         phone: document.getElementById('editPhone').value.trim(),
         isActive: document.getElementById('editIsActive').value === 'true',
+        role: document.getElementById('editRole').value,
         maxTransitBookingCount: Number(document.getElementById('editMaxTransit').value || 0),
         maxImportBookingCount: Number(document.getElementById('editMaxImport').value || 0),
         features: featuresRaw ? featuresRaw.split(',').map((x) => x.trim()).filter(Boolean) : []

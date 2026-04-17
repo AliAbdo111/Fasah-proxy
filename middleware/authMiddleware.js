@@ -25,7 +25,10 @@ async function authMiddleware(req, res, next) {
       }
     }
 
-    req.auth = decoded;
+    req.auth = {
+      ...decoded,
+      role: user.role === 'admin' ? 'admin' : 'user'
+    };
     req.user = user;
     next();
   } catch (err) {

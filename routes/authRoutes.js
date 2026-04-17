@@ -35,6 +35,21 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/admin/login — token only for accounts with role admin
+router.post('/admin/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    }
+    const result = await authService.adminLogin(email, password);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, message: err.message || 'Admin login failed' });
+  }
+});
+
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   try {
@@ -144,11 +159,11 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// PATCH /api/auth/users/:userId/activate (protected)
+// PATCH /api/auth/users/:userId/activate (protected, admin only)
 router.patch('/users/:userId/activate', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const result = await authService.activateUser(req.params.userId);
     res.json({ success: true, ...result });
   } catch (err) {
@@ -157,11 +172,11 @@ router.patch('/users/:userId/activate', async (req, res) => {
   }
 });
 
-// PATCH /api/auth/users/:userId/deactivate (protected)
+// PATCH /api/auth/users/:userId/deactivate (protected, admin only)
 router.patch('/users/:userId/deactivate', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const result = await authService.deactivateUser(req.params.userId);
     res.json({ success: true, ...result });
   } catch (err) {
@@ -170,11 +185,11 @@ router.patch('/users/:userId/deactivate', async (req, res) => {
   }
 });
 
-// PATCH /api/auth/users/:userId (protected) - update user including password
+// PATCH /api/auth/users/:userId (protected, admin only) - update user including password
 router.patch('/users/:userId', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const result = await authService.updateUser(req.params.userId, req.body || {});
     res.json({ success: true, ...result });
   } catch (err) {
@@ -183,11 +198,11 @@ router.patch('/users/:userId', async (req, res) => {
   }
 });
 
-// PATCH /api/auth/users/:userId/password (protected) - set user password
+// PATCH /api/auth/users/:userId/password (protected, admin only) - set user password
 router.patch('/users/:userId/password', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const { newPassword } = req.body || {};
     const result = await authService.setUserPassword(req.params.userId, newPassword);
     res.json({ success: true, ...result });
@@ -197,11 +212,11 @@ router.patch('/users/:userId/password', async (req, res) => {
   }
 });
 
-// GET /api/auth/users (protected) - list users
+// GET /api/auth/users (protected, admin only) - list users
 router.get('/users', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const { page, limit, q } = req.query;
     const result = await authService.listUsers({ page, limit, q });
     res.json({ success: true, ...result });
@@ -211,11 +226,11 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// PATCH /api/auth/users/:userId/reset-booking-count (protected)
+// PATCH /api/auth/users/:userId/reset-booking-count (protected, admin only)
 router.patch('/users/:userId/reset-booking-count', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const result = await authService.resetBookingCount(req.params.userId);
     res.json({ success: true, ...result });
   } catch (err) {
@@ -224,11 +239,11 @@ router.patch('/users/:userId/reset-booking-count', async (req, res) => {
   }
 });
 
-// PATCH /api/auth/users/reset-booking-count/all (protected)
+// PATCH /api/auth/users/reset-booking-count/all (protected, admin only)
 router.patch('/users/reset-booking-count/all', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const result = await authService.resetAllBookingCounts();
     res.json({ success: true, ...result });
   } catch (err) {
@@ -258,11 +273,11 @@ router.get('/me/bookings/history', async (req, res) => {
   }
 });
 
-// GET /api/auth/users/:userId/bookings/history (protected)
+// GET /api/auth/users/:userId/bookings/history (protected, admin only)
 router.get('/users/:userId/bookings/history', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
-    authService.verifyToken(token);
+    await authService.assertAdminToken(token);
     const { userId } = req.params;
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({
