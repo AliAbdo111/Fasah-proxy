@@ -8,6 +8,15 @@ const bookingHistoryService = require('../services/bookingHistoryService');
 // Initialize client
 const client = new FasahClient();
 
+function extractTasBookRef(result) {
+  return (
+    result?.data?.data?.result?.validated?.[0]?.tasBookRef ||
+    result?.data?.result?.validated?.[0]?.tasBookRef ||
+    result?.result?.validated?.[0]?.tasBookRef ||
+    ''
+  );
+}
+
 /**
  * GET /api/fasah/schedule/land
  * Get land zone schedule (المواعيد)
@@ -281,22 +290,30 @@ router.post('/appointment/transit/create', async (req, res) => {
       userType: userType
     });
 
-    // التحقق من نتيجة الإنشاء
-    if (result?.success === false) {
+    // Count as success only when tasBookRef exists
+    const tasBookRef = extractTasBookRef(result);
+    const hasSuccessfulBooking = Boolean(tasBookRef);
+    if (!hasSuccessfulBooking) {
+      const upstreamMessage =
+        result?.message ||
+        result?.data?.message ||
+        result?.data?.data?.message ||
+        'Booking not created';
       await bookingHistoryService.logBooking({
         userId: req.user && req.user._id,
         endpoint: '/api/fasah/appointment/transit/create',
         kind: 'transit',
         success: false,
         httpStatus: 400,
-        message: 'Booking not created',
+        message: upstreamMessage,
         requestBody: req.body || {},
         requestQuery: req.query || {},
         responseBody: result
       });
       return res.status(400).json({
         success: false,
-        data: result,
+        message: upstreamMessage,
+        data: result
       });
     }
 
