@@ -163,6 +163,9 @@ function bookingStatsPayload(user) {
     extraBookingPrice: effectiveExtraPrice(user),
     paidExtraBookingsCount: user.paidExtraBookingsCount || 0,
     paidExtraAmount: user.paidExtraAmount || 0,
+    packageName: user.packageName || '',
+    packagePriceSar: user.packagePriceSar != null ? user.packagePriceSar : 0,
+    subscriptionEndsAt: user.subscriptionEndsAt || null,
     lastBookingCountDay: user.lastBookingCountDay,
     lastBookingCountMonth: user.lastBookingCountMonth,
     features: resolveFeaturesForApi(user)
@@ -172,8 +175,15 @@ function bookingStatsPayload(user) {
 async function loadUserBookingState(userId) {
   await syncUserBookingDay(userId);
   return User.findById(userId).select(
-    'transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount bookingCount features lastBookingCountDay lastBookingCountMonth planType dailyLimitEnabled allowPaidExtra extraBookingPrice maxDailyBookings maxMonthlyBookings paidExtraBookingsCount paidExtraAmount'
+    'transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount bookingCount features lastBookingCountDay lastBookingCountMonth planType dailyLimitEnabled allowPaidExtra extraBookingPrice maxDailyBookings maxMonthlyBookings paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt'
   );
+}
+
+function isSubscriptionExpired(user) {
+  if (!user || !user.subscriptionEndsAt) return false;
+  const t = new Date(user.subscriptionEndsAt).getTime();
+  if (!Number.isFinite(t)) return false;
+  return Date.now() > t;
 }
 
 function resolveConsumptionDecision(user) {
@@ -212,6 +222,9 @@ function resolveConsumptionDecision(user) {
 async function assertCanBook(userId, kind) {
   const user = await loadUserBookingState(userId);
   if (!user) throw { status: 404, message: 'User not found' };
+  if (isSubscriptionExpired(user)) {
+    throw { status: 403, message: 'Subscription expired. Please renew your package.' };
+  }
   if (kind === 'transit' && !userHasFeature(user, FEATURE_TRANSIT_BOOKING)) {
     throw { status: 403, message: 'Transit booking is not enabled for this account (missing transit_booking feature)' };
   }

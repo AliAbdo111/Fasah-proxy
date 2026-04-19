@@ -135,6 +135,23 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  /** Display / billing label for the subscription package (e.g. باقة 800). */
+  packageName: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  /** Subscription package price in SAR (reference for admin / invoicing). */
+  packagePriceSar: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  /** After this instant, bookings are rejected until renewed (optional). */
+  subscriptionEndsAt: {
+    type: Date,
+    default: null
+  },
   maxTransitBookingCount: {
     type: Number,
     default: () => {

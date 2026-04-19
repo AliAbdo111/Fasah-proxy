@@ -248,7 +248,10 @@ async function updateUser(userId, payload = {}) {
     maxDailyBookings,
     maxMonthlyBookings,
     allowPaidExtra,
-    extraBookingPrice
+    extraBookingPrice,
+    packageName,
+    packagePriceSar,
+    subscriptionEndsAt
   } = payload;
 
   const hasAnyField =
@@ -268,7 +271,10 @@ async function updateUser(userId, payload = {}) {
     maxDailyBookings !== undefined ||
     maxMonthlyBookings !== undefined ||
     allowPaidExtra !== undefined ||
-    extraBookingPrice !== undefined;
+    extraBookingPrice !== undefined ||
+    packageName !== undefined ||
+    packagePriceSar !== undefined ||
+    subscriptionEndsAt !== undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -357,6 +363,24 @@ async function updateUser(userId, payload = {}) {
     throw { status: 400, message: 'extraBookingPrice must be >= 0 when allowPaidExtra is enabled' };
   }
 
+  if (packageName !== undefined) {
+    user.packageName = String(packageName).trim();
+  }
+  if (packagePriceSar !== undefined) {
+    const n = Number(packagePriceSar);
+    if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'packagePriceSar must be a non-negative number' };
+    user.packagePriceSar = n;
+  }
+  if (subscriptionEndsAt !== undefined) {
+    if (subscriptionEndsAt === null || subscriptionEndsAt === '') {
+      user.subscriptionEndsAt = null;
+    } else {
+      const d = new Date(subscriptionEndsAt);
+      if (Number.isNaN(d.getTime())) throw { status: 400, message: 'subscriptionEndsAt must be a valid date or null' };
+      user.subscriptionEndsAt = d;
+    }
+  }
+
   await user.save();
 
   return {
@@ -389,7 +413,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   const [items, total] = await Promise.all([
     User.find(filter)
       .select(
-        'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount createdAt updatedAt'
+        'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt createdAt updatedAt'
       )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
