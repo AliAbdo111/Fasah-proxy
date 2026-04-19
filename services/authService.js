@@ -45,6 +45,7 @@ async function register({ email, password, phone, username }) {
     password,
     phone: phone || '',
     username: username || '',
+    role: ROLE_USER,
     features: [...bookingDailyLimits.DEFAULT_USER_FEATURES]
   });
   const otp = generateOtp();
@@ -241,7 +242,16 @@ async function updateUser(userId, payload = {}) {
     maxTransitBookingCount,
     maxImportBookingCount,
     features,
-    role
+    role,
+    planType,
+    dailyLimitEnabled,
+    maxDailyBookings,
+    maxMonthlyBookings,
+    allowPaidExtra,
+    extraBookingPrice,
+    packageName,
+    packagePriceSar,
+    subscriptionEndsAt
   } = payload;
 
   const hasAnyField =
@@ -255,7 +265,16 @@ async function updateUser(userId, payload = {}) {
     maxTransitBookingCount !== undefined ||
     maxImportBookingCount !== undefined ||
     features !== undefined ||
-    role !== undefined;
+    role !== undefined ||
+    planType !== undefined ||
+    dailyLimitEnabled !== undefined ||
+    maxDailyBookings !== undefined ||
+    maxMonthlyBookings !== undefined ||
+    allowPaidExtra !== undefined ||
+    extraBookingPrice !== undefined ||
+    packageName !== undefined ||
+    packagePriceSar !== undefined ||
+    subscriptionEndsAt !== undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -310,6 +329,58 @@ async function updateUser(userId, payload = {}) {
     user.role = r;
   }
 
+  if (planType !== undefined) {
+    const v = String(planType).trim();
+    if (!['limited', 'monthly_only', 'open'].includes(v)) {
+      throw { status: 400, message: 'planType must be limited, monthly_only, or open' };
+    }
+    user.planType = v;
+  }
+
+  if (dailyLimitEnabled !== undefined) user.dailyLimitEnabled = Boolean(dailyLimitEnabled);
+
+  if (maxDailyBookings !== undefined) {
+    const n = Number(maxDailyBookings);
+    if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'maxDailyBookings must be a non-negative number' };
+    user.maxDailyBookings = n;
+  }
+
+  if (maxMonthlyBookings !== undefined) {
+    const n = Number(maxMonthlyBookings);
+    if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'maxMonthlyBookings must be a non-negative number' };
+    user.maxMonthlyBookings = n;
+  }
+
+  if (allowPaidExtra !== undefined) user.allowPaidExtra = Boolean(allowPaidExtra);
+
+  if (extraBookingPrice !== undefined) {
+    const n = Number(extraBookingPrice);
+    if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'extraBookingPrice must be a non-negative number' };
+    user.extraBookingPrice = n;
+  }
+
+  if (Boolean(user.allowPaidExtra) && Number(user.extraBookingPrice || 0) < 0) {
+    throw { status: 400, message: 'extraBookingPrice must be >= 0 when allowPaidExtra is enabled' };
+  }
+
+  if (packageName !== undefined) {
+    user.packageName = String(packageName).trim();
+  }
+  if (packagePriceSar !== undefined) {
+    const n = Number(packagePriceSar);
+    if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'packagePriceSar must be a non-negative number' };
+    user.packagePriceSar = n;
+  }
+  if (subscriptionEndsAt !== undefined) {
+    if (subscriptionEndsAt === null || subscriptionEndsAt === '') {
+      user.subscriptionEndsAt = null;
+    } else {
+      const d = new Date(subscriptionEndsAt);
+      if (Number.isNaN(d.getTime())) throw { status: 400, message: 'subscriptionEndsAt must be a valid date or null' };
+      user.subscriptionEndsAt = d;
+    }
+  }
+
   await user.save();
 
   return {
@@ -342,7 +413,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   const [items, total] = await Promise.all([
     User.find(filter)
       .select(
-        'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified createdAt updatedAt'
+        'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt createdAt updatedAt'
       )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
@@ -370,13 +441,15 @@ async function resetBookingCount(userId) {
         importBookingCount: 0,
         totalMonthlyTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
+        paidExtraBookingsCount: 0,
+        paidExtraAmount: 0,
         lastBookingCountDay: today,
         lastBookingCountMonth: bookingDailyLimits.bookingDayYm()
       }
     },
     { new: true }
   ).select(
-    'email bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features'
+    'email role bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount'
   );
   if (!user) throw { status: 404, message: 'User not found' };
   return {
@@ -399,6 +472,8 @@ async function resetAllBookingCounts() {
         importBookingCount: 0,
         totalMonthlyTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
+        paidExtraBookingsCount: 0,
+        paidExtraAmount: 0,
         lastBookingCountDay: today,
         lastBookingCountMonth: bookingDailyLimits.bookingDayYm()
       }

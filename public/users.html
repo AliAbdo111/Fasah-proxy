@@ -103,6 +103,33 @@
             <option value="admin">admin</option>
           </select>
         </label>
+        <label>Plan Type
+          <select id="editPlanType">
+            <option value="limited">limited</option>
+            <option value="monthly_only">monthly_only</option>
+            <option value="open">open</option>
+          </select>
+        </label>
+        <label>Daily Limit Enabled
+          <select id="editDailyLimitEnabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label>Max Daily Bookings <input id="editMaxDailyBookings" type="number" min="0" /></label>
+        <label>Max Monthly Bookings <input id="editMaxMonthlyBookings" type="number" min="0" /></label>
+        <label>Allow Paid Extra
+          <select id="editAllowPaidExtra">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label>Extra Booking Price <input id="editExtraBookingPrice" type="number" min="0" step="0.01" /></label>
+        <label style="grid-column: 1 / -1; font-weight: 700;">Package / subscription</label>
+        <label>Package name <input id="editPackageName" placeholder="e.g. باقة 800" /></label>
+        <label>Package price (SAR) <input id="editPackagePriceSar" type="number" min="0" step="1" /></label>
+        <label>Subscription ends <input id="editSubscriptionEndsAt" type="datetime-local" /></label>
+        <p class="muted" style="grid-column: 1 / -1; margin: 0">Leave subscription empty for no expiry. Extra price applies after monthly quota if enabled.</p>
         <label>Max Transit / Day <input id="editMaxTransit" type="number" min="0" /></label>
         <label>Max Import / Day <input id="editMaxImport" type="number" min="0" /></label>
         <label style="grid-column: 1 / -1;">
@@ -144,8 +171,6 @@
             <option value="false">Failed</option>
           </select>
         </label>
-        <label>From <input id="bhFromDate" type="date" /></label>
-        <label>To <input id="bhToDate" type="date" /></label>
         <label>Page <input id="bhPage" type="number" min="1" value="1" style="width:72px" /></label>
         <label>Limit <input id="bhLimit" type="number" min="1" max="200" value="20" style="width:72px" /></label>
         <button type="button" id="bhLoadBtn" class="small-btn">Load history</button>
@@ -161,6 +186,8 @@
             <th>OK</th>
             <th>HTTP</th>
             <th>Endpoint</th>
+            <th>Consumption</th>
+            <th>Extra Price</th>
             <th>Message</th>
             <th>Payload</th>
           </tr>
@@ -185,6 +212,10 @@
         <th>Role</th>
         <th>Booking Count</th>
         <th>Total Daily Bookings</th>
+        <th>Plan</th>
+        <th>Package</th>
+        <th>Monthly Cap</th>
+        <th>Paid Extra</th>
         <th>Daily Max Bookings</th>
         <th>Monthly Bookings</th>
         <th>Features</th>
@@ -236,6 +267,27 @@
       return h;
     }
 
+    function toDatetimeLocalValue(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function formatPackageSummary(u) {
+      const parts = [];
+      if (u.packageName) parts.push(String(u.packageName));
+      if (u.packagePriceSar != null && Number(u.packagePriceSar) > 0) {
+        parts.push(`${u.packagePriceSar} SAR`);
+      }
+      if (u.subscriptionEndsAt) {
+        const d = new Date(u.subscriptionEndsAt);
+        if (!Number.isNaN(d.getTime())) parts.push(`ends ${d.toLocaleString()}`);
+      }
+      return parts.length ? parts.join(' · ') : '—';
+    }
+
     function safeJsonPreview(obj, maxLen) {
       const max = maxLen || 8000;
       try {
@@ -282,6 +334,7 @@
       const q = document.getElementById('bhQ').value.trim();
       const kind = document.getElementById('bhKind').value;
       const success = document.getElementById('bhSuccess').value;
+      const consumptionType = document.getElementById('bhConsumptionType').value;
       const page = Math.max(1, parseInt(document.getElementById('bhPage').value, 10) || 1);
       const limit = Math.min(200, Math.max(1, parseInt(document.getElementById('bhLimit').value, 10) || 20));
       document.getElementById('bhPage').value = String(page);
@@ -293,10 +346,6 @@
       if (q) url.searchParams.set('q', q);
       if (kind) url.searchParams.set('kind', kind);
       if (success) url.searchParams.set('success', success);
-      const fromDate = document.getElementById('bhFromDate').value;
-      const toDate = document.getElementById('bhToDate').value;
-      if (fromDate) url.searchParams.set('fromDate', fromDate);
-      if (toDate) url.searchParams.set('toDate', toDate);
 
       const tbody = document.getElementById('bhRows');
       const meta = document.getElementById('bhMeta');
@@ -332,6 +381,8 @@
               <td>${esc(ok)}</td>
               <td>${esc(row.httpStatus != null ? row.httpStatus : '')}</td>
               <td class="mono">${esc(row.endpoint || '')}</td>
+              <td>${esc(row.consumptionType || '')}</td>
+              <td>${esc(row.extraPriceApplied != null ? row.extraPriceApplied : '')}</td>
               <td>${esc(row.message || '')}</td>
               <td>${payloadCell}</td>
             </tr>
@@ -395,6 +446,18 @@
       document.getElementById('editPhone').value = u.phone || '';
       document.getElementById('editIsActive').value = String(Boolean(u.isActive));
       document.getElementById('editRole').value = u.role === 'admin' ? 'admin' : 'user';
+      document.getElementById('editPlanType').value = u.planType || 'limited';
+      document.getElementById('editDailyLimitEnabled').value = String(Boolean(u.dailyLimitEnabled));
+      document.getElementById('editMaxDailyBookings').value = u.maxDailyBookings ?? 0;
+      document.getElementById('editMaxMonthlyBookings').value = u.maxMonthlyBookings ?? 0;
+      document.getElementById('editAllowPaidExtra').value = String(Boolean(u.allowPaidExtra));
+      document.getElementById('editExtraBookingPrice').value = u.extraBookingPrice ?? 0;
+      document.getElementById('editPackageName').value = u.packageName || '';
+      document.getElementById('editPackagePriceSar').value =
+        u.packagePriceSar != null && u.packagePriceSar !== '' ? u.packagePriceSar : '';
+      document.getElementById('editSubscriptionEndsAt').value = u.subscriptionEndsAt
+        ? toDatetimeLocalValue(u.subscriptionEndsAt)
+        : '';
       document.getElementById('editMaxTransit').value = u.maxTransitBookingCount ?? 0;
       document.getElementById('editMaxImport').value = u.maxImportBookingCount ?? 0;
       document.getElementById('editFeatures').value = Array.isArray(u.features) ? u.features.join(',') : '';
@@ -402,8 +465,6 @@
       document.getElementById('bhQ').value = '';
       document.getElementById('bhKind').value = '';
       document.getElementById('bhSuccess').value = '';
-      document.getElementById('bhFromDate').value = '';
-      document.getElementById('bhToDate').value = '';
       document.getElementById('bhPage').value = '1';
       document.getElementById('bhLimit').value = '20';
       document.getElementById('bhRows').innerHTML = '';
@@ -451,6 +512,10 @@
               <td>${esc(u.role === 'admin' ? 'admin' : 'user')}</td>
               <td>${u.bookingCount || 0}</td>
               <td>Transit: ${u.transitBookingCount || 0} / Import: ${u.importBookingCount || 0} / Sum: ${u.totalDailyBookings || 0}</td>
+              <td>${esc(u.planType || 'limited')}${u.dailyLimitEnabled ? ' (daily on)' : ''}</td>
+              <td class="muted" style="font-size:12px">${esc(formatPackageSummary(u))}</td>
+              <td>${u.totalMonthlyBookings || 0} / ${u.maxMonthlyBookings || 0}</td>
+              <td>${u.allowPaidExtra ? 'Yes (' + (u.extraBookingPrice || 0) + ')' : 'No'} / Used: ${u.paidExtraBookingsCount || 0}</td>
               <td>Transit: ${u.maxTransitBookingCount || 0} / Import: ${u.maxImportBookingCount || 0}</td>
               <td>Transit: ${u.totalMonthlyTransitBookingCount || 0} / Import: ${u.totalMonthlyImportBookingCount || 0}</td>
               <td>${chips}</td>
@@ -508,6 +573,21 @@
         phone: document.getElementById('editPhone').value.trim(),
         isActive: document.getElementById('editIsActive').value === 'true',
         role: document.getElementById('editRole').value,
+        planType: document.getElementById('editPlanType').value,
+        dailyLimitEnabled: document.getElementById('editDailyLimitEnabled').value === 'true',
+        maxDailyBookings: Number(document.getElementById('editMaxDailyBookings').value || 0),
+        maxMonthlyBookings: Number(document.getElementById('editMaxMonthlyBookings').value || 0),
+        allowPaidExtra: document.getElementById('editAllowPaidExtra').value === 'true',
+        extraBookingPrice: Number(document.getElementById('editExtraBookingPrice').value || 0),
+        packageName: document.getElementById('editPackageName').value.trim(),
+        packagePriceSar: Number(document.getElementById('editPackagePriceSar').value || 0),
+        subscriptionEndsAt: (() => {
+          const v = document.getElementById('editSubscriptionEndsAt').value.trim();
+          if (!v) return null;
+          const d = new Date(v);
+          if (Number.isNaN(d.getTime())) return null;
+          return d.toISOString();
+        })(),
         maxTransitBookingCount: Number(document.getElementById('editMaxTransit').value || 0),
         maxImportBookingCount: Number(document.getElementById('editMaxImport').value || 0),
         features: featuresRaw ? featuresRaw.split(',').map((x) => x.trim()).filter(Boolean) : []

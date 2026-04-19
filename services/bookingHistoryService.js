@@ -21,7 +21,9 @@ async function logBooking({
   message = '',
   requestBody = {},
   requestQuery = {},
-  responseBody = {}
+  responseBody = {},
+  consumptionType = '',
+  extraPriceApplied = 0
 }) {
   try {
     await BookingHistory.create({
@@ -33,7 +35,9 @@ async function logBooking({
       message: String(message || ''),
       requestBody: sanitize(requestBody),
       requestQuery: sanitize(requestQuery),
-      responseBody: sanitize(responseBody)
+      responseBody: sanitize(responseBody),
+      consumptionType: String(consumptionType || ''),
+      extraPriceApplied: Number(extraPriceApplied || 0)
     });
   } catch (err) {
     // history must never break booking flow
@@ -44,18 +48,9 @@ async function logBooking({
 const KIND_VALUES = ['transit', 'import', 'other'];
 const CONSUMPTION_VALUES = ['daily', 'monthly', 'paid_extra', 'open'];
 
-function safeDate(value, endOfDay = false) {
-  if (!value) return null;
-  const raw = String(value).trim();
-  if (!raw) return null;
-  const hasTime = raw.includes('T');
-  const iso = hasTime ? raw : `${raw}${endOfDay ? 'T23:59:59.999Z' : 'T00:00:00.000Z'}`;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
-}
-
-function buildFilter({ userId, q = '', kind, success, consumptionType, fromDate, toDate }) {
+async function listUserBookings({ userId, page = 1, limit = 20, q = '', kind, success, consumptionType }) {
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const filter = { userId };
   const k = kind != null && String(kind).trim() ? String(kind).trim() : '';
   if (k && KIND_VALUES.includes(k)) {
@@ -66,15 +61,8 @@ function buildFilter({ userId, q = '', kind, success, consumptionType, fromDate,
     filter.success = s === 'true';
   }
   const c = consumptionType != null ? String(consumptionType).trim() : '';
-  if (c && CONSUMPTION_VALUES.includes(c)) {
+  if (c) {
     filter.consumptionType = c;
-  }
-  const from = safeDate(fromDate, false);
-  const to = safeDate(toDate, true);
-  if (from || to) {
-    filter.createdAt = {};
-    if (from) filter.createdAt.$gte = from;
-    if (to) filter.createdAt.$lte = to;
   }
   if (q && String(q).trim()) {
     const needle = String(q).trim();
