@@ -238,10 +238,20 @@
   </table>
 
   <script>
+    (function stripCacheBustParam() {
+      try {
+        const u = new URL(window.location.href);
+        if (!u.searchParams.has('_')) return;
+        u.searchParams.delete('_');
+        const next = u.pathname + (u.search ? u.search : '') + u.hash;
+        window.history.replaceState({}, '', next);
+      } catch (_) {}
+    })();
+
     const token = localStorage.getItem('fasah.authToken');
     const baseUrl = (localStorage.getItem('fasah.baseUrl') || window.location.origin).replace(/\/+$/, '');
     if (!token) {
-      window.location.href = '/login.html';
+      window.location.href = '/login';
     }
 
     const usersById = new Map();
@@ -261,13 +271,10 @@
         .replace(/'/g, '&#39;');
     }
 
-    /** Avoids TypeError when an older cached page is missing a control id. */
+    /** Never throws: missing nodes (cached partial HTML) read as ''. */
     function inputVal(id) {
       try {
-        const el = document.getElementById(id);
-        if (!el || !('value' in el)) return '';
-        const v = el.value;
-        return v == null ? '' : String(v);
+        return String(document.getElementById(id)?.value ?? '');
       } catch {
         return '';
       }
@@ -276,7 +283,7 @@
     function setInputVal(id, value) {
       try {
         const el = document.getElementById(id);
-        if (el && 'value' in el) el.value = value;
+        if (el) el.value = value;
       } catch {
         /* ignore */
       }
@@ -746,7 +753,7 @@
     }
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('fasah.authToken');
-      window.location.href = '/login.html';
+      window.location.href = '/login';
     });
 
     loadUsers();

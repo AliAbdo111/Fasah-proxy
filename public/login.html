@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <title>FASAH Proxy - Admin Login</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
@@ -66,7 +68,9 @@
         localStorage.setItem('fasah.authToken', data.token);
         msg.textContent = 'Login success. Redirecting to users page...';
         msg.className = 'ok';
-        setTimeout(() => { window.location.href = '/users.html'; }, 500);
+        setTimeout(() => {
+          window.location.href = '/users?_=' + Date.now();
+        }, 500);
       } catch (err) {
         msg.textContent = err.message || 'Login failed';
         msg.className = 'error';

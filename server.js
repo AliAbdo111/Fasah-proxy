@@ -21,12 +21,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Admin HTML must be registered before express.static so /users.html is not served from disk without cache headers
-app.get('/login', (req, res) => {
+// Admin HTML must be registered before express.static so HTML is not served from static with default caching
+function sendLoginPage(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
+}
+app.get('/login', sendLoginPage);
+app.get('/login.html', sendLoginPage);
 function sendUsersAdminPage(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
