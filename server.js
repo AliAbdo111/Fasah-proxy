@@ -20,6 +20,21 @@ const path = require('path');
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Admin HTML must be registered before express.static so /users.html is not served from disk without cache headers
+app.get('/login', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+function sendUsersAdminPage(req, res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(path.join(__dirname, 'public', 'users.html'));
+}
+app.get('/users', sendUsersAdminPage);
+app.get('/users.html', sendUsersAdminPage);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const db = mongoose.connection;
@@ -76,14 +91,6 @@ app.use('/api/zatca-tas/customs', authMiddleware, zatcaTasCustomsRoutes);
 app.use('/api/zatca-fleet/v1', authMiddleware, zatcaFleetV1Routes);
 app.use('/api/zatca-fleet/v2', authMiddleware, zatcaFleetCompatRoutes);
 app.use('/api/auth', authRoutes);
-
-// Simple admin pages
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-app.get('/users', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'users.html'));
-});
 
 // Root endpoint
 app.get('/', (req, res) => {

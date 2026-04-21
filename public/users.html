@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <title>FASAH Proxy - Users</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -80,6 +82,7 @@
 
   <div class="card hidden" id="editCard">
     <h2>Edit User</h2>
+    <input id="editUserId" type="hidden" autocomplete="off" />
     <div class="tabs" role="tablist">
       <button type="button" class="tab-btn active" id="tabBtnProfile" data-tab="profile" role="tab" aria-selected="true">Profile</button>
       <button type="button" class="tab-btn" id="tabBtnHistory" data-tab="history" role="tab" aria-selected="false">Booking History</button>
@@ -87,7 +90,6 @@
 
     <div id="tabPanelProfile" class="tab-panel" role="tabpanel">
       <form id="editForm" class="grid">
-        <input id="editUserId" type="hidden" />
         <label>Email <input id="editEmail" type="email" /></label>
         <label>Username <input id="editUsername" /></label>
         <label>Phone <input id="editPhone" /></label>
@@ -261,13 +263,23 @@
 
     /** Avoids TypeError when an older cached page is missing a control id. */
     function inputVal(id) {
-      const el = document.getElementById(id);
-      return el && 'value' in el ? String(el.value) : '';
+      try {
+        const el = document.getElementById(id);
+        if (!el || !('value' in el)) return '';
+        const v = el.value;
+        return v == null ? '' : String(v);
+      } catch {
+        return '';
+      }
     }
 
     function setInputVal(id, value) {
-      const el = document.getElementById(id);
-      if (el && 'value' in el) el.value = value;
+      try {
+        const el = document.getElementById(id);
+        if (el && 'value' in el) el.value = value;
+      } catch {
+        /* ignore */
+      }
     }
 
     function showError(message) {
@@ -326,6 +338,7 @@
       const historyPanel = document.getElementById('tabPanelHistory');
       const btnP = document.getElementById('tabBtnProfile');
       const btnH = document.getElementById('tabBtnHistory');
+      if (!profilePanel || !historyPanel || !btnP || !btnH) return;
       const isProfile = which === 'profile';
       profilePanel.classList.toggle('hidden', !isProfile);
       historyPanel.classList.toggle('hidden', isProfile);
@@ -334,12 +347,16 @@
       btnP.setAttribute('aria-selected', isProfile ? 'true' : 'false');
       btnH.setAttribute('aria-selected', !isProfile ? 'true' : 'false');
       if (!isProfile) {
-        loadBookingHistory();
+        void loadBookingHistory().catch((e) => {
+          console.error(e);
+          bhSetError((e && e.message) || 'Booking history failed');
+        });
       }
     }
 
     function bhSetError(msg) {
-      document.getElementById('bhErr').textContent = msg || '';
+      const el = document.getElementById('bhErr');
+      if (el) el.textContent = msg || '';
     }
 
     function updateBhPaginationButtons(total, page, limit) {
@@ -694,19 +711,39 @@
     });
     document.getElementById('tabBtnProfile').addEventListener('click', () => setEditTab('profile'));
     document.getElementById('tabBtnHistory').addEventListener('click', () => setEditTab('history'));
-    document.getElementById('bhLoadBtn').addEventListener('click', () => loadBookingHistory());
-    document.getElementById('bhExportBtn').addEventListener('click', () => exportBookingHistoryCsv());
-    document.getElementById('bhPrevBtn').addEventListener('click', () => {
-      const p = document.getElementById('bhPage');
-      const n = Math.max(1, (parseInt(p.value, 10) || 1) - 1);
-      p.value = String(n);
-      loadBookingHistory();
-    });
-    document.getElementById('bhNextBtn').addEventListener('click', () => {
-      const p = document.getElementById('bhPage');
-      p.value = String((parseInt(p.value, 10) || 1) + 1);
-      loadBookingHistory();
-    });
+    const bhLoadBtn = document.getElementById('bhLoadBtn');
+    if (bhLoadBtn) {
+      bhLoadBtn.addEventListener('click', () => {
+        void loadBookingHistory().catch((e) => {
+          console.error(e);
+          bhSetError((e && e.message) || 'Booking history failed');
+        });
+      });
+    }
+    const bhExportBtn = document.getElementById('bhExportBtn');
+    if (bhExportBtn) bhExportBtn.addEventListener('click', () => exportBookingHistoryCsv());
+    const bhPrevBtn = document.getElementById('bhPrevBtn');
+    if (bhPrevBtn) {
+      bhPrevBtn.addEventListener('click', () => {
+        const cur = parseInt(inputVal('bhPage'), 10) || 1;
+        setInputVal('bhPage', String(Math.max(1, cur - 1)));
+        void loadBookingHistory().catch((e) => {
+          console.error(e);
+          bhSetError((e && e.message) || 'Booking history failed');
+        });
+      });
+    }
+    const bhNextBtn = document.getElementById('bhNextBtn');
+    if (bhNextBtn) {
+      bhNextBtn.addEventListener('click', () => {
+        const cur = parseInt(inputVal('bhPage'), 10) || 1;
+        setInputVal('bhPage', String(cur + 1));
+        void loadBookingHistory().catch((e) => {
+          console.error(e);
+          bhSetError((e && e.message) || 'Booking history failed');
+        });
+      });
+    }
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('fasah.authToken');
       window.location.href = '/login.html';
