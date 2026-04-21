@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="data:," />
   <title>FASAH Proxy - Users</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -260,6 +259,17 @@
         .replace(/'/g, '&#39;');
     }
 
+    /** Avoids TypeError when an older cached page is missing a control id. */
+    function inputVal(id) {
+      const el = document.getElementById(id);
+      return el && 'value' in el ? String(el.value) : '';
+    }
+
+    function setInputVal(id, value) {
+      const el = document.getElementById(id);
+      if (el && 'value' in el) el.value = value;
+    }
+
     function showError(message) {
       ok.textContent = '';
       err.textContent = message || '';
@@ -335,22 +345,23 @@
     function updateBhPaginationButtons(total, page, limit) {
       const prev = document.getElementById('bhPrevBtn');
       const next = document.getElementById('bhNextBtn');
+      if (!prev || !next) return;
       prev.disabled = page <= 1;
       next.disabled = page * limit >= total;
     }
 
     async function loadBookingHistory() {
-      const userId = document.getElementById('editUserId').value;
+      const userId = inputVal('editUserId').trim();
       if (!userId) return;
       bhSetError('');
-      const q = document.getElementById('bhQ').value.trim();
-      const kind = document.getElementById('bhKind').value;
-      const success = document.getElementById('bhSuccess').value;
-      const consumptionType = document.getElementById('bhConsumptionType').value;
-      const page = Math.max(1, parseInt(document.getElementById('bhPage').value, 10) || 1);
-      const limit = Math.min(200, Math.max(1, parseInt(document.getElementById('bhLimit').value, 10) || 20));
-      document.getElementById('bhPage').value = String(page);
-      document.getElementById('bhLimit').value = String(limit);
+      const q = inputVal('bhQ').trim();
+      const kind = inputVal('bhKind');
+      const success = inputVal('bhSuccess');
+      const consumptionType = inputVal('bhConsumptionType');
+      const page = Math.max(1, parseInt(inputVal('bhPage'), 10) || 1);
+      const limit = Math.min(200, Math.max(1, parseInt(inputVal('bhLimit'), 10) || 20));
+      setInputVal('bhPage', String(page));
+      setInputVal('bhLimit', String(limit));
 
       const url = new URL(baseUrl + '/api/auth/users/' + encodeURIComponent(userId) + '/bookings/history');
       url.searchParams.set('page', String(page));
@@ -359,13 +370,17 @@
       if (kind) url.searchParams.set('kind', kind);
       if (success) url.searchParams.set('success', success);
       if (consumptionType) url.searchParams.set('consumptionType', consumptionType);
-      const fromDate = document.getElementById('bhFromDate').value;
-      const toDate = document.getElementById('bhToDate').value;
+      const fromDate = inputVal('bhFromDate');
+      const toDate = inputVal('bhToDate');
       if (fromDate) url.searchParams.set('fromDate', fromDate);
       if (toDate) url.searchParams.set('toDate', toDate);
 
       const tbody = document.getElementById('bhRows');
       const meta = document.getElementById('bhMeta');
+      if (!tbody || !meta) {
+        bhSetError('Booking history UI is incomplete. Hard-refresh the page (Ctrl+Shift+R) to load the latest users screen.');
+        return;
+      }
       tbody.innerHTML = '';
 
       try {
@@ -413,15 +428,15 @@
     }
 
     async function exportBookingHistoryCsv() {
-      const userId = document.getElementById('editUserId').value;
+      const userId = inputVal('editUserId').trim();
       if (!userId) return;
       bhSetError('');
-      const q = document.getElementById('bhQ').value.trim();
-      const kind = document.getElementById('bhKind').value;
-      const success = document.getElementById('bhSuccess').value;
-      const consumptionType = document.getElementById('bhConsumptionType').value;
-      const fromDate = document.getElementById('bhFromDate').value;
-      const toDate = document.getElementById('bhToDate').value;
+      const q = inputVal('bhQ').trim();
+      const kind = inputVal('bhKind');
+      const success = inputVal('bhSuccess');
+      const consumptionType = inputVal('bhConsumptionType');
+      const fromDate = inputVal('bhFromDate');
+      const toDate = inputVal('bhToDate');
       const url = new URL(baseUrl + '/api/auth/users/' + encodeURIComponent(userId) + '/bookings/history/export');
       if (q) url.searchParams.set('q', q);
       if (kind) url.searchParams.set('kind', kind);
@@ -481,16 +496,18 @@
       document.getElementById('editMaxImport').value = u.maxImportBookingCount ?? 0;
       document.getElementById('editFeatures').value = Array.isArray(u.features) ? u.features.join(',') : '';
       document.getElementById('setPasswordForm').reset();
-      document.getElementById('bhQ').value = '';
-      document.getElementById('bhKind').value = '';
-      document.getElementById('bhSuccess').value = '';
-      document.getElementById('bhConsumptionType').value = '';
-      document.getElementById('bhFromDate').value = '';
-      document.getElementById('bhToDate').value = '';
-      document.getElementById('bhPage').value = '1';
-      document.getElementById('bhLimit').value = '20';
-      document.getElementById('bhRows').innerHTML = '';
-      document.getElementById('bhMeta').textContent = '';
+      setInputVal('bhQ', '');
+      setInputVal('bhKind', '');
+      setInputVal('bhSuccess', '');
+      setInputVal('bhConsumptionType', '');
+      setInputVal('bhFromDate', '');
+      setInputVal('bhToDate', '');
+      setInputVal('bhPage', '1');
+      setInputVal('bhLimit', '20');
+      const bhRows = document.getElementById('bhRows');
+      const bhMeta = document.getElementById('bhMeta');
+      if (bhRows) bhRows.innerHTML = '';
+      if (bhMeta) bhMeta.textContent = '';
       bhSetError('');
       editCard.classList.remove('hidden');
       setEditTab('profile');
