@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
   <title>FASAH Proxy - Users</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -171,6 +172,17 @@
             <option value="false">Failed</option>
           </select>
         </label>
+        <label>Consumption
+          <select id="bhConsumptionType">
+            <option value="">All</option>
+            <option value="daily">daily</option>
+            <option value="monthly">monthly</option>
+            <option value="paid_extra">paid_extra</option>
+            <option value="open">open</option>
+          </select>
+        </label>
+        <label>From <input id="bhFromDate" type="date" /></label>
+        <label>To <input id="bhToDate" type="date" /></label>
         <label>Page <input id="bhPage" type="number" min="1" value="1" style="width:72px" /></label>
         <label>Limit <input id="bhLimit" type="number" min="1" max="200" value="20" style="width:72px" /></label>
         <button type="button" id="bhLoadBtn" class="small-btn">Load history</button>
@@ -346,6 +358,11 @@
       if (q) url.searchParams.set('q', q);
       if (kind) url.searchParams.set('kind', kind);
       if (success) url.searchParams.set('success', success);
+      if (consumptionType) url.searchParams.set('consumptionType', consumptionType);
+      const fromDate = document.getElementById('bhFromDate').value;
+      const toDate = document.getElementById('bhToDate').value;
+      if (fromDate) url.searchParams.set('fromDate', fromDate);
+      if (toDate) url.searchParams.set('toDate', toDate);
 
       const tbody = document.getElementById('bhRows');
       const meta = document.getElementById('bhMeta');
@@ -402,12 +419,14 @@
       const q = document.getElementById('bhQ').value.trim();
       const kind = document.getElementById('bhKind').value;
       const success = document.getElementById('bhSuccess').value;
+      const consumptionType = document.getElementById('bhConsumptionType').value;
       const fromDate = document.getElementById('bhFromDate').value;
       const toDate = document.getElementById('bhToDate').value;
       const url = new URL(baseUrl + '/api/auth/users/' + encodeURIComponent(userId) + '/bookings/history/export');
       if (q) url.searchParams.set('q', q);
       if (kind) url.searchParams.set('kind', kind);
       if (success) url.searchParams.set('success', success);
+      if (consumptionType) url.searchParams.set('consumptionType', consumptionType);
       if (fromDate) url.searchParams.set('fromDate', fromDate);
       if (toDate) url.searchParams.set('toDate', toDate);
       try {
@@ -465,6 +484,9 @@
       document.getElementById('bhQ').value = '';
       document.getElementById('bhKind').value = '';
       document.getElementById('bhSuccess').value = '';
+      document.getElementById('bhConsumptionType').value = '';
+      document.getElementById('bhFromDate').value = '';
+      document.getElementById('bhToDate').value = '';
       document.getElementById('bhPage').value = '1';
       document.getElementById('bhLimit').value = '20';
       document.getElementById('bhRows').innerHTML = '';
