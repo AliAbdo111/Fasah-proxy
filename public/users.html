@@ -387,17 +387,18 @@
       setInputVal('bhPage', String(page));
       setInputVal('bhLimit', String(limit));
 
+      // GET /api/auth/users/:userId/bookings/history — page/limit required; rest optional (see authRoutes + bookingHistoryService)
       const url = new URL(baseUrl + '/api/auth/users/' + encodeURIComponent(userId) + '/bookings/history');
       url.searchParams.set('page', String(page));
       url.searchParams.set('limit', String(limit));
-      if (q) url.searchParams.set('q', q);
-      if (kind) url.searchParams.set('kind', kind);
-      if (success) url.searchParams.set('success', success);
-      if (consumptionType) url.searchParams.set('consumptionType', consumptionType);
+      if (q) url.searchParams.set('q', q); // search endpoint / message (regex on server)
+      if (kind) url.searchParams.set('kind', kind); // transit | import | other
+      if (success) url.searchParams.set('success', success); // "true" | "false" or omit for all
+      if (consumptionType) url.searchParams.set('consumptionType', consumptionType); // daily | monthly | paid_extra | open
       const fromDate = inputVal('bhFromDate');
       const toDate = inputVal('bhToDate');
-      if (fromDate) url.searchParams.set('fromDate', fromDate);
-      if (toDate) url.searchParams.set('toDate', toDate);
+      if (fromDate) url.searchParams.set('fromDate', fromDate); // YYYY-MM-DD → createdAt lower bound (UTC day)
+      if (toDate) url.searchParams.set('toDate', toDate); // YYYY-MM-DD → createdAt upper bound (UTC day)
 
       const tbody = document.getElementById('bhRows');
       const meta = document.getElementById('bhMeta');
