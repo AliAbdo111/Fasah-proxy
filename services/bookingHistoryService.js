@@ -82,7 +82,7 @@ function rowsToCsv(rows) {
 async function listUserBookings({ userId, page = 1, limit = 20, q = '', kind, success, consumptionType, fromDate, toDate }) {
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
-  const filter = buildFilter({ userId, q, kind, success, consumptionType, fromDate, toDate });
+  // const filter = buildFilter({ userId, q, kind, success, consumptionType, fromDate, toDate });
   const [items, total] = await Promise.all([
     BookingHistory.find(filter).sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum),
     BookingHistory.countDocuments(filter)
