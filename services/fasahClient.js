@@ -12,214 +12,69 @@ class FasahClient {
     this.transporterBaseUrl = process.env.FASAH_TRANSPORTER_BASE_URL || 'https://oga.fasah.sa';
     this.apiPath = '/api/zatca-tas/v2';
 
-    // Set to 'true' in .env to use proxy; default is direct requests (no proxy)
-    this.useProxy = process.env.FASAH_USE_PROXY === 'false';
+    // Set FASAH_USE_PROXY=false to disable; default uses proxy rotation
+    this.useProxy = String(process.env.FASAH_USE_PROXY || 'true').toLowerCase() !== 'false';
 
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.proxies = [
   
 {
-        host: '195.40.62.130',
-        port: 7351,
-        username: 'ucqikpgn',
+        host: '84.33.192.130',
+        port: 80,
+        username: 'ucqikpgn-sa-21',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
 {
-        host: '195.40.63.92',
-        port: 7312,
-        username: 'ucqikpgn',
+        host: '104.252.105.2',
+        port: 80,
+        username: 'ucqikpgn-sa-22',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
 {
-        host: '195.40.63.202',
-        port: 7422,
-        username: 'ucqikpgn',
+        host: '84.33.193.120',
+        port: 80,
+        username: 'ucqikpgn-sa-23',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
 {
-        host: '195.40.62.86',
-        port: 7307,
-        username: 'ucqikpgn',
+        host: '185.183.105.250',
+        port: 80,
+        username: 'ucqikpgn-sa-24',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
 {
-        host: '104.252.120.163',
-        port: 7033,
-        username: 'ucqikpgn',
+        host: '89.150.45.53',
+        port: 80,
+        username: 'ucqikpgn-sa-25',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
 {
-        host: '104.252.114.166',
-        port: 6536,
-        username: 'ucqikpgn',
+        host: '92.112.133.2',
+        port: 80,
+        username: '92.112.133.2',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
 {
-        host: '195.40.62.234',
-        port: 7455,
-        username: 'ucqikpgn',
+        host: '89.150.45.43',
+        port: 80,
+        username: 'ucqikpgn-sa-27',
         password: 'seoerggxfamv',
         protocol: 'http',
         rejectUnauthorized: false
       },
-{
-        host: '104.252.121.116',
-        port: 6987,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.120.140',
-        port: 7010,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '195.40.63.50',
-        port: 7270,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.121.41',
-        port: 6912,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.99.107',
-        port: 6478,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '195.40.63.42',
-        port: 7262,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '195.40.63.204',
-        port: 7424,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.99.158',
-        port: 6529,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '195.40.63.120',
-        port: 7340,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '195.40.63.108',
-        port: 7328,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.120.94',
-        port: 6964,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.121.190',
-        port: 7061,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '195.40.63.233',
-        port: 7453,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      } 
-, {
-        host: '104.252.121.216',
-        port: 7087,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '195.40.63.68',
-        port: 7288,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.121.199',
-        port: 7070,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.121.37',
-        port: 6908,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      },
-{
-        host: '104.252.120.158',
-        port: 7028,
-        username: 'ucqikpgn',
-        password: 'seoerggxfamv',
-        protocol: 'http',
-        rejectUnauthorized: false
-      }
-
     ];
     
     // Proxy rotation index
@@ -279,6 +134,33 @@ class FasahClient {
     }
     
     return agent;
+  }
+
+  /**
+   * Execute axios request with optional rotating proxy.
+   * Ensures every request can use one proxy from the list when enabled.
+   */
+  async performRequest(method, url, config = {}, body = undefined, proxyLogLabel = '') {
+    const axiosConfig = { ...config };
+
+    if (this.useProxy && this.proxies.length > 0) {
+      const proxy = this.getNextProxy();
+      axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+      const label = proxyLogLabel ? ` (${proxyLogLabel})` : '';
+      console.log(`Using proxy${label}: ${proxy.host}:${proxy.port}`);
+    }
+
+    const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    try {
+      if (method === 'post') {
+        return await axios.post(url, body, axiosConfig);
+      }
+      return await axios.get(url, axiosConfig);
+    } finally {
+      if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+      else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    }
   }
  
   /**
@@ -779,22 +661,15 @@ async getVerifiedDrivers(params) {
       'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
     };
 
-    try {
-      const response = await axios.get(url, {
-        params: queryParams,
-        headers,
-        timeout: 30000, // 30 seconds timeout
-        // Accept both successful and client error responses
-        validateStatus: function (status) {
-          return status >= 200 && status < 500;
-        }
-      });
-      
-      return response.data;
-    } catch (error) {
-      // Restore original setting on erro
-      throw error;
-    }
+    const response = await this.performRequest('get', url, {
+      params: queryParams,
+      headers,
+      timeout: 30000,
+      validateStatus(status) {
+        return status >= 200 && status < 500;
+      }
+    }, undefined, 'verified drivers');
+    return response.data;
 
   } catch (error) {
     // Use the existing error handling logic
@@ -865,23 +740,14 @@ async getVerifiedTrucks(params) {
       'Content-Type': 'application/json; charset=utf-8',
       'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
     };
-
-
-    try {
-      const response = await axios.get(url, {
-        params: queryParams,
-        headers,
-        validateStatus: function (status) {
-          return status >= 200 && status < 500;
-        }
-      });
-
-   
-      
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await this.performRequest('get', url, {
+      params: queryParams,
+      headers,
+      validateStatus(status) {
+        return status >= 200 && status < 500;
+      }
+    }, undefined, 'verified trucks');
+    return response.data;
 
   } catch (error) {
     this.handleError(error);
@@ -1117,12 +983,12 @@ async getDeclarationInfo(params) {
       'Content-Type': 'application/json; charset=utf-8',
       'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
     };
-    const response = await axios.get(url, {
+    const response = await this.performRequest('get', url, {
       params: { decNo, arrivalPort },
       headers,
       timeout: 30000,
       validateStatus: (status) => status >= 200 && status < 500
-    });
+    }, undefined, 'declaration info');
     return response.data;
   } catch (error) {
     this.handleError(error);
@@ -1155,12 +1021,12 @@ async getBulkDeclarationInfo(params) {
       'Content-Type': 'application/json; charset=utf-8',
       token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
     };
-    const response = await axios.get(url, {
+    const response = await this.performRequest('get', url, {
       params: query,
       headers,
       timeout: 30000,
       validateStatus: (status) => status >= 200 && status < 500
-    });
+    }, undefined, 'bulk declaration info');
     return response.data;
   } catch (error) {
     this.handleError(error);
@@ -1196,7 +1062,7 @@ async getLandAppointmentPdf(params) {
       responseType: 'arraybuffer',
       validateStatus: (status) => status >= 200 && status < 500
     };
-    const response = await axios.get(url, axiosConfig);
+    const response = await this.performRequest('get', url, axiosConfig, undefined, 'land appointment pdf');
     const responseContentType = (response.headers['content-type'] || '').toLowerCase();
     if (response.status >= 400) {
       const data = Buffer.isBuffer(response.data) ? response.data.toString('utf8') : response.data;
