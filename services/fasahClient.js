@@ -12,8 +12,8 @@ class FasahClient {
     this.transporterBaseUrl = process.env.FASAH_TRANSPORTER_BASE_URL || 'https://oga.fasah.sa';
     this.apiPath = '/api/zatca-tas/v2';
 
-    // Set FASAH_USE_PROXY=false to disable; default uses proxy rotation
-    this.useProxy = String(process.env.FASAH_USE_PROXY || 'true').toLowerCase() !== 'false';
+    // Proxy disabled: send all requests directly
+    this.useProxy = false;
 
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
