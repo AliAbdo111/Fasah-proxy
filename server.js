@@ -95,43 +95,43 @@ app.use('/api/zatca-fleet/v2', authMiddleware, zatcaFleetCompatRoutes);
 app.use('/api/auth', authRoutes);
 
 // Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    service: 'FASAH Proxy API',
-    version: '1.0.0',
-    description: 'Proxy service for FASAH schedule management API',
-    endpoints: {
-      health: '/health',
-      schedule: '/api/fasah/schedule/land',
-      zatcaScheduleLand: 'GET /api/zatca/zone/schedule/land/server-one?departure=&arrival=&type=',
-      zatcaLandAppointmentCreate: 'POST /api/zatca-tas/v2/appointment/land/create',
-      zatcaBulkGetDeclarationInfo:
-        'GET /api/zatca-tas/v2/appointment/bulk/getDeclarationInfo?decNo=&port=&purpose=&toRefNo=',
-      zatcaTasCustomsDriverTruckInfo:
-        'GET /api/zatca-tas/customs/forigen/driver-truck-info?purpose=&consignmentNumber=',
-      zatcaLandAppointmentPdf: 'GET /api/zatca-tas/v1/appoint/pdf/generateLand?ref=',
-      zatcaFleetResidentCountries: 'GET /api/zatca-fleet/v1/lookup/resident/countries',
-      zatcaFleetNationality: 'GET /api/zatca-fleet/v1/nationality',
-      zatcaFleetTruckColors: 'GET /api/zatca-fleet/v1/lookup/truck/colors?q=',
-      zatcaFleetV2TruckBrands: 'GET /api/zatca-fleet/v2/truck/lookup/brands?q=',
-      zatcaFleetV2TruckModels: 'GET /api/zatca-fleet/v2/truck/lookup/models/:brandCode?q=',
-      scheduleImport: 'GET /api/fasah/schedule/land?type=IMPORT',
-      scheduleEmptyTruck: 'GET /api/fasah/schedule/land?type=EMPTY_TRUCK',
-      getDeclarationInfo: 'GET /api/fasah/appointment/transit/getDeclarationInfo?decNo=&arrivalPort=',
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        forgotPassword: 'POST /api/auth/forgot-password',
-        resetPassword: 'POST /api/auth/reset-password',
-        verifyOtp: 'POST /api/auth/verify-otp',
-        resendOtp: 'POST /api/auth/resend-otp',
-        me: 'GET /api/auth/me',
-        activateUser: 'PATCH /api/auth/users/:userId/activate',
-        deactivateUser: 'PATCH /api/auth/users/:userId/deactivate'
-      }
-    }
-  });
-});
+// app.get('/', (req, res) => {
+//   res.json({
+//     service: 'FASAH Proxy API',
+//     version: '1.0.0',
+//     description: 'Proxy service for FASAH schedule management API',
+//     endpoints: {
+//       health: '/health',
+//       schedule: '/api/fasah/schedule/land',
+//       zatcaScheduleLand: 'GET /api/zatca/zone/schedule/land/server-one?departure=&arrival=&type=',
+//       zatcaLandAppointmentCreate: 'POST /api/zatca-tas/v2/appointment/land/create',
+//       zatcaBulkGetDeclarationInfo:
+//         'GET /api/zatca-tas/v2/appointment/bulk/getDeclarationInfo?decNo=&port=&purpose=&toRefNo=',
+//       zatcaTasCustomsDriverTruckInfo:
+//         'GET /api/zatca-tas/customs/forigen/driver-truck-info?purpose=&consignmentNumber=',
+//       zatcaLandAppointmentPdf: 'GET /api/zatca-tas/v1/appoint/pdf/generateLand?ref=',
+//       zatcaFleetResidentCountries: 'GET /api/zatca-fleet/v1/lookup/resident/countries',
+//       zatcaFleetNationality: 'GET /api/zatca-fleet/v1/nationality',
+//       zatcaFleetTruckColors: 'GET /api/zatca-fleet/v1/lookup/truck/colors?q=',
+//       zatcaFleetV2TruckBrands: 'GET /api/zatca-fleet/v2/truck/lookup/brands?q=',
+//       zatcaFleetV2TruckModels: 'GET /api/zatca-fleet/v2/truck/lookup/models/:brandCode?q=',
+//       scheduleImport: 'GET /api/fasah/schedule/land?type=IMPORT',
+//       scheduleEmptyTruck: 'GET /api/fasah/schedule/land?type=EMPTY_TRUCK',
+//       getDeclarationInfo: 'GET /api/fasah/appointment/transit/getDeclarationInfo?decNo=&arrivalPort=',
+//       auth: {
+//         register: 'POST /api/auth/register',
+//         login: 'POST /api/auth/login',
+//         forgotPassword: 'POST /api/auth/forgot-password',
+//         resetPassword: 'POST /api/auth/reset-password',
+//         verifyOtp: 'POST /api/auth/verify-otp',
+//         resendOtp: 'POST /api/auth/resend-otp',
+//         me: 'GET /api/auth/me',
+//         activateUser: 'PATCH /api/auth/users/:userId/activate',
+//         deactivateUser: 'PATCH /api/auth/users/:userId/deactivate'
+//       }
+//     }
+//   });
+// });
 
 // 404 Handler
 app.use((req, res) => {
