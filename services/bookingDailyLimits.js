@@ -199,24 +199,33 @@ function resolveConsumptionDecision(user) {
   if (planType === PLAN_OPEN) {
     return { allowed: true, consumptionType: CONSUMPTION_OPEN, extraPriceApplied: 0 };
   }
-  if (!dailyExceeded) {
-    return { allowed: true, consumptionType: CONSUMPTION_DAILY, extraPriceApplied: 0 };
-  }
-  if (!monthlyExceeded) {
-    return { allowed: true, consumptionType: CONSUMPTION_MONTHLY, extraPriceApplied: 0 };
-  }
-  if (Boolean(user.allowPaidExtra)) {
+
+  // Monthly cap is always enforced for non-open plans.
+  if (monthlyExceeded) {
+    if (Boolean(user.allowPaidExtra)) {
+      return {
+        allowed: true,
+        consumptionType: CONSUMPTION_PAID_EXTRA,
+        extraPriceApplied: effectiveExtraPrice(user)
+      };
+    }
     return {
-      allowed: true,
-      consumptionType: CONSUMPTION_PAID_EXTRA,
-      extraPriceApplied: effectiveExtraPrice(user)
+      allowed: false,
+      status: 403,
+      message: `Monthly booking limit reached (${maxMonthly} per month)`
     };
   }
-  return {
-    allowed: false,
-    status: 403,
-    message: `Monthly booking limit reached (${maxMonthly} per month)`
-  };
+
+  // Strict mode: once daily cap is reached, block immediately.
+  if (dailyExceeded) {
+    return {
+      allowed: false,
+      status: 403,
+      message: `Daily booking limit reached (${maxDaily} per day)`
+    };
+  }
+
+  return { allowed: true, consumptionType: CONSUMPTION_DAILY, extraPriceApplied: 0 };
 }
 
 async function assertCanBook(userId, kind) {
