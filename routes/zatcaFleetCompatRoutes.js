@@ -44,7 +44,8 @@ router.get('/driver/verified/all/forAdd', async (req, res) => {
       sortby: sortby || 'licenseNo',
       q: q || '',
       localTrucks,
-      userType
+      userType,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });
@@ -81,7 +82,8 @@ router.get('/truck/lookup/brands', async (req, res) => {
     const result = await client.getFleetV2TruckBrandsLookup({
       token,
       userType,
-      query: upstreamQuery
+      query: upstreamQuery,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });
@@ -120,7 +122,8 @@ router.get('/truck/lookup/models/:brandCode', async (req, res) => {
       brandCode,
       token,
       userType,
-      query: upstreamQuery
+      query: upstreamQuery,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });
@@ -175,7 +178,8 @@ router.get('/truck/verified/all/forAdd', async (req, res) => {
       sortby: sortby || 'plateNumberEn',
       q: q || '',
       localTrucks,
-      userType
+      userType,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });

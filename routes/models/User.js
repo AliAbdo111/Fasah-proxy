@@ -201,6 +201,25 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  /** Per-user proxy routing toggle; null means use platform setting. */
+  proxyEnabled: {
+    type: Boolean,
+    default: null
+  },
+  /** Sequential proxy pool for this user (overrides platform list when non-empty). */
+  proxies: {
+    type: [
+      {
+        host: { type: String, required: true, trim: true },
+        port: { type: Number, required: true, min: 1, max: 65535 },
+        username: { type: String, default: '', trim: true },
+        password: { type: String, default: '', trim: true },
+        protocol: { type: String, enum: ['http', 'https'], default: 'http' },
+        rejectUnauthorized: { type: Boolean, default: false }
+      }
+    ],
+    default: []
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });

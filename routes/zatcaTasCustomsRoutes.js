@@ -28,7 +28,8 @@ router.get('/forigen/driver-truck-info', async (req, res) => {
     const result = await client.getZatcaTasCustomsForeignDriverTruckInfo({
       token,
       userType,
-      query: upstreamQuery
+      query: upstreamQuery,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });

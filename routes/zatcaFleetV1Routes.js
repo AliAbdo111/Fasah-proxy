@@ -28,7 +28,8 @@ router.get('/lookup/resident/countries', async (req, res) => {
     const result = await client.getFleetResidentCountriesLookup({
       token,
       userType,
-      query: upstreamQuery
+      query: upstreamQuery,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });
@@ -65,7 +66,8 @@ router.get('/nationality', async (req, res) => {
     const result = await client.getFleetNationalityLookup({
       token,
       userType,
-      query: upstreamQuery
+      query: upstreamQuery,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });
@@ -102,7 +104,8 @@ router.get('/lookup/truck/colors', async (req, res) => {
     const result = await client.getFleetTruckColorsLookup({
       token,
       userType,
-      query: upstreamQuery
+      query: upstreamQuery,
+      proxyContext: req.user
     });
 
     res.json({ success: true, data: result });

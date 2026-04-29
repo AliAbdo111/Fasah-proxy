@@ -39,7 +39,8 @@ router.get('/appoint/pdf/generateLand', async (req, res) => {
     const result = await client.getLandAppointmentPdf({
       ref,
       token,
-      userType
+      userType,
+      proxyContext: req.user
     });
 
     if (result.data) {

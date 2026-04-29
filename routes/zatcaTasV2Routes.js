@@ -31,7 +31,8 @@ router.get('/appointment/bulk/getDeclarationInfo', async (req, res) => {
     const result = await client.getBulkDeclarationInfo({
       token,
       userType,
-      query: upstreamQuery
+      query: upstreamQuery,
+      proxyContext: req.user
     });
 
     if (result && result.success === false && result.errors && result.errors.length > 0) {
@@ -100,7 +101,8 @@ router.post('/appointment/land/create', async (req, res) => {
     const result = await client.createLandAppointment({
       body: payload,
       token,
-      userType
+      userType,
+      proxyContext: req.user
     });
 
     if (result?.success === false) {

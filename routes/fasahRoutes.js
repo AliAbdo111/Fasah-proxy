@@ -54,7 +54,8 @@ router.get('/schedule/land', async (req, res) => {
       type,
       economicOperator,
       token,
-      userType: userType || 'broker'
+      userType: userType || 'broker',
+      proxyContext: req.user
     });
 
     // Check if the response indicates no schedules available
@@ -111,7 +112,8 @@ router.get('/drivers/verified/all/forAdd', async (req, res) => {
       sortby: sortby || 'licenseNo',
       q: q || '',
       localTrucks,
-      userType: userType // This endpoint is for transporter portal
+      userType: userType, // This endpoint is for transporter portal
+      proxyContext: req.user
     });
 
     // Return the API response directly
@@ -160,7 +162,8 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
       sortby: sortby || 'plateNumberEn',
       q: q || '',
       localTrucks,
-      userType: userType
+      userType: userType,
+      proxyContext: req.user
     });
 
     // إرجاع النتيجة
@@ -209,7 +212,8 @@ router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
       decNo,
       arrivalPort,
       token,
-      userType
+      userType,
+      proxyContext: req.user
     });
     // Handle FASAH API returning success: false with errors (e.g. invalid declaration)
     if (result && result.success === false && result.errors && result.errors.length > 0) {
@@ -289,7 +293,8 @@ router.post('/appointment/transit/create', async (req, res) => {
       bayan_appointment,
       declaration_number,
       token,
-      userType: userType
+      userType: userType,
+      proxyContext: req.user
     });
 
     // Count as success only when tasBookRef exists

@@ -251,7 +251,9 @@ async function updateUser(userId, payload = {}) {
     extraBookingPrice,
     packageName,
     packagePriceSar,
-    subscriptionEndsAt
+    subscriptionEndsAt,
+    proxyEnabled,
+    proxies
   } = payload;
 
   const hasAnyField =
@@ -274,7 +276,9 @@ async function updateUser(userId, payload = {}) {
     extraBookingPrice !== undefined ||
     packageName !== undefined ||
     packagePriceSar !== undefined ||
-    subscriptionEndsAt !== undefined;
+    subscriptionEndsAt !== undefined ||
+    proxyEnabled !== undefined ||
+    proxies !== undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -381,6 +385,25 @@ async function updateUser(userId, payload = {}) {
     }
   }
 
+  if (proxyEnabled !== undefined) {
+    if (proxyEnabled === null || proxyEnabled === '') user.proxyEnabled = null;
+    else user.proxyEnabled = Boolean(proxyEnabled);
+  }
+
+  if (proxies !== undefined) {
+    if (!Array.isArray(proxies)) throw { status: 400, message: 'proxies must be an array' };
+    user.proxies = proxies
+      .map((p) => ({
+        host: String((p && p.host) || '').trim(),
+        port: Number((p && p.port) || 0),
+        username: String((p && p.username) || '').trim(),
+        password: String((p && p.password) || '').trim(),
+        protocol: String((p && p.protocol) || 'http').toLowerCase() === 'https' ? 'https' : 'http',
+        rejectUnauthorized: Boolean(p && p.rejectUnauthorized)
+      }))
+      .filter((p) => p.host && Number.isFinite(p.port) && p.port > 0 && p.port <= 65535);
+  }
+
   await user.save();
 
   return {
@@ -393,6 +416,8 @@ async function updateUser(userId, payload = {}) {
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
       role: resolveRole(user),
+      proxyEnabled: user.proxyEnabled,
+      proxies: Array.isArray(user.proxies) ? user.proxies : [],
       ...bookingDailyLimits.bookingStatsPayload(user)
     }
   };
@@ -414,6 +439,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
     User.find(filter)
       .select(
         'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt createdAt updatedAt'
+        + ' proxyEnabled proxies'
       )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
@@ -449,7 +475,7 @@ async function resetBookingCount(userId) {
     },
     { new: true }
   ).select(
-    'email role bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount'
+    'email role bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount proxyEnabled proxies'
   );
   if (!user) throw { status: 404, message: 'User not found' };
   return {
