@@ -6,19 +6,19 @@ const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
 
 // POST /api/auth/register
-router.post('/register', async (req, res, next) => {
-  try {
-    const { email, password, phone, username } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
-    }
-    const result = await authService.register({ email, password, phone, username });
-    res.status(201).json({ success: true, ...result });
-  } catch (err) {
-    const status = err.status || 500;
-    res.status(status).json({ success: false, message: err.message || 'Registration failed' });
-  }
-});
+// router.post('/register', async (req, res, next) => {
+//   try {
+//     const { email, password, phone, username } = req.body;
+//     if (!email || !password) {
+//       return res.status(400).json({ success: false, message: 'Email and password are required' });
+//     }
+//     const result = await authService.register({ email, password, phone, username });
+//     res.status(201).json({ success: true, ...result });
+//   } catch (err) {
+//     const status = err.status || 500;
+//     res.status(status).json({ success: false, message: err.message || 'Registration failed' });
+//   }
+// });
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
