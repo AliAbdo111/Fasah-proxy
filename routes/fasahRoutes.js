@@ -373,6 +373,142 @@ router.post('/appointment/transit/create', async (req, res) => {
   }
 });
 
+router.post('/appointment/non-declaration/create', async (req, res) => {
+  try {
+    // استخراج البيانات من request body
+    const {
+      port_code,
+      zone_schedule_id,
+      purpose,
+      cargo_type = '',
+      fleet_info,
+      bayan_appointment = {},
+      userType = 'broker'
+    } = req.body;
+    
+    // الحصول على رمز المصادقة من الهيدرات
+    const token = req.headers['x-fasah-token'] || 
+                  req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+                  req.headers['token']?.replace(/^Bearer\s+/i, '');
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'رمز المصادقة مطلوب',
+        error: 'Missing authentication token'
+      });
+    }
+
+    // التحقق من البيانات المطلوبة
+    if (!port_code || !zone_schedule_id || !purpose  || !fleet_info) {
+      return res.status(400).json({
+        success: false,
+        message: 'بيانات غير مكتملة',
+        error: 'يجب تقديم جميع البيانات المطلوبة: port_code, zone_schedule_id, purpose, fleet_info'
+      });
+    }
+
+    let bookingDecision = null;
+    if (req.user && req.user._id) {
+      try {
+        const gate = await bookingDailyLimits.assertCanTransitBook(req.user._id);
+        bookingDecision = gate && gate.decision ? gate.decision : null;
+      } catch (e) {
+        const status = e.status || 403;
+        return res.status(status).json({ success: false, message: e.message });
+      }
+    }
+
+    // استدعاء Method إنشاء الموعد
+    const result = await client.createNonDeclarationAppointment({
+      port_code,
+      zone_schedule_id,
+      purpose,
+      cargo_type,
+      fleet_info,
+      bayan_appointment,
+      declaration_number,
+      token,
+      userType: userType,
+      proxyContext: req.user
+    });
+
+    // Count as success only when tasBookRef exists
+    const tasBookRef = extractTasBookRef(result);
+    const hasSuccessfulBooking = Boolean(tasBookRef);
+    if (!hasSuccessfulBooking) {
+      const upstreamMessage =
+        result?.message ||
+        result?.data?.message ||
+        result?.data?.data?.message ||
+        'Booking not created';
+      await bookingHistoryService.logBooking({
+        userId: req.user && req.user._id,
+        endpoint: '/api/fasah/appointment/transit/create',
+        kind: 'transit',
+        success: false,
+        httpStatus: 400,
+        message: upstreamMessage,
+        requestBody: req.body || {},
+        requestQuery: req.query || {},
+        responseBody: result,
+        consumptionType: bookingDecision && bookingDecision.consumptionType,
+        extraPriceApplied: bookingDecision && bookingDecision.extraPriceApplied
+      });
+      return res.status(400).json({
+        success: false,
+        message: upstreamMessage,
+        data: result
+      });
+    }
+
+    if (req.user && req.user._id) {
+      await bookingDailyLimits.recordTransitBookingSuccess(req.user._id, bookingDecision);
+    }
+
+    await bookingHistoryService.logBooking({
+      userId: req.user && req.user._id,
+      endpoint: '/api/fasah/appointment/transit/create',
+      kind: 'transit',
+      success: true,
+      httpStatus: 200,
+      message: 'Booking created',
+      requestBody: req.body || {},
+      requestQuery: req.query || {},
+      responseBody: result,
+      consumptionType: bookingDecision && bookingDecision.consumptionType,
+      extraPriceApplied: bookingDecision && bookingDecision.extraPriceApplied
+    });
+
+    // إرجاع النتيجة الناجحة
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    console.error('خطأ في إنشاء موعد النقل العابر:', error);
+    await bookingHistoryService.logBooking({
+      userId: req.user && req.user._id,
+      endpoint: '/api/fasah/appointment/transit/create',
+      kind: 'transit',
+      success: false,
+      httpStatus: status,
+      message: error?.message || 'Booking error',
+      requestBody: req.body || {},
+      requestQuery: req.query || {},
+      responseBody: error?.data || {},
+      consumptionType: '',
+      extraPriceApplied: 0
+    });
+    res.status(status).json({
+      success: false,
+      error: error?.message,
+      ...(error.data && { details: error?.data })
+    });
+  }
+});
+
 // 404 Handler
 router.use((req, res) => {
   res.status(404).json({

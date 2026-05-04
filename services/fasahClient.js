@@ -923,6 +923,108 @@ async createTransitAppointment(params) {
   }
 }
 
+
+async createNonDeclarationAppointment(params) {
+  try {
+    const {
+      port_code,
+      zone_schedule_id,
+      purpose,
+      fleet_info,
+      cargo_type = '',
+      bayan_appointment = {},
+      token,
+      userType = 'broker'
+    } = params;
+
+    // التحقق من المعاملات المطلوبة
+    const requiredParams = ['port_code', 'zone_schedule_id', 'purpose', 'fleet_info'];
+    const missingParams = requiredParams.filter(param => !params[param]);
+    
+    if (missingParams.length > 0) {
+      throw new Error(`معاملات مطلوبة مفقودة: ${missingParams.join(', ')}`);
+    }
+    
+    if (!token) {
+      throw new Error('رمز المصادقة مطلوب');
+    }
+
+    // التحقق من fleet_info
+    if (!Array.isArray(fleet_info) || fleet_info.length === 0) {
+      throw new Error('fleet_info يجب أن يكون مصفوفة تحتوي على معلومات السائق والمركبة');
+    }
+
+    // اختيار الرابط حسب نوع المستخدم
+    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    const url = `${baseUrl}/api/zatca-tas/v2/appointment/non-declaration/create`;
+
+    // بناء بيانات الطلب
+    const requestData = {
+      port_code,
+      zone_schedule_id,
+      purpose,
+      cargo_type,
+      fleet_info,
+      bayan_appointment
+    };
+
+    // إعداد الهيدرات
+    const headers = {
+      'Accept': 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Origin': baseUrl,
+      'Referer': `${baseUrl}/ar/broker/2.0/`,
+      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+    };
+
+    const postConfig = {
+      headers,
+      timeout: 30000,
+      validateStatus: function (status) {
+        return status >= 200 && status < 500;
+      }
+    };
+    if (this.shouldUseProxy(params.proxyContext)) {
+      const proxy = this.getNextProxy(params.proxyContext);
+      postConfig.httpsAgent = this.createProxyAgent(proxy);
+      console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
+      await loggerService.createLogger({
+        message: `Create transit appointment via proxy: ${proxy.host}:${proxy.port}`,
+        data: { requestData },
+        type: 'info_request'
+      });
+      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      try {
+        const response = await axios.post(url, requestData, postConfig);
+        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
+        return response.data;
+      } catch (error) {
+        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        this.loggerService.createLogger({ message: `Create transit appointment error: ${error}`, data: { error: String(error) }, type: 'error' });
+        throw error;
+      }
+    }
+    const response = await axios.post(url, requestData, postConfig);
+    await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
+    return response.data;
+
+  } catch (error) {
+    this.loggerService.createLogger({
+      message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
+      data: {
+        error: JSON.stringify(error)
+      },
+      type: 'error'
+    });
+    this.handleError(error);
+  }
+}
+
 /**
  * Create land appointment (ZATCA TAS v2)
  * @param {Object} params
