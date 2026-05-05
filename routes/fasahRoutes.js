@@ -427,7 +427,6 @@ router.post('/appointment/non-declaration/create', async (req, res) => {
       cargo_type,
       fleet_info,
       bayan_appointment,
-      declaration_number,
       token,
       userType: userType,
       proxyContext: req.user
