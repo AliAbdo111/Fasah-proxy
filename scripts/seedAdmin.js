@@ -2,6 +2,31 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('../routes/models/User');
 
+/** Admin seed: plaintext only; bcrypt hash is applied in User schema pre('save'). */
+function assertStrongAdminPassword(password) {
+  if (!password || typeof password !== 'string') {
+    throw new Error('SEED_ADMIN_PASSWORD is required');
+  }
+  const minLen = 12;
+  if (password.length < minLen) {
+    throw new Error(
+      `SEED_ADMIN_PASSWORD must be at least ${minLen} characters (strong password policy for admin seed)`
+    );
+  }
+  if (!/[a-z]/.test(password)) {
+    throw new Error('SEED_ADMIN_PASSWORD must include at least one lowercase letter');
+  }
+  if (!/[A-Z]/.test(password)) {
+    throw new Error('SEED_ADMIN_PASSWORD must include at least one uppercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    throw new Error('SEED_ADMIN_PASSWORD must include at least one digit');
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    throw new Error('SEED_ADMIN_PASSWORD must include at least one special character');
+  }
+}
+
 async function run() {
   const mongoUri = process.env.MONGO_URI;
   if (!mongoUri) {
@@ -16,9 +41,7 @@ async function run() {
   if (!email) {
     throw new Error('SEED_ADMIN_EMAIL is required');
   }
-  if (!password || password.length < 6) {
-    throw new Error('SEED_ADMIN_PASSWORD is required and must be at least 6 characters');
-  }
+  assertStrongAdminPassword(password);
 
   await mongoose.connect(mongoUri);
 
