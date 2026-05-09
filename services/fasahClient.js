@@ -12,88 +12,272 @@ class FasahClient {
     this.transporterBaseUrl = process.env.FASAH_TRANSPORTER_BASE_URL || 'https://oga.fasah.sa';
     this.apiPath = '/api/zatca-tas/v2';
 
-    // Platform setting: true enables proxy usage unless user overrides with proxyEnabled=false.
+    // When true, outbound calls use `platformProxies` (env only; user proxyEnabled / user.proxies are ignored).
     this.platformProxyEnabled = String(process.env.FASAH_USE_PROXY || 'false').toLowerCase() === 'true';
 
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.platformProxies = [
-  
-{
-        host: '84.33.192.130',
-        port: 80,
-        username: 'ucqikpgn-sa-21',
-        password: 'seoerggxfamv',
+      {
+        host: '31.59.20.176',
+        port: 6754,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
         protocol: 'http',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
-{
-        host: '104.252.105.2',
-        port: 80,
-        username: 'ucqikpgn-sa-22',
-        password: 'seoerggxfamv',
+      {
+        host: '198.23.239.134',
+        port: 6540,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
         protocol: 'http',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
-{
-        host: '84.33.193.120',
-        port: 80,
-        username: 'ucqikpgn-sa-23',
-        password: 'seoerggxfamv',
+      {
+        host: '31.56.127.193',
+        port: 7684,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
         protocol: 'http',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
-{
-        host: '185.183.105.250',
-        port: 80,
-        username: 'ucqikpgn-sa-24',
-        password: 'seoerggxfamv',
+      {
+        host: '45.38.107.97',
+        port: 6014,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
         protocol: 'http',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
-{
-        host: '89.150.45.53',
-        port: 80,
-        username: 'ucqikpgn-sa-25',
-        password: 'seoerggxfamv',
+      {
+        host: '107.172.163.27',
+        port: 6543,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
         protocol: 'http',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
-{
-        host: '92.112.133.2',
-        port: 80,
-        username: '92.112.133.2',
-        password: 'seoerggxfamv',
+      {
+        host: '216.10.27.159',
+        port: 6837,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
         protocol: 'http',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
-{
-        host: '89.150.45.43',
-        port: 80,
-        username: 'ucqikpgn-sa-27',
-        password: 'seoerggxfamv',
+      {
+        host: '142.111.67.146',
+        port: 5611,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
         protocol: 'http',
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+      },
+      {
+        host: '191.96.254.138',
+        port: 6185,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '31.58.9.4',
+        port: 6077,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '23.229.19.94',
+        port: 8689,
+        username: 'epqiqeii',
+        password: 'httc0aob5x24',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '45.58.244.222',
+        port: 6635,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '46.203.30.53',
+        port: 6054,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '104.252.75.116',
+        port: 5486,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '9.142.207.108',
+        port: 6274,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '150.241.110.25',
+        port: 7029,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '9.142.35.240',
+        port: 6411,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '192.46.189.181',
+        port: 6174,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '130.180.233.102',
+        port: 7673,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '63.246.130.95',
+        port: 6296,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '63.141.62.182',
+        port: 6475,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '9.142.41.180',
+        port: 6350,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '45.56.180.36',
+        port: 8270,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '45.56.179.126',
+        port: 9330,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '46.202.34.191',
+        port: 7957,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '46.203.86.161',
+        port: 5661,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '72.1.181.168',
+        port: 5562,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '136.143.246.97',
+        port: 6746,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '46.202.34.144',
+        port: 7910,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '63.246.130.246',
+        port: 6447,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
+      },
+      {
+        host: '82.23.88.206',
+        port: 7962,
+        username: 'xpphhyal',
+        password: 'e2m0f0vlmxmr',
+        protocol: 'http',
+        rejectUnauthorized: false,
       },
     ];
     
-    // Rotation index per pool key (user-specific or platform fallback).
+    // Rotation index for the shared platform proxy pool.
     this.proxyRotationMap = new Map();
   }
 
+  /** Next entry from `platformProxies` (round-robin on key `__platform__`). */
+  getNextPlatformProxy() {
+    const proxies = this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
+    if (proxies.length === 0) return null;
+    return this.getNextProxy('__platform__', proxies);
+  }
+
   /**
-   * Get next proxy in rotation
-   * @returns {Object} Proxy configuration
+   * Advance rotation for a given pool key and proxies array (internal; prefer {@link getNextPlatformProxy}).
+   * @returns {Object|null} Proxy configuration
    */
   getNextProxy(poolKey, proxies) {
-    if (poolKey && typeof poolKey === 'object' && !Array.isArray(poolKey) && proxies === undefined) {
-      const pool = this.resolveProxyPool(poolKey);
-      return this.getNextProxy(pool.poolKey, pool.proxies);
-    }
     if (!Array.isArray(proxies) || proxies.length === 0) {
-      const fallback = this.resolveProxyPool(undefined);
-      if (!Array.isArray(fallback.proxies) || fallback.proxies.length === 0) return null;
-      return this.getNextProxy(fallback.poolKey, fallback.proxies);
+      return this.getNextPlatformProxy();
     }
     const key = String(poolKey || '__platform__');
     const currentIndex = this.proxyRotationMap.get(key) || 0;
@@ -118,27 +302,9 @@ class FasahClient {
     };
   }
 
-  shouldUseProxy(proxyContext) {
-    if (proxyContext && proxyContext.proxyEnabled != null) {
-      return Boolean(proxyContext.proxyEnabled);
-    }
+  /** Only `FASAH_USE_PROXY`; ignores per-user `proxyEnabled` and any user-stored proxy list. */
+  shouldUseProxy() {
     return Boolean(this.platformProxyEnabled);
-  }
-
-  resolveProxyPool(proxyContext) {
-    if (proxyContext && Array.isArray(proxyContext.proxies) && proxyContext.proxies.length > 0) {
-      const list = proxyContext.proxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
-      if (list.length > 0) {
-        return {
-          poolKey: proxyContext._id ? `user:${String(proxyContext._id)}` : (proxyContext.id ? `user:${String(proxyContext.id)}` : '__user__'),
-          proxies: list
-        };
-      }
-    }
-    return {
-      poolKey: '__platform__',
-      proxies: this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean)
-    };
   }
 
   /**
@@ -193,8 +359,7 @@ class FasahClient {
     const axiosConfig = { ...config };
 
     if (this.shouldUseProxy(proxyContext)) {
-      const pool = this.resolveProxyPool(proxyContext);
-      const proxy = this.getNextProxy(pool.poolKey, pool.proxies);
+      const proxy = this.getNextPlatformProxy();
       if (proxy) {
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         const label = proxyLogLabel ? ` (${proxyLogLabel})` : '';
@@ -269,8 +434,7 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextProxy(params.proxyContext);
+        const proxy = this.getNextPlatformProxy();
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -285,7 +449,7 @@ class FasahClient {
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
           throw err;
         }
-      }
+      
 
       const response = await axios.get(url, axiosConfig);
       return response.data;
@@ -330,7 +494,7 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextProxy(params.proxyContext);
+        const proxy = this.getNextPlatformProxy();
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy (fleet lookup): ${proxy.host}:${proxy.port}`);
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -388,7 +552,7 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextProxy(params.proxyContext);
+        const proxy = this.getNextPlatformProxy();
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy (fleet nationality): ${proxy.host}:${proxy.port}`);
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -446,7 +610,7 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextProxy(params.proxyContext);
+        const proxy = this.getNextPlatformProxy();
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy (fleet truck colors): ${proxy.host}:${proxy.port}`);
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -504,7 +668,7 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextProxy(params.proxyContext);
+        const proxy = this.getNextPlatformProxy();
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy (fleet v2 truck brands): ${proxy.host}:${proxy.port}`);
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -567,7 +731,7 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextProxy(params.proxyContext);
+        const proxy = this.getNextPlatformProxy();
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy (fleet v2 truck models): ${proxy.host}:${proxy.port}`);
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -625,7 +789,7 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextProxy(params.proxyContext);
+        const proxy = this.getNextPlatformProxy();
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy (zatca-tas customs driver-truck-info): ${proxy.host}:${proxy.port}`);
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -884,7 +1048,7 @@ async createTransitAppointment(params) {
       }
     };
     if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextProxy(params.proxyContext);
+      const proxy = this.getNextPlatformProxy();
       postConfig.httpsAgent = this.createProxyAgent(proxy);
       console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
       await loggerService.createLogger({
@@ -986,7 +1150,7 @@ async createNonDeclarationAppointment(params) {
       }
     };
     if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextProxy(params.proxyContext);
+      const proxy = this.getNextPlatformProxy();
       postConfig.httpsAgent = this.createProxyAgent(proxy);
       console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
       await loggerService.createLogger({
@@ -1062,7 +1226,7 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext }) 
     };
 
     if (this.shouldUseProxy(proxyContext)) {
-      const proxy = this.getNextProxy(proxyContext);
+      const proxy = this.getNextPlatformProxy();
       postConfig.httpsAgent = this.createProxyAgent(proxy);
       console.log(`Using proxy for create land appointment: ${proxy.host}:${proxy.port}`);
       await loggerService.createLogger({
