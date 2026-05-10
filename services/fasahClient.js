@@ -259,16 +259,183 @@ class FasahClient {
         rejectUnauthorized: false,
       },
     ];
+
+    // Optional per-user proxy pools (hardcoded). If a request has `proxyContext._id` that matches,
+    // that user's pool is used; otherwise we fall back to `platformProxies`.
+    this.userProxyPoolsById = new Map([
+      [
+        '69ff276e7dfba253f5f9b123',
+        [
+          { host: '168.222.97.4', port: 54482, username: 'i3xbed8ht4yz', password: 'qroht7l5ie93', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.5', port: 53006, username: 'lns05z1xjhto', password: '0wkmi95sf7jx', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.6', port: 54130, username: 'nouzqe7sim5k', password: '6wtmzog5yl34', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.228', port: 54039, username: '8lq30mpd7knj', password: 'ifkcyl82gtab', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.229', port: 56152, username: 'c5ptnrishfx6', password: '35oes1laxfk0', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.230', port: 51540, username: '3chxezmkiob8', password: '4wgzy3jeir8t', protocol: 'http', rejectUnauthorized: false },
+          { host: '1.1.1.1', port: 56624, username: 'k97b2d4wzg15', password: '1an72zohkupl', protocol: 'http', rejectUnauthorized: false },
+          { host: '1.1.1.1', port: 51116, username: 'q3ep8cdwijnh', password: 'm3phu4rgwje9', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.226', port: 52678, username: 'b9zkf518tuap', password: 'jq86ce0z71ft', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.227', port: 55065, username: 'ciy651qjomxf', password: '6i9nb5tcryx3', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69ff27337dfba253f5f9b055',
+        [
+          { host: '168.222.97.4', port: 54482, username: 'i3xbed8ht4yz', password: 'qroht7l5ie93', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.5', port: 53006, username: 'lns05z1xjhto', password: '0wkmi95sf7jx', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.6', port: 54130, username: 'nouzqe7sim5k', password: '6wtmzog5yl34', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.228', port: 54039, username: '8lq30mpd7knj', password: 'ifkcyl82gtab', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.229', port: 56152, username: 'c5ptnrishfx6', password: '35oes1laxfk0', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.230', port: 51540, username: '3chxezmkiob8', password: '4wgzy3jeir8t', protocol: 'http', rejectUnauthorized: false },
+          { host: '1.1.1.1', port: 56624, username: 'k97b2d4wzg15', password: '1an72zohkupl', protocol: 'http', rejectUnauthorized: false },
+          { host: '1.1.1.1', port: 51116, username: 'q3ep8cdwijnh', password: 'm3phu4rgwje9', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.226', port: 52678, username: 'b9zkf518tuap', password: 'jq86ce0z71ft', protocol: 'http', rejectUnauthorized: false },
+          { host: '168.222.97.227', port: 55065, username: 'ciy651qjomxf', password: '6i9nb5tcryx3', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69ff26397dfba253f5f9aeab',
+        [
+          { host: 'brd.superproxy.io', port: 33335, username: 'brd-customer-hl_628e164c-zone-datacenter_proxy3', password: 'z8c50lsa45qi', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69fe7cf87dfba253f5f86857',
+        [
+          { host: 'brd.superproxy.io', port: 33335, username: 'brd-customer-hl_628e164c-zone-datacenter_proxy2', password: 'sui4jhswih79', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69e22333a6fa39fab690a6ac',
+        [
+          { host: 'brd.superproxy.io', port: 33335, username: 'brd-customer-hl_628e164c-zone-datacenter_proxy4', password: '219c1c1c8w2v', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69df93914f4917525fae4240',
+        [
+          { host: 'brd.superproxy.io', port: 33335, username: 'brd-customer-hl_628e164c-zone-datacenter_proxy1', password: 'd87611cn3tqj', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69ccabf09b01db681ba0da2c',
+        [
+          { host: '217.20.124.2', port: 80, username: 'ucqikpgn-SA-11', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '195.66.210.2', port: 80, username: 'ucqikpgn-SA-12', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '78.108.186.83', port: 80, username: 'ucqikpgn-SA-13', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '185.24.11.34', port: 80, username: 'ucqikpgn-SA-14', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '23.109.106.84', port: 80, username: 'ucqikpgn-SA-15', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '138.199.36.51', port: 80, username: 'ucqikpgn-SA-16', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '169.150.215.18', port: 80, username: 'ucqikpgn-SA-17', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '46.165.199.11', port: 80, username: 'ucqikpgn-SA-18', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '217.20.124.2', port: 80, username: 'ucqikpgn-SA-19', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '195.66.210.2', port: 80, username: 'ucqikpgn-SA-20', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69cca98c9b01db681ba0da22',
+        [
+          { host: '78.108.186.83', port: 80, username: 'ucqikpgn-SA-21', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '185.24.11.34', port: 80, username: 'ucqikpgn-SA-22', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '23.109.106.84', port: 80, username: 'ucqikpgn-SA-23', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '138.199.36.51', port: 80, username: 'ucqikpgn-SA-24', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '169.150.215.18', port: 80, username: 'ucqikpgn-SA-25', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '46.165.199.11', port: 80, username: 'ucqikpgn-SA-26', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '217.20.124.2', port: 80, username: 'ucqikpgn-SA-27', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '195.66.210.2', port: 80, username: 'ucqikpgn-SA-28', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '78.108.186.83', port: 80, username: 'ucqikpgn-SA-29', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+          { host: '185.24.11.34', port: 80, username: 'ucqikpgn-SA-30', password: 'seoerggxfamv', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69cca8319b01db681ba0da06',
+        [
+          { host: '31.59.20.176', port: 6754, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '198.23.239.134', port: 6540, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '31.56.127.193', port: 7684, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '45.38.107.97', port: 6014, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '107.172.163.27', port: 6543, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '216.10.27.159', port: 6837, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '142.111.67.146', port: 5611, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '191.96.254.138', port: 6185, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '31.58.9.4', port: 6077, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '23.229.19.94', port: 8689, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+          { host: '45.58.244.222', port: 6635, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '46.203.30.53', port: 6054, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '104.252.75.116', port: 5486, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.207.108', port: 6274, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '150.241.110.25', port: 7029, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.35.240', port: 6411, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '192.46.189.181', port: 6174, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '130.180.233.102', port: 7673, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '63.246.130.95', port: 6296, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '63.141.62.182', port: 6475, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.41.180', port: 6350, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '45.56.180.36', port: 8270, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '45.56.179.126', port: 9330, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '46.202.34.191', port: 7957, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '46.203.86.161', port: 5661, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '72.1.181.168', port: 5562, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '136.143.246.97', port: 6746, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '46.202.34.144', port: 7910, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '63.246.130.246', port: 6447, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '82.23.88.206', port: 7962, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+      [
+        '69fe7c138728d6c0288c2cc1',
+        [
+          { host: '45.39.157.227', port: 9259, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.210.52', port: 5717, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '46.203.30.252', port: 6253, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '104.252.59.213', port: 7685, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '45.248.55.158', port: 6744, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '82.23.89.137', port: 7894, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '207.228.29.35', port: 5526, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.14.84', port: 6740, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '192.46.190.179', port: 6772, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.10.16', port: 5672, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '63.246.137.39', port: 5668, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '82.22.96.171', port: 7879, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '72.1.154.245', port: 8136, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.36.157', port: 5828, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '192.53.66.198', port: 6304, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '5.59.251.212', port: 6251, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '96.62.194.237', port: 6439, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '138.226.65.222', port: 7413, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '192.53.137.99', port: 6387, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '150.241.110.176', port: 7180, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.11.91', port: 5247, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '9.142.215.239', port: 6404, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '45.58.244.176', port: 6589, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '216.98.254.137', port: 6447, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '82.24.35.109', port: 7832, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '45.56.161.29', port: 8905, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '104.252.62.89', port: 5460, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '104.252.75.133', port: 5503, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '166.0.41.52', port: 6560, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+          { host: '82.21.51.40', port: 7803, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+        ],
+      ],
+    ]);
     
     // Rotation index for the shared platform proxy pool.
     this.proxyRotationMap = new Map();
   }
 
-  /** Next entry from `platformProxies` (round-robin on key `__platform__`). */
-  getNextPlatformProxy() {
-    const proxies = this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
+  /**
+   * Next entry from hardcoded pools.
+   * - If `proxyContext._id` matches `userProxyPoolsById`, uses that pool (rotates per user id).
+   * - Otherwise uses `platformProxies` (rotates on key `__platform__`).
+   */
+  getNextPlatformProxy(proxyContext) {
+    const userId = proxyContext && (proxyContext._id || proxyContext.id) ? String(proxyContext._id || proxyContext.id) : '';
+    const userPool = userId ? this.userProxyPoolsById.get(userId) : null;
+    const raw = Array.isArray(userPool) && userPool.length > 0 ? userPool : this.platformProxies;
+    const proxies = raw.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
     if (proxies.length === 0) return null;
-    return this.getNextProxy('__platform__', proxies);
+    const poolKey = Array.isArray(userPool) && userPool.length > 0 ? `user:${userId}` : '__platform__';
+    return this.getNextProxy(poolKey, proxies);
   }
 
   /**
@@ -359,7 +526,7 @@ class FasahClient {
     const axiosConfig = { ...config };
 
     if (this.shouldUseProxy(proxyContext)) {
-      const proxy = this.getNextPlatformProxy();
+      const proxy = this.getNextPlatformProxy(proxyContext);
       if (proxy) {
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
         const label = proxyLogLabel ? ` (${proxyLogLabel})` : '';
@@ -434,9 +601,12 @@ class FasahClient {
         }
       };
 
-        const proxy = this.getNextPlatformProxy();
-        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
+      if (this.shouldUseProxy(params.proxyContext)) {
+        const proxy = this.getNextPlatformProxy(params.proxyContext);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
+        }
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         try {
@@ -449,6 +619,7 @@ class FasahClient {
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
           throw err;
         }
+      }
       
 
       const response = await axios.get(url, axiosConfig);
@@ -494,9 +665,11 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy();
-        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy (fleet lookup): ${proxy.host}:${proxy.port}`);
+        const proxy = this.getNextPlatformProxy(params.proxyContext);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy (fleet lookup): ${proxy.host}:${proxy.port}`);
+        }
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         try {
@@ -552,9 +725,11 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy();
-        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy (fleet nationality): ${proxy.host}:${proxy.port}`);
+        const proxy = this.getNextPlatformProxy(params.proxyContext);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy (fleet nationality): ${proxy.host}:${proxy.port}`);
+        }
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         try {
@@ -610,9 +785,11 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy();
-        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy (fleet truck colors): ${proxy.host}:${proxy.port}`);
+        const proxy = this.getNextPlatformProxy(params.proxyContext);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy (fleet truck colors): ${proxy.host}:${proxy.port}`);
+        }
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         try {
@@ -668,9 +845,11 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy();
-        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy (fleet v2 truck brands): ${proxy.host}:${proxy.port}`);
+        const proxy = this.getNextPlatformProxy(params.proxyContext);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy (fleet v2 truck brands): ${proxy.host}:${proxy.port}`);
+        }
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         try {
@@ -731,9 +910,11 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy();
-        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy (fleet v2 truck models): ${proxy.host}:${proxy.port}`);
+        const proxy = this.getNextPlatformProxy(params.proxyContext);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy (fleet v2 truck models): ${proxy.host}:${proxy.port}`);
+        }
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         try {
@@ -789,9 +970,11 @@ class FasahClient {
       };
 
       if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy();
-        axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy (zatca-tas customs driver-truck-info): ${proxy.host}:${proxy.port}`);
+        const proxy = this.getNextPlatformProxy(params.proxyContext);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy (zatca-tas customs driver-truck-info): ${proxy.host}:${proxy.port}`);
+        }
         const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         try {
@@ -1048,11 +1231,13 @@ async createTransitAppointment(params) {
       }
     };
     if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy();
-      postConfig.httpsAgent = this.createProxyAgent(proxy);
-      console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
+      const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (proxy) {
+        postConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
+      }
       await loggerService.createLogger({
-        message: `Create transit appointment via proxy: ${proxy.host}:${proxy.port}`,
+        message: proxy ? `Create transit appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create transit appointment via proxy: (no proxy available)',
         data: { requestData },
         type: 'info_request'
       });
@@ -1150,11 +1335,13 @@ async createNonDeclarationAppointment(params) {
       }
     };
     if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy();
-      postConfig.httpsAgent = this.createProxyAgent(proxy);
-      console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
+      const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (proxy) {
+        postConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
+      }
       await loggerService.createLogger({
-        message: `Create transit appointment via proxy: ${proxy.host}:${proxy.port}`,
+        message: proxy ? `Create transit appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create transit appointment via proxy: (no proxy available)',
         data: { requestData },
         type: 'info_request'
       });
@@ -1226,11 +1413,13 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext }) 
     };
 
     if (this.shouldUseProxy(proxyContext)) {
-      const proxy = this.getNextPlatformProxy();
-      postConfig.httpsAgent = this.createProxyAgent(proxy);
-      console.log(`Using proxy for create land appointment: ${proxy.host}:${proxy.port}`);
+      const proxy = this.getNextPlatformProxy(proxyContext);
+      if (proxy) {
+        postConfig.httpsAgent = this.createProxyAgent(proxy);
+        console.log(`Using proxy for create land appointment: ${proxy.host}:${proxy.port}`);
+      }
       await loggerService.createLogger({
-        message: `Create land appointment via proxy: ${proxy.host}:${proxy.port}`,
+        message: proxy ? `Create land appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create land appointment via proxy: (no proxy available)',
         data: { body },
         type: 'info_request'
       });
