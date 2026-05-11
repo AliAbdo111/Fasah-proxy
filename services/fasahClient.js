@@ -430,17 +430,12 @@ class FasahClient {
 
   /**
    * Next entry from hardcoded pools.
-   * - If `proxyContext._id` matches `userProxyPoolsById`, uses that pool (rotates per user id).
-   * - Otherwise uses `platformProxies` (rotates on key `__platform__`).
+   * Always uses `platformProxies` (rotates on key `__platform__`).
    */
   getNextPlatformProxy(proxyContext) {
-    const userId = proxyContext && (proxyContext._id || proxyContext.id) ? String(proxyContext._id || proxyContext.id) : '';
-    const userPool = userId ? this.userProxyPoolsById.get(userId) : null;
-    const raw = Array.isArray(userPool) && userPool.length > 0 ? userPool : this.platformProxies;
-    const proxies = raw.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
+    const proxies = this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
     if (proxies.length === 0) return null;
-    const poolKey = Array.isArray(userPool) && userPool.length > 0 ? `user:${userId}` : '__platform__';
-    return this.getNextProxy(poolKey, proxies);
+    return this.getNextProxy('__platform__', proxies);
   }
 
   /**
@@ -502,7 +497,8 @@ class FasahClient {
     // Create proxy agent with TLS configuration
     // For https-proxy-agent v7.x, options are passed directly
     const agentOptions = {
-      rejectUnauthorized: rejectUnauthorized
+      rejectUnauthorized: rejectUnauthorized,
+      keepAlive: true
     };
     
     const agent = new HttpsProxyAgent(proxyUrl, agentOptions);
@@ -537,6 +533,9 @@ class FasahClient {
         const label = proxyLogLabel ? ` (${proxyLogLabel})` : '';
         console.log(`Using proxy${label}: ${proxy.host}:${proxy.port}`);
       }
+    }
+    if (!axiosConfig.httpsAgent) {
+      axiosConfig.httpsAgent = this.keepAliveHttpsAgent;
     }
 
     const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
