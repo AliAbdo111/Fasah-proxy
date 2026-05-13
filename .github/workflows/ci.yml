@@ -47,8 +47,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        # package-lock.json is gitignored in this repo; use install (not ci)
-        run: npm install
+        run: npm ci
 
       - name: CI checks (syntax + polyfill + mongoose load)
         run: npm run ci
@@ -83,7 +82,7 @@ jobs:
             git fetch origin dev-omar
             git checkout dev-omar
             git pull --ff-only origin dev-omar
-            npm install --omit=dev
+            npm ci --omit=dev
             if [ -n "$DEV_PM2_APP" ]; then
               pm2 restart "$DEV_PM2_APP" --update-env
             fi
