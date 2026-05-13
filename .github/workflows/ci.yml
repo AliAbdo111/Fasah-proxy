@@ -1,7 +1,15 @@
-# Build and sanity checks for Fasah-proxy (Node + npm).
-# Runs on main, Omar dev branch, and any branch under dev/ (e.g. dev/feature-x).
+# One pipeline: Node build checks on every trigger, then optional SSH deploy to dev.
+#
+# Variables (Settings → Secrets and variables → Actions → Variables):
+#   ENABLE_SSH_DEPLOY   set to `true` to run deploy after CI on pushes to `dev-omar`.
+#
+# Secrets (same place → Secrets):
+#   DEV_SSH_HOST, DEV_SSH_USER, DEV_SSH_PASSWORD, DEV_APP_PATH
+# Optional: DEV_PM2_APP
+#
+# Dev server: clone repo, `.env` with PORT (see `.env.example`), SSH password auth allowed.
 
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -16,12 +24,12 @@ on:
       - 'dev/**'
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: cicd-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Node ${{ matrix.node-version }}
+    name: Build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -51,3 +59,31 @@ jobs:
             echo 'FATAL: npm package "crypto" must not be installed (shadows Node built-in). Remove it from package.json and run npm uninstall crypto.'
             exit 1
           fi
+
+  deploy-dev:
+    name: Deploy dev (SSH)
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev-omar' && vars.ENABLE_SSH_DEPLOY == 'true' }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEV_PM2_APP: ${{ secrets.DEV_PM2_APP }}
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          password: ${{ secrets.DEV_SSH_PASSWORD }}
+          script_stop: true
+          envs: DEV_PM2_APP
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.DEV_APP_PATH }}
+            git fetch origin dev-omar
+            git checkout dev-omar
+            git pull --ff-only origin dev-omar
+            npm install --omit=dev
+            if [ -n "$DEV_PM2_APP" ]; then
+              pm2 restart "$DEV_PM2_APP" --update-env
+            fi
