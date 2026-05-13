@@ -39,7 +39,8 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # package-lock.json is gitignored in this repo; use install (not ci)
+        run: npm install
 
       - name: CI checks (syntax + polyfill + mongoose load)
         run: npm run ci
