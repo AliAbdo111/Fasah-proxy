@@ -7,8 +7,10 @@
 #   DEV_APP_PATH        app directory on server (leading / optional, e.g. /home/ubuntu/Fasah-proxy-omar)
 #   DEV_PM2_APP         optional PM2 app name
 #
-# Repository secrets (Actions → Secrets — required for password):
-#   DEV_SSH_PASSWORD    SSH password only here (never use Variables for passwords; they are visible)
+# Repository secrets (Actions → Secrets) — preferred for password:
+#   DEV_SSH_PASSWORD
+#
+# Fallback: same name as a repository Variable (only if the secret is unset; Variables are visible in the UI).
 #
 # Dev server: clone repo, `.env` with PORT (see `.env.example`), SSH password auth allowed.
 
@@ -76,7 +78,7 @@ jobs:
         with:
           host: ${{ vars.DEV_SSH_HOST }}
           username: ${{ vars.DEV_SSH_USER }}
-          password: ${{ secrets.DEV_SSH_PASSWORD }}
+          password: ${{ secrets.DEV_SSH_PASSWORD || vars.DEV_SSH_PASSWORD }}
           script_stop: true
           envs: DEV_PM2_APP
           script: |
