@@ -6,7 +6,7 @@
 # Repository secrets:
 #   DEV_SSH_HOST          hostname or IP
 #   DEV_SSH_USER          SSH user
-#   DEV_SSH_PRIVATE_KEY   private key (PEM), full contents including BEGIN/END lines
+#   DEV_SSH_PASSWORD      SSH password (store only in GitHub Secrets; server must allow password auth)
 #   DEV_APP_PATH          absolute path to the app repo on the server (e.g. /home/ubuntu/Fasah-proxy)
 #
 # Optional secrets:
@@ -35,7 +35,7 @@ jobs:
         with:
           host: ${{ secrets.DEV_SSH_HOST }}
           username: ${{ secrets.DEV_SSH_USER }}
-          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          password: ${{ secrets.DEV_SSH_PASSWORD }}
           script_stop: true
           envs: DEV_PM2_APP
           script: |
