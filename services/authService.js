@@ -14,6 +14,13 @@ function resolveRole(userOrDoc) {
   return userOrDoc.role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER;
 }
 
+/** Real `Error` + `.status` so `error.stack` and APM/async tracing work (plain `{ status, message }` breaks that). */
+function httpError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
 function signUserToken(userId, role) {
   return jwt.sign(
     { userId: String(userId), role: role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER },
@@ -71,9 +78,11 @@ async function register({ email, password, phone, username }) {
 }
 
 async function login(email, password) {
+  try{
   const user = await User.findOne({ email }).select('+password');
   if (!user) throw { status: 401, message: 'Invalid email or password' };
   if (!user.isActive) throw { status: 403, message: 'Account is deactivated' };
+  
   const valid = await user.comparePassword(password);
   if (!valid) throw { status: 401, message: 'Invalid email or password' };
   await bookingDailyLimits.syncUserBookingDay(user._id);
@@ -95,6 +104,11 @@ async function login(email, password) {
     },
     token
   };
+
+} catch (error) {
+  console.error("error",error);
+  throw { status: 500, message: error.message };
+}
 }
 
 /** Same as login but only accounts with role admin receive a token (403 otherwise). */

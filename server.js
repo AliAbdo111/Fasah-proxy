@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./polyfillWebCrypto');
 const express = require('express');
 const cors = require('cors');
 const Schedule = require('./routes/models/Schedule');

@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('../polyfillWebCrypto');
 const mongoose = require('mongoose');
 const User = require('../routes/models/User');
 

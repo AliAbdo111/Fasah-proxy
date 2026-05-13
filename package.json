@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "ci": "node --check server.js && node --check polyfillWebCrypto.js && node -e \"require('./polyfillWebCrypto'); require('mongoose'); console.log('ci:load-ok')\"",
     "seed:package-examples": "node scripts/seedPackageExamples.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"

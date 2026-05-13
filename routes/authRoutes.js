@@ -24,6 +24,7 @@ router.post('/register', adminAuthMiddleware, async (req, res, next) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
+
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
@@ -31,6 +32,7 @@ router.post('/login', async (req, res) => {
     const result = await authService.login(email, password);
     res.json({ success: true, ...result });
   } catch (err) {
+    console.error("error", err.message); 
     const status = err.status || 500;
     res.status(status).json({ success: false, message: err.message || 'Login failed' });
   }
