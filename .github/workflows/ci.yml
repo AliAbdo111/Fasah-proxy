@@ -1,11 +1,14 @@
 # One pipeline: Node build checks on every trigger, then optional SSH deploy to dev.
 #
-# Variables (Settings → Secrets and variables → Actions → Variables):
-#   ENABLE_SSH_DEPLOY   set to `true` to run deploy after CI on pushes to `dev-omar`.
+# Repository variables (Actions → Variables):
+#   ENABLE_SSH_DEPLOY   `true` to run deploy after CI on pushes to `dev-omar`.
+#   DEV_SSH_HOST        hostname or IP
+#   DEV_SSH_USER        SSH user (e.g. root)
+#   DEV_APP_PATH        app directory on server (leading / optional, e.g. /home/ubuntu/Fasah-proxy-omar)
+#   DEV_PM2_APP         optional PM2 app name
 #
-# Secrets (same place → Secrets):
-#   DEV_SSH_HOST, DEV_SSH_USER, DEV_SSH_PASSWORD, DEV_APP_PATH
-# Optional: DEV_PM2_APP
+# Repository secrets (Actions → Secrets — required for password):
+#   DEV_SSH_PASSWORD    SSH password only here (never use Variables for passwords; they are visible)
 #
 # Dev server: clone repo, `.env` with PORT (see `.env.example`), SSH password auth allowed.
 
@@ -69,16 +72,21 @@ jobs:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
-          DEV_PM2_APP: ${{ secrets.DEV_PM2_APP }}
+          DEV_PM2_APP: ${{ vars.DEV_PM2_APP || secrets.DEV_PM2_APP }}
         with:
-          host: ${{ secrets.DEV_SSH_HOST }}
-          username: ${{ secrets.DEV_SSH_USER }}
+          host: ${{ vars.DEV_SSH_HOST }}
+          username: ${{ vars.DEV_SSH_USER }}
           password: ${{ secrets.DEV_SSH_PASSWORD }}
           script_stop: true
           envs: DEV_PM2_APP
           script: |
             set -euo pipefail
-            cd ${{ secrets.DEV_APP_PATH }}
+            APP_PATH='${{ vars.DEV_APP_PATH }}'
+            case "$APP_PATH" in
+              /*) ;;
+              *) APP_PATH="/$APP_PATH" ;;
+            esac
+            cd "$APP_PATH"
             git fetch origin dev-omar
             git checkout dev-omar
             git pull --ff-only origin dev-omar
