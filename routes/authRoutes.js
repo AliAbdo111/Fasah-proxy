@@ -5,6 +5,7 @@ const authService = require('../services/authService');
 const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
+const socketService = require('../services/socketService');
 
 // POST /api/auth/register (admin only — use admin JWT from POST /api/auth/admin/login)
 router.post('/register', adminAuthMiddleware, async (req, res, next) => {
@@ -30,12 +31,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     const result = await authService.login(email, password);
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('user-login', { email });
-      console.log('user-login', { email: email });
-      console.log('io', io);
-    }
+    socketService.emit('user-login', { email });
     return res.status(200).json({ success: true, message: 'Login successful', ...result });
   } catch (err) {
     console.error("error", err.message); 

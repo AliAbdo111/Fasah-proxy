@@ -16,9 +16,9 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const loggerService = require('./services/loggerSerivce');
+const socketService = require('./services/socketService');
 const path = require('path');
 const http = require('http');
-const { Server: SocketIoServer } = require('socket.io');
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -97,45 +97,6 @@ app.use('/api/zatca-fleet/v1', authMiddleware, zatcaFleetV1Routes);
 app.use('/api/zatca-fleet/v2', authMiddleware, zatcaFleetCompatRoutes);
 app.use('/api/auth', authRoutes);
 
-// Root endpoint
-// app.get('/', (req, res) => {
-//   res.json({
-//     service: 'FASAH Proxy API',
-//     version: '1.0.0',
-//     description: 'Proxy service for FASAH schedule management API',
-//     endpoints: {
-//       health: '/health',
-//       schedule: '/api/fasah/schedule/land',
-//       zatcaScheduleLand: 'GET /api/zatca/zone/schedule/land/server-one?departure=&arrival=&type=',
-//       zatcaLandAppointmentCreate: 'POST /api/zatca-tas/v2/appointment/land/create',
-//       zatcaBulkGetDeclarationInfo:
-//         'GET /api/zatca-tas/v2/appointment/bulk/getDeclarationInfo?decNo=&port=&purpose=&toRefNo=',
-//       zatcaTasCustomsDriverTruckInfo:
-//         'GET /api/zatca-tas/customs/forigen/driver-truck-info?purpose=&consignmentNumber=',
-//       zatcaLandAppointmentPdf: 'GET /api/zatca-tas/v1/appoint/pdf/generateLand?ref=',
-//       zatcaFleetResidentCountries: 'GET /api/zatca-fleet/v1/lookup/resident/countries',
-//       zatcaFleetNationality: 'GET /api/zatca-fleet/v1/nationality',
-//       zatcaFleetTruckColors: 'GET /api/zatca-fleet/v1/lookup/truck/colors?q=',
-//       zatcaFleetV2TruckBrands: 'GET /api/zatca-fleet/v2/truck/lookup/brands?q=',
-//       zatcaFleetV2TruckModels: 'GET /api/zatca-fleet/v2/truck/lookup/models/:brandCode?q=',
-//       scheduleImport: 'GET /api/fasah/schedule/land?type=IMPORT',
-//       scheduleEmptyTruck: 'GET /api/fasah/schedule/land?type=EMPTY_TRUCK',
-//       getDeclarationInfo: 'GET /api/fasah/appointment/transit/getDeclarationInfo?decNo=&arrivalPort=',
-//       auth: {
-//         register: 'POST /api/auth/register',
-//         login: 'POST /api/auth/login',
-//         forgotPassword: 'POST /api/auth/forgot-password',
-//         resetPassword: 'POST /api/auth/reset-password',
-//         verifyOtp: 'POST /api/auth/verify-otp',
-//         resendOtp: 'POST /api/auth/resend-otp',
-//         me: 'GET /api/auth/me',
-//         activateUser: 'PATCH /api/auth/users/:userId/activate',
-//         deactivateUser: 'PATCH /api/auth/users/:userId/deactivate'
-//       }
-//     }
-//   });
-// });
-
 // 404 Handler
 app.use((req, res) => {
   res.status(404).json({
@@ -154,12 +115,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// HTTP + Socket.IO (single server; routes use req.app.get('io'))
+// HTTP + Socket.IO (Socket.IO lives in services/socketService.js)
 const server = http.createServer(app);
-const io = new SocketIoServer(server, {
-  cors: { origin: true, methods: ['GET', 'POST'] }
-});
-app.set('io', io);
+socketService.attachToHttpServer(server);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 FASAH Proxy Server running on port ${PORT}`);

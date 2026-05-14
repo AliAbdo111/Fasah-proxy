@@ -63,6 +63,7 @@
     <button id="logoutBtn">Logout</button>
   </div>
   <div id="meta" class="muted"></div>
+  <div id="socketLine" class="muted" style="margin-top:6px">Socket: …</div>
   <div id="err" class="error"></div>
   <div id="ok" class="ok"></div>
 
@@ -237,6 +238,7 @@
     <tbody id="rows"></tbody>
   </table>
 
+  <script src="https://cdn.socket.io/4.8.3/socket.io.min.js" crossorigin="anonymous"></script>
   <script>
     (function stripCacheBustParam() {
       try {
@@ -252,6 +254,24 @@
     const baseUrl = (localStorage.getItem('fasah.baseUrl') || window.location.origin).replace(/\/+$/, '');
     if (!token) {
       window.location.href = '/login';
+    }
+
+    const socketLine = document.getElementById('socketLine');
+    function setSocketStatus(text) {
+      if (socketLine) socketLine.textContent = 'Socket: ' + text;
+    }
+    if (typeof io !== 'undefined') {
+      const socket = io(baseUrl, { path: '/socket.io/', transports: ['websocket', 'polling'] });
+      setSocketStatus('connecting…');
+      socket.on('connect', () => setSocketStatus('connected (' + socket.id + ')'));
+      socket.on('disconnect', (reason) => setSocketStatus('disconnected (' + reason + ')'));
+      socket.on('connect_error', (e) => setSocketStatus('error: ' + (e.message || 'connect failed')));
+      socket.on('user-login', (payload) => {
+        const who = payload && payload.email ? payload.email : JSON.stringify(payload || {});
+        showOk('Socket: user logged in — ' + who);
+      });
+    } else {
+      setSocketStatus('library not loaded');
     }
 
     const usersById = new Map();
