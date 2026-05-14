@@ -30,14 +30,18 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     const result = await authService.login(email, password);
-    res.json({ success: true, ...result });
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user-login', { email });
+      console.log('user-login', { email: email });
+      console.log('io', io);
+    }
+    return res.status(200).json({ success: true, message: 'Login successful', ...result });
   } catch (err) {
     console.error("error", err.message); 
-    const status = err.status || 500;
-    res.status(status).json({ success: false, message: err.message || 'Login failed' });
+    return res.status(500).json({ success: false, message: err.message || 'Login failed' });
   }
 });
-
 // POST /api/auth/admin/login — token only for accounts with role admin
 router.post('/admin/login', async (req, res) => {
   try {

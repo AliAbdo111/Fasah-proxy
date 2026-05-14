@@ -17,6 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const loggerService = require('./services/loggerSerivce');
 const path = require('path');
+const http = require('http');
+const { Server: SocketIoServer } = require('socket.io');
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -152,8 +154,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
+// HTTP + Socket.IO (single server; routes use req.app.get('io'))
+const server = http.createServer(app);
+const io = new SocketIoServer(server, {
+  cors: { origin: true, methods: ['GET', 'POST'] }
+});
+app.set('io', io);
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 FASAH Proxy Server running on port ${PORT}`);
   console.log(`📡 API Base URL: http://localhost:${PORT}/api/fasah`);
   console.log(`❤️  Health Check: http://localhost:${PORT}/health`);

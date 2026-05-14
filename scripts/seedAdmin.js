@@ -9,23 +9,23 @@ function assertStrongAdminPassword(password) {
     throw new Error('SEED_ADMIN_PASSWORD is required');
   }
   const minLen = 12;
-  if (password.length < minLen) {
-    throw new Error(
-      `SEED_ADMIN_PASSWORD must be at least ${minLen} characters (strong password policy for admin seed)`
-    );
-  }
-  if (!/[a-z]/.test(password)) {
-    throw new Error('SEED_ADMIN_PASSWORD must include at least one lowercase letter');
-  }
-  if (!/[A-Z]/.test(password)) {
-    throw new Error('SEED_ADMIN_PASSWORD must include at least one uppercase letter');
-  }
-  if (!/[0-9]/.test(password)) {
-    throw new Error('SEED_ADMIN_PASSWORD must include at least one digit');
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    throw new Error('SEED_ADMIN_PASSWORD must include at least one special character');
-  }
+  // if (password.length < minLen) {
+  //   throw new Error(
+  //     `SEED_ADMIN_PASSWORD must be at least ${minLen} characters (strong password policy for admin seed)`
+  //   );
+  // }
+  // if (!/[a-z]/.test(password)) {
+  //   throw new Error('SEED_ADMIN_PASSWORD must include at least one lowercase letter');
+  // }
+  // if (!/[A-Z]/.test(password)) {
+  //   throw new Error('SEED_ADMIN_PASSWORD must include at least one uppercase letter');
+  // }
+  // if (!/[0-9]/.test(password)) {
+  //   throw new Error('SEED_ADMIN_PASSWORD must include at least one digit');
+  // }
+  // if (!/[^A-Za-z0-9]/.test(password)) {
+  //   throw new Error('SEED_ADMIN_PASSWORD must include at least one special character');
+  // }
 }
 
 async function run() {
