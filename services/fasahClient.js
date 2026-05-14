@@ -633,7 +633,7 @@ class FasahClient {
       console.log(error);
       this.handleError(error);
     }
-  }
+  } 
 
   /**
    * GET /api/zatca-fleet/v1/lookup/resident/countries
