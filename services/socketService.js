@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const { register: registerScheduleSocketHandlers } = require('./socketScheduleHandlers');
 
 let io = null;
 
@@ -17,6 +18,7 @@ function attachToHttpServer(httpServer) {
       id: socket.id,
       transport: socket.conn.transport.name
     });
+    registerScheduleSocketHandlers(socket);
     socket.on('disconnect', (reason) => {
       console.log('[socket] client disconnected', { id: socket.id, reason });
     });

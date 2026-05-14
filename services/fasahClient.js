@@ -617,6 +617,7 @@ class FasahClient {
           const response = await axios.get(url, axiosConfig);
           if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          console.log('[fasahClient] getLandSchedule response', response.data);
           return response.data;
         } catch (err) {
           if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
