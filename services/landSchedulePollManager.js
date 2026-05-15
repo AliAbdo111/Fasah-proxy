@@ -160,6 +160,14 @@ function getPollStatusPayload(userId) {
   };
 }
 
+/** Poll status for REST login response or API. */
+function getPollStatusForApi(userId) {
+  return {
+    at: new Date().toISOString(),
+    ...getPollStatusPayload(userId)
+  };
+}
+
 /** Push current poll status to one socket (on connect / identify). */
 function emitPollStatusToSocket(socket) {
   if (!socket?.data?.userId) {
@@ -394,6 +402,7 @@ module.exports = {
   getGlobalActivePoll,
   isSystemPollBusy,
   getPollStatusPayload,
+  getPollStatusForApi,
   emitPollStatusToSocket,
   broadcastPollStatusToAllSockets,
   stopPollIfUserDisconnected

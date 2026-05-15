@@ -83,9 +83,23 @@ Content-Type: application/json
   "success": true,
   "message": "Login successful",
   "user": { "_id": "...", "email": "...", "role": "user", ... },
-  "token": "<app-jwt>"
+  "token": "<app-jwt>",
+  "pollStatus": {
+    "at": "2026-05-15T12:00:00.000Z",
+    "active": false,
+    "userId": "...",
+    "systemPollActive": true,
+    "isOwner": false,
+    "status": 429,
+    "message": "Polling already running",
+    "pollOwnerUserId": "...",
+    "requestNumber": 5,
+    "maxRequests": 200
+  }
 }
 ```
+
+`pollStatus` is the same shape as socket event `fasah:land-schedule:poll:status` (idle, you are polling, or another user is polling).
 
 On login, the server may emit **`user-login`** to:
 

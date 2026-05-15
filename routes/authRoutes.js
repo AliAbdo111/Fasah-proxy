@@ -7,6 +7,14 @@ const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
 const socketService = require('../services/socketService');
 const { loadAppointmentsForUser } = require('../services/scheduleAppointmentsService');
+const { getPollStatusForApi } = require('../services/landSchedulePollManager');
+
+function attachPollStatusAndNotifySockets(user) {
+  const userId = String(user._id);
+  const pollStatus = getPollStatusForApi(userId);
+  socketService.emitToUserId(userId, 'fasah:land-schedule:poll:status', pollStatus);
+  return pollStatus;
+}
 
 // POST /api/auth/register (admin only — use admin JWT from POST /api/auth/admin/login)
 router.post('/register', adminAuthMiddleware, async (req, res, next) => {
@@ -32,14 +40,21 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     const result = await authService.login(email, password);
+    const userId = String(result.user._id);
     const loginPayload = {
       email: result.user.email,
-      userId: String(result.user._id)
+      userId
     };
-    socketService.emitToUserId(loginPayload.userId, 'user-login', loginPayload);
+    const pollStatus = attachPollStatusAndNotifySockets(result.user);
+    socketService.emitToUserId(userId, 'user-login', loginPayload);
     socketService.emitToEmail(loginPayload.email, 'user-login', loginPayload);
     socketService.emit('user-login', loginPayload);
-    return res.status(200).json({ success: true, message: 'Login successful', ...result });
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      ...result,
+      pollStatus
+    });
   } catch (err) {
     console.error("error", err.message); 
     return res.status(500).json({ success: false, message: err.message || 'Login failed' });
@@ -53,7 +68,8 @@ router.post('/admin/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     const result = await authService.adminLogin(email, password);
-    res.json({ success: true, ...result });
+    const pollStatus = attachPollStatusAndNotifySockets(result.user);
+    res.json({ success: true, ...result, pollStatus });
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ success: false, message: err.message || 'Admin login failed' });
