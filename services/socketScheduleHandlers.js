@@ -6,13 +6,21 @@
  *    → stored in Redis key fasah:socket:<socketId>:schedule-appointments (TTL 7d)
  *    ← schedule:appointments:saved | schedule:appointments:error
  *
+ *    schedule:appointments:get (no payload) — read back this socket’s saved JSON
+ *    ← schedule:appointments:data { key, raw, parsed } | schedule:appointments:error
+ *
+ *    CLI (Redis must be running, e.g. docker compose up -d redis):
+ *      redis-cli -u redis://127.0.0.1:6379 KEYS 'fasah:*'
+ *      redis-cli -u redis://127.0.0.1:6379 GET 'fasah:socket:<socketId>:schedule-appointments'
+ *
  * 2) fasah:land-schedule:poll:start
  *    payload: { departure, arrival, type, token, userType?, economicOperator?, intervalMs? }
  *    → calls FasahClient.getLandSchedule repeatedly: fetch, then wait intervalMs (default 3000 ms),
- *       until fasah:land-schedule:poll:stop or disconnect.
+ *       until client emits fasah:land-schedule:poll:stop or fasah:land-schedule:poll:close,
+ *       or the socket disconnects (same cleanup).
  *    ← fasah:land-schedule:poll:started | fasah:land-schedule:poll:tick | fasah:land-schedule:poll:error
  *
- * 3) fasah:land-schedule:poll:stop
+ * 3) fasah:land-schedule:poll:stop  (alias: fasah:land-schedule:poll:close)
  *    ← fasah:land-schedule:poll:stopped
  */
 
@@ -63,6 +71,33 @@ function register(socket) {
     }
   });
 
+  socket.on('schedule:appointments:get', async () => {
+    try {
+      const redis = getRedis();
+      if (!redis) {
+        socket.emit('schedule:appointments:error', {
+          message: 'Redis disabled (REDIS_URL=off).'
+        });
+        return;
+      }
+      const key = `fasah:socket:${socket.id}:schedule-appointments`;
+      const raw = await redis.get(key);
+      if (raw == null) {
+        socket.emit('schedule:appointments:data', { key, raw: null, parsed: null });
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parsed = undefined;
+      }
+      socket.emit('schedule:appointments:data', { key, raw, parsed: parsed === undefined ? null : parsed });
+    } catch (err) {
+      socket.emit('schedule:appointments:error', { message: err.message || String(err) });
+    }
+  });
+
   socket.on('fasah:land-schedule:poll:start', (payload) => {
     clearLandPoll(socket);
 
@@ -94,24 +129,28 @@ function register(socket) {
     socket.emit('fasah:land-schedule:poll:started', { intervalMs });
 
     (async function landPollLoop() {
-      while (socket.data.landPollActive && socket.connected) {
+      while (socket.data.landPollActive) {
         try {
           const data = await fasahClient.getLandSchedule(paramsBase);
-          if (!socket.data.landPollActive || !socket.connected) break;
-          socket.emit('fasah:land-schedule:poll:tick', {
-            at: new Date().toISOString(),
-            data
-          });
+          if (!socket.data.landPollActive) break;
+          if (socket.connected) {
+            socket.emit('fasah:land-schedule:poll:tick', {
+              at: new Date().toISOString(),
+              data
+            });
+          }
         } catch (err) {
-          if (!socket.data.landPollActive || !socket.connected) break;
-          socket.emit('fasah:land-schedule:poll:error', {
-            at: new Date().toISOString(),
-            message: err.message || String(err),
-            status: err.status
-          });
+          if (!socket.data.landPollActive) break;
+          if (socket.connected) {
+            socket.emit('fasah:land-schedule:poll:error', {
+              at: new Date().toISOString(),
+              message: err.message || String(err),
+              status: err.status
+            });
+          }
         }
 
-        if (!socket.data.landPollActive || !socket.connected) break;
+        if (!socket.data.landPollActive) break;
 
         await new Promise((resolve) => {
           socket.data.landPollWaitResolve = resolve;
@@ -135,10 +174,15 @@ function register(socket) {
     });
   });
 
-  socket.on('fasah:land-schedule:poll:stop', () => {
+  function onLandPollStop() {
     clearLandPoll(socket);
-    socket.emit('fasah:land-schedule:poll:stopped', { at: new Date().toISOString() });
-  });
+    if (socket.connected) {
+      socket.emit('fasah:land-schedule:poll:stopped', { at: new Date().toISOString() });
+    }
+  }
+
+  socket.on('fasah:land-schedule:poll:stop', onLandPollStop);
+  socket.on('fasah:land-schedule:poll:close', onLandPollStop);
 }
 
 module.exports = { register };

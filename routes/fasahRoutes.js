@@ -250,10 +250,12 @@ router.post('/appointment/transit/create', async (req, res) => {
       userType = 'broker'
     } = req.body;
     
-    // الحصول على رمز المصادقة من الهيدرات
-    const token = req.headers['x-fasah-token'] || 
-                  req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
-                  req.headers['token']?.replace(/^Bearer\s+/i, '');
+    // الحصول على رمز المصادقة من الهيدرات أو الجسم (يتوافق مع IApiCreateTransitAppointment)
+    const token =
+      req.headers['x-fasah-token'] ||
+      req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+      req.headers['token']?.replace(/^Bearer\s+/i, '') ||
+      (typeof req.body?.token === 'string' ? req.body.token.replace(/^Bearer\s+/i, '') : '');
 
     if (!token) {
       return res.status(401).json({
