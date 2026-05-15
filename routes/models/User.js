@@ -224,7 +224,7 @@ const userSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
-userSchema.index({ email: 1 });
+// email already has unique: true → index; do not add userSchema.index({ email: 1 }) again
 userSchema.index({ username: 1 }, { sparse: true });
 userSchema.index({ phone: 1 }, { sparse: true });
 userSchema.index({ resetPasswordToken: 1 });

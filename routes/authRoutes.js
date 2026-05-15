@@ -31,7 +31,13 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     const result = await authService.login(email, password);
-    socketService.emit('user-login', { email });
+    const loginPayload = {
+      email: result.user.email,
+      userId: String(result.user._id)
+    };
+    socketService.emitToUserId(loginPayload.userId, 'user-login', loginPayload);
+    socketService.emitToEmail(loginPayload.email, 'user-login', loginPayload);
+    socketService.emit('user-login', loginPayload);
     return res.status(200).json({ success: true, message: 'Login successful', ...result });
   } catch (err) {
     console.error("error", err.message); 

@@ -39,6 +39,13 @@ function sendUsersAdminPage(req, res) {
 }
 app.get('/users', sendUsersAdminPage);
 app.get('/users.html', sendUsersAdminPage);
+function sendSocketTestPage(req, res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(path.join(__dirname, 'public', 'socket-test.html'));
+}
+app.get('/socket-test', sendSocketTestPage);
+app.get('/socket-test.html', sendSocketTestPage);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
