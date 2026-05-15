@@ -1,7 +1,7 @@
 /**
  * Socket.IO events (from browser / Postman client):
  *
- * 1) schedule:appointments:save / get — Redis per logged-in user
+ * 1) schedule:appointments:save | get | delete — Redis per user; admin get via userId/email
  *
  * 2) fasah:land-schedule:poll:start — one loop system-wide; 429 if another user is polling
  *    Requires app JWT (socket:identify). Events go to all sockets in user:<userId>.
@@ -13,10 +13,15 @@
 const { getRedis } = require('./redisClient');
 const {
   mergeAppointments,
+  deleteAppointments,
   parseStored,
   redisKeyForUser,
   APPOINTMENTS_TTL_SEC
 } = require('./scheduleAppointmentsStore');
+const {
+  loadAppointmentsForUser,
+  resolveAppointmentsTarget
+} = require('./scheduleAppointmentsService');
 const {
   startUserPoll,
   stopUserPoll,
@@ -62,17 +67,24 @@ function register(socket) {
       const key = redisKeyForUser(auth.userId);
       const existingRaw = await redis.get(key);
       const existingParsed = parseStored(existingRaw);
-      const { appointments, count } = mergeAppointments(existingParsed, payload);
+      const { appointments, count, saved } = mergeAppointments(existingParsed, payload);
       const merged = { appointments, userId: auth.userId, email: socket.data.email || null };
       const body = JSON.stringify(merged);
       await redis.set(key, body, 'EX', APPOINTMENTS_TTL_SEC);
-      console.log('[redis] schedule:appointments:save', { userId: auth.userId, key, count });
+      console.log('[redis] schedule:appointments:save', {
+        userId: auth.userId,
+        key,
+        count,
+        savedCount: saved.length
+      });
       socket.emit('schedule:appointments:saved', {
         success: true,
         userId: auth.userId,
         email: socket.data.email || null,
         key,
         count,
+        saved,
+        appointment: saved.length === 1 ? saved[0] : undefined,
         appointments,
         ttlSeconds: APPOINTMENTS_TTL_SEC
       });
@@ -81,7 +93,39 @@ function register(socket) {
     }
   });
 
-  socket.on('schedule:appointments:get', async () => {
+  socket.on('schedule:appointments:get', async (payload, ack) => {
+    try {
+      const target = await resolveAppointmentsTarget(socket, payload);
+      if (!target.ok) {
+        const errBody = { success: false, message: target.message, status: target.status };
+        if (typeof ack === 'function') ack(errBody);
+        socket.emit('schedule:appointments:error', errBody);
+        return;
+      }
+
+      const data = await loadAppointmentsForUser(target.targetUserId);
+      const body = {
+        success: true,
+        ...data,
+        email: data.email || target.targetEmail || socket.data.email || null,
+        requestedBy: target.requestedBy,
+        asAdmin: target.asAdmin,
+        targetUserId: target.targetUserId
+      };
+      if (typeof ack === 'function') ack(body);
+      socket.emit('schedule:appointments:data', body);
+    } catch (err) {
+      const errBody = {
+        success: false,
+        message: err.message || String(err),
+        status: err.code === 'REDIS_OFF' ? 503 : undefined
+      };
+      if (typeof ack === 'function') ack(errBody);
+      socket.emit('schedule:appointments:error', errBody);
+    }
+  });
+
+  socket.on('schedule:appointments:delete', async (payload) => {
     try {
       const auth = requireIdentifiedUser(socket);
       if (!auth.ok) {
@@ -96,29 +140,42 @@ function register(socket) {
         return;
       }
       const key = redisKeyForUser(auth.userId);
-      const raw = await redis.get(key);
-      if (raw == null) {
-        socket.emit('schedule:appointments:data', {
-          userId: auth.userId,
-          email: socket.data.email || null,
-          key,
-          raw: null,
-          parsed: null,
-          count: 0,
-          appointments: []
+      const existingRaw = await redis.get(key);
+      const existingParsed = parseStored(existingRaw);
+      const { appointments, count, deleted, deletedIds, notFoundIds } = deleteAppointments(
+        existingParsed,
+        payload
+      );
+
+      if (deletedIds.length === 0 && notFoundIds.length > 0) {
+        socket.emit('schedule:appointments:error', {
+          message: 'No matching appointments found to delete',
+          notFoundIds
         });
         return;
       }
-      const parsed = parseStored(raw);
-      const appointments = Array.isArray(parsed?.appointments) ? parsed.appointments : [];
-      socket.emit('schedule:appointments:data', {
+
+      const merged = { appointments, userId: auth.userId, email: socket.data.email || null };
+      const body = JSON.stringify(merged);
+      await redis.set(key, body, 'EX', APPOINTMENTS_TTL_SEC);
+      console.log('[redis] schedule:appointments:delete', {
+        userId: auth.userId,
+        key,
+        deletedIds,
+        count
+      });
+      socket.emit('schedule:appointments:deleted', {
+        success: true,
         userId: auth.userId,
         email: socket.data.email || null,
         key,
-        raw,
-        parsed: parsed === undefined ? null : parsed,
-        count: appointments.length,
-        appointments
+        deleted,
+        deletedIds,
+        notFoundIds,
+        appointment: deleted.length === 1 ? deleted[0] : undefined,
+        count,
+        appointments,
+        ttlSeconds: APPOINTMENTS_TTL_SEC
       });
     } catch (err) {
       socket.emit('schedule:appointments:error', { message: err.message || String(err) });

@@ -6,6 +6,7 @@ const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
 const socketService = require('../services/socketService');
+const { loadAppointmentsForUser } = require('../services/scheduleAppointmentsService');
 
 // POST /api/auth/register (admin only — use admin JWT from POST /api/auth/admin/login)
 router.post('/register', adminAuthMiddleware, async (req, res, next) => {
@@ -282,6 +283,32 @@ router.get('/me/bookings/history', async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ success: false, message: err.message || 'Failed to list my booking history' });
+  }
+});
+
+// GET /api/auth/users/:userId/appointments (admin only) — Redis schedule list for a user
+router.get('/users/:userId/appointments', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid userId. Use a real Mongo ObjectId.'
+      });
+    }
+    const data = await loadAppointmentsForUser(userId);
+    res.json({
+      success: true,
+      ...data,
+      requestedBy: String(req.adminUser._id),
+      asAdmin: true
+    });
+  } catch (err) {
+    const status = err.code === 'REDIS_OFF' ? 503 : err.status || 500;
+    res.status(status).json({
+      success: false,
+      message: err.message || 'Failed to load user appointments'
+    });
   }
 });
 

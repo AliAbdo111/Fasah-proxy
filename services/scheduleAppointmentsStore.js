@@ -21,11 +21,35 @@ function appointmentKey(item) {
   return id != null ? String(id) : null;
 }
 
+/** Collect ids from delete payload: { id }, { ids }, or { appointments: [{ id }] }. */
+function extractIdsFromDeletePayload(payload) {
+  if (payload == null) return [];
+  let data = payload;
+  if (typeof payload === 'string') {
+    try {
+      data = JSON.parse(payload);
+    } catch {
+      return [];
+    }
+  }
+  const ids = new Set();
+  if (data.id != null) ids.add(String(data.id));
+  if (Array.isArray(data.ids)) {
+    for (const id of data.ids) {
+      if (id != null) ids.add(String(id));
+    }
+  }
+  const fromList = extractAppointmentsFromPayload(data);
+  for (const item of fromList) {
+    const key = appointmentKey(item);
+    if (key) ids.add(key);
+  }
+  return [...ids];
+}
+
 /**
  * Merge incoming appointments into existing stored list (append; same id replaces).
- * @param {object|null} existingParsed — previously stored JSON
- * @param {object|array} incomingPayload — client save body
- * @returns {{ appointments: object[], count: number }}
+ * @returns {{ appointments: object[], count: number, saved: object[] }}
  */
 function mergeAppointments(existingParsed, incomingPayload) {
   const existingList = Array.isArray(existingParsed?.appointments)
@@ -34,6 +58,7 @@ function mergeAppointments(existingParsed, incomingPayload) {
 
   const incoming = extractAppointmentsFromPayload(incomingPayload);
   const byId = new Map();
+  const savedKeys = new Set();
 
   for (const item of existingList) {
     const key = appointmentKey(item);
@@ -45,13 +70,65 @@ function mergeAppointments(existingParsed, incomingPayload) {
     const key = appointmentKey(item);
     if (key) {
       byId.set(key, item);
+      savedKeys.add(key);
     } else {
-      byId.set(`__new_${byId.size}_${Date.now()}`, item);
+      const fallbackKey = `__new_${byId.size}_${Date.now()}`;
+      byId.set(fallbackKey, item);
+      savedKeys.add(fallbackKey);
     }
   }
 
   const appointments = Array.from(byId.values());
-  return { appointments, count: appointments.length };
+  const saved = [];
+  for (const key of savedKeys) {
+    if (byId.has(key)) saved.push(byId.get(key));
+  }
+
+  return { appointments, count: appointments.length, saved };
+}
+
+/**
+ * Remove appointments by id from stored list.
+ * @returns {{ appointments: object[], count: number, deleted: object[], deletedIds: string[] }}
+ */
+function deleteAppointments(existingParsed, deletePayload) {
+  const idsToDelete = extractIdsFromDeletePayload(deletePayload);
+  const existingList = Array.isArray(existingParsed?.appointments)
+    ? [...existingParsed.appointments]
+    : [];
+
+  if (idsToDelete.length === 0) {
+    return {
+      appointments: existingList,
+      count: existingList.length,
+      deleted: [],
+      deletedIds: [],
+      notFoundIds: []
+    };
+  }
+
+  const deleteSet = new Set(idsToDelete);
+  const deleted = [];
+  const appointments = [];
+
+  for (const item of existingList) {
+    const key = appointmentKey(item);
+    if (key && deleteSet.has(key)) {
+      deleted.push(item);
+      deleteSet.delete(key);
+    } else {
+      appointments.push(item);
+    }
+  }
+
+  const notFoundIds = [...deleteSet];
+  return {
+    appointments,
+    count: appointments.length,
+    deleted,
+    deletedIds: deleted.map((item) => appointmentKey(item)).filter(Boolean),
+    notFoundIds
+  };
 }
 
 function parseStored(raw) {
@@ -72,8 +149,11 @@ const APPOINTMENTS_TTL_SEC = 60 * 60 * 24 * 7;
 
 module.exports = {
   extractAppointmentsFromPayload,
+  extractIdsFromDeletePayload,
   mergeAppointments,
+  deleteAppointments,
   parseStored,
+  appointmentKey,
   redisKeyForUser,
   APPOINTMENTS_TTL_SEC
 };

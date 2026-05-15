@@ -159,9 +159,11 @@ socket.emit('socket:identify', { token: appJwt }, (reply) => { /* ack */ });
 | ← | `user-login` | User logged in via REST (rooms + broadcast) |
 | → | `schedule:appointments:save` | Merge appointments into Redis (per user) |
 | → | `schedule:appointments:get` | Load full appointment list (per user) |
-| ← | `schedule:appointments:saved` | Save OK |
+| → | `schedule:appointments:delete` | Remove by `id` / `ids` / `appointments[]` |
+| ← | `schedule:appointments:saved` | Save OK — includes `saved` (this request) |
+| ← | `schedule:appointments:deleted` | Delete OK |
 | ← | `schedule:appointments:data` | Get OK |
-| ← | `schedule:appointments:error` | Save/get error |
+| ← | `schedule:appointments:error` | Save/get/delete error |
 | → | `fasah:land-schedule:poll:start` | Start polling (one per **userId**) |
 | → | `fasah:land-schedule:poll:stop` | Stop this user's poll (manual) |
 | → | `fasah:land-schedule:poll:close` | Same as `poll:stop` |
@@ -211,10 +213,15 @@ Or a single object with `id`, or a raw array of appointment objects.
   "email": "user@example.com",
   "key": "fasah:user:507f...:schedule-appointments",
   "count": 2,
-  "appointments": [ ... ],
+  "saved": [ { "id": "apt-1", "...": "..." } ],
+  "appointment": { "id": "apt-1", "...": "..." },
+  "appointments": [ ... full list after merge ... ],
   "ttlSeconds": 604800
 }
 ```
+
+- **`saved`** — appointments written in **this** save (same ids as request, merged form).
+- **`appointment`** — single object when exactly one item was saved; omitted if multiple.
 
 **Errors:** `schedule:appointments:error`
 
@@ -222,11 +229,76 @@ Or a single object with `id`, or a raw array of appointment objects.
 { "message": "Login required: connect with app JWT (auth.token) and socket:identify first" }
 ```
 
+### `schedule:appointments:delete` (client → server)
+
+**Requires:** identified user.
+
+**Payload** (any one shape):
+
+```json
+{ "id": "apt-1" }
+```
+
+```json
+{ "ids": ["apt-1", "apt-2"] }
+```
+
+```json
+{ "appointments": [{ "id": "apt-1" }] }
+```
+
+**Listen:** `schedule:appointments:deleted`
+
+```json
+{
+  "success": true,
+  "userId": "507f...",
+  "deleted": [ { "id": "apt-1", ... } ],
+  "deletedIds": ["apt-1"],
+  "notFoundIds": [],
+  "appointment": { "id": "apt-1", ... },
+  "count": 1,
+  "appointments": [ ... remaining list ... ],
+  "ttlSeconds": 604800
+}
+```
+
+If nothing matched: `schedule:appointments:error` with `notFoundIds`.
+
 ### `schedule:appointments:get` (client → server)
 
-**Requires:** identified user. No payload.
+**Requires:** identified user.
 
-**Listen:** `schedule:appointments:data`
+**Payload (normal user):** none — returns **your** list.
+
+**Payload (admin only)** — load another user's list:
+
+```json
+{ "userId": "507f1f77bcf86cd799439011" }
+```
+
+Or by email:
+
+```json
+{ "email": "user@example.com" }
+```
+
+Non-admin sending `userId` for someone else → `403 Forbidden`.
+
+**Listen:** `schedule:appointments:data` — or use the **ack callback** (same payload, response in the emit call):
+
+```javascript
+socket.emit('schedule:appointments:get', { userId: '507f...' }, (reply) => {
+  if (!reply.success) {
+    console.error(reply.status, reply.message);
+    return;
+  }
+  console.log(reply.appointments);
+  console.log(reply.count);
+});
+```
+
+Admin: use admin JWT + `socket:identify` first, then pass `{ userId }` or `{ email }`. Normal user: omit payload or `{}`.
 
 ```json
 {
@@ -241,6 +313,19 @@ Or a single object with `id`, or a raw array of appointment objects.
 ```
 
 Empty store: `count: 0`, `appointments: []`, `raw: null`.
+
+Admin fetch for user X: `targetUserId` is X, `asAdmin: true`, `requestedBy` is admin's id.
+
+### Admin REST — get user X appointments
+
+```http
+GET /api/auth/users/:userId/appointments
+Authorization: Bearer <admin-jwt>
+```
+
+Admin token from `POST /api/auth/admin/login`. Also works with header `x-auth-token`.
+
+**Response (200):** `{ "success": true, "userId", "count", "appointments", "asAdmin": true, ... }`
 
 ---
 

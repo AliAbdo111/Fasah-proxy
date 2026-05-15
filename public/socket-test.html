@@ -205,6 +205,7 @@
         <div class="row">
           <button type="button" id="btnSave" class="secondary" disabled>schedule:appointments:save</button>
           <button type="button" id="btnGet" class="secondary" disabled>schedule:appointments:get</button>
+          <button type="button" id="btnDelete" class="danger" disabled>schedule:appointments:delete</button>
         </div>
       </section>
 
@@ -264,7 +265,7 @@
       const IN_EVENTS = [
         'connect', 'disconnect', 'connect_error',
         'socket:identified', 'socket:identify:error',
-        'schedule:appointments:saved', 'schedule:appointments:error', 'schedule:appointments:data',
+        'schedule:appointments:saved', 'schedule:appointments:deleted', 'schedule:appointments:error', 'schedule:appointments:data',
         'fasah:land-schedule:poll:started', 'fasah:land-schedule:poll:progress', 'fasah:land-schedule:poll:tick',
         'fasah:land-schedule:poll:error', 'fasah:land-schedule:poll:stopped', 'fasah:land-schedule:poll:status',
         'user-login'
@@ -293,6 +294,7 @@
         $('btnIdentify').disabled = !on || !hasToken;
         $('btnSave').disabled = !on || !identifiedUser;
         $('btnGet').disabled = !on || !identifiedUser;
+        $('btnDelete').disabled = !on || !identifiedUser;
         $('btnPollStart').disabled = !on || !identifiedUser;
         $('btnPollStop').disabled = !on || !identifiedUser;
         $('btnPollClose').disabled = !on || !identifiedUser;
@@ -512,6 +514,28 @@
       $('btnGet').addEventListener('click', () => {
         appendLog('out', 'schedule:appointments:get', {});
         socket.emit('schedule:appointments:get');
+      });
+
+      $('btnDelete').addEventListener('click', () => {
+        let payload;
+        try {
+          payload = JSON.parse($('appointmentsJson').value);
+        } catch (e) {
+          appendLog('err', 'parse JSON', e.message);
+          return;
+        }
+        const deletePayload =
+          payload.id != null
+            ? { id: payload.id }
+            : Array.isArray(payload.appointments) && payload.appointments.length
+              ? {
+                  ids: payload.appointments
+                    .map((a) => a.id ?? a._id ?? a.appointmentId)
+                    .filter(Boolean)
+                }
+              : payload;
+        appendLog('out', 'schedule:appointments:delete', deletePayload);
+        socket.emit('schedule:appointments:delete', deletePayload);
       });
 
       function pollPayload() {
