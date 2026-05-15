@@ -2,7 +2,6 @@ require('dotenv').config();
 require('./polyfillWebCrypto');
 const express = require('express');
 const cors = require('cors');
-const Schedule = require('./routes/models/Schedule');
 const fasahRoutes = require('./routes/fasahRoutes');
 const zatcaCompatRoutes = require('./routes/zatcaCompatRoutes');
 const zatcaCompatRoutesV1 = require('./routes/zatcaCompatRoutesV1');
@@ -79,9 +78,7 @@ app.get('/loggers', async (req, res) => {
   const loggers = await loggerService.getLoggers();
   res.json(loggers);
 });
-const ScheduleCron = require('./services/scheduleCron'); // الجديد
 
-const scheduleCron = new ScheduleCron();
 const dailyBookingResetCron = require('./services/dailyBookingResetCron');
 
 // Health check endpoint

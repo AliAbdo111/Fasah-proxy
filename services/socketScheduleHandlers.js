@@ -1,101 +1,57 @@
 /**
  * Socket.IO events (from browser / Postman client):
  *
- * 1) schedule:appointments:save — merges into Redis list (same id replaces; new ids append)
- *    schedule:appointments:get — returns full merged list for this socket
+ * 1) schedule:appointments:save / get — Redis per logged-in user
  *
- * 2) fasah:land-schedule:poll:start
- *    payload: { departure, arrival, type, token, userType?, economicOperator?, intervalMs?, maxRequests? }
- *    → one loop per socket; second start while running → poll:error "Poll already running"
- *    → getLandSchedule every intervalMs (default 3000). Stops when:
- *       (a) client emits fasah:land-schedule:poll:stop | poll:close  → reason: manual
- *       (b) request count reaches maxRequests (default 200)         → reason: max_requests
- *       (c) response has usable schedules[]                         → reason: schedules_found
- *    ← poll:started | poll:progress | poll:tick | poll:error | poll:stopped { reason, requestCount, maxRequests }
+ * 2) fasah:land-schedule:poll:start — one loop system-wide; 429 if another user is polling
+ *    Requires app JWT (socket:identify). Events go to all sockets in user:<userId>.
  *
- * 3) fasah:land-schedule:poll:stop | fasah:land-schedule:poll:close — manual stop (case 3)
+ * 3) fasah:land-schedule:poll:stop | poll:close — stop this user's poll
+ * 4) fasah:land-schedule:poll:status — current poll state (for reconnect / second tab)
  */
 
-const FasahClient = require('./fasahClient');
 const { getRedis } = require('./redisClient');
-const { hasUsableLandSchedules } = require('./landSchedulePollUtils');
-const { mergeAppointments, parseStored } = require('./scheduleAppointmentsStore');
+const {
+  mergeAppointments,
+  parseStored,
+  redisKeyForUser,
+  APPOINTMENTS_TTL_SEC
+} = require('./scheduleAppointmentsStore');
+const {
+  startUserPoll,
+  stopUserPoll,
+  isPollActive,
+  getPollStatusPayload,
+  stopPollIfUserDisconnected
+} = require('./landSchedulePollManager');
 
-const fasahClient = new FasahClient();
-
-const DEFAULT_POLL_MS = 3000;
-const DEFAULT_MAX_REQUESTS = 200;
-const POLL_REQUEST_TIMEOUT_MS = Math.min(
-  120000,
-  Math.max(5000, Number(process.env.FASAH_POLL_REQUEST_TIMEOUT_MS) || 20000)
-);
-
-function fetchLandScheduleForPoll(paramsBase) {
-  return Promise.race([
-    fasahClient.getLandSchedule(paramsBase),
-    new Promise((_, reject) => {
-      setTimeout(
-        () =>
-          reject(
-            new Error(
-              `FASAH request timeout after ${POLL_REQUEST_TIMEOUT_MS}ms (slow or dead proxy — poll continues)`
-            )
-          ),
-        POLL_REQUEST_TIMEOUT_MS
-      );
-    })
-  ]);
-}
-
-function clearLandPoll(socket) {
-  socket.data.landPollActive = false;
-  if (socket.data.landPollTimer != null) {
-    clearTimeout(socket.data.landPollTimer);
-    socket.data.landPollTimer = null;
+function requireIdentifiedUser(socket) {
+  if (!socket.data.userId) {
+    return {
+      ok: false,
+      message: 'Login required: connect with app JWT (auth.token) and socket:identify first'
+    };
   }
-  if (typeof socket.data.landPollWaitResolve === 'function') {
-    const r = socket.data.landPollWaitResolve;
-    socket.data.landPollWaitResolve = null;
-    r();
-  }
-}
-
-function stopLandPoll(socket, reason) {
-  const wasActive = Boolean(socket.data.landPollActive);
-  const requestCount = socket.data.landPollRequestCount || 0;
-  const maxRequests = socket.data.landPollMaxRequests ?? DEFAULT_MAX_REQUESTS;
-  clearLandPoll(socket);
-  if (!wasActive) {
-    return;
-  }
-  console.log('[poll] stopped', {
-    socketId: socket.id,
-    reason,
-    requestCount,
-    maxRequests,
-    connected: socket.connected
-  });
-  if (socket.connected) {
-    socket.emit('fasah:land-schedule:poll:stopped', {
-      at: new Date().toISOString(),
-      reason,
-      requestCount,
-      maxRequests
-    });
-  }
+  return { ok: true, userId: String(socket.data.userId) };
 }
 
 function register(socket) {
   socket.on('disconnect', () => {
-    if (socket.data.landPollActive) {
-      stopLandPoll(socket, 'disconnect');
-    } else {
-      clearLandPoll(socket);
+    const userId = socket.data.userId;
+    if (userId) {
+      stopPollIfUserDisconnected(userId).catch((err) => {
+        console.warn('[poll] disconnect check failed', userId, err.message || err);
+      });
     }
   });
 
   socket.on('schedule:appointments:save', async (payload) => {
     try {
+      const auth = requireIdentifiedUser(socket);
+      if (!auth.ok) {
+        socket.emit('schedule:appointments:error', { message: auth.message });
+        return;
+      }
       const redis = getRedis();
       if (!redis) {
         socket.emit('schedule:appointments:error', {
@@ -103,20 +59,22 @@ function register(socket) {
         });
         return;
       }
-      const key = `fasah:socket:${socket.id}:schedule-appointments`;
+      const key = redisKeyForUser(auth.userId);
       const existingRaw = await redis.get(key);
       const existingParsed = parseStored(existingRaw);
       const { appointments, count } = mergeAppointments(existingParsed, payload);
-      const merged = { appointments };
+      const merged = { appointments, userId: auth.userId, email: socket.data.email || null };
       const body = JSON.stringify(merged);
-      await redis.set(key, body, 'EX', 60 * 60 * 24 * 7);
-      console.log('[redis] schedule:appointments:save', key, { count });
+      await redis.set(key, body, 'EX', APPOINTMENTS_TTL_SEC);
+      console.log('[redis] schedule:appointments:save', { userId: auth.userId, key, count });
       socket.emit('schedule:appointments:saved', {
         success: true,
+        userId: auth.userId,
+        email: socket.data.email || null,
         key,
         count,
         appointments,
-        ttlSeconds: 60 * 60 * 24 * 7
+        ttlSeconds: APPOINTMENTS_TTL_SEC
       });
     } catch (err) {
       socket.emit('schedule:appointments:error', { message: err.message || String(err) });
@@ -125,6 +83,11 @@ function register(socket) {
 
   socket.on('schedule:appointments:get', async () => {
     try {
+      const auth = requireIdentifiedUser(socket);
+      if (!auth.ok) {
+        socket.emit('schedule:appointments:error', { message: auth.message });
+        return;
+      }
       const redis = getRedis();
       if (!redis) {
         socket.emit('schedule:appointments:error', {
@@ -132,15 +95,25 @@ function register(socket) {
         });
         return;
       }
-      const key = `fasah:socket:${socket.id}:schedule-appointments`;
+      const key = redisKeyForUser(auth.userId);
       const raw = await redis.get(key);
       if (raw == null) {
-        socket.emit('schedule:appointments:data', { key, raw: null, parsed: null });
+        socket.emit('schedule:appointments:data', {
+          userId: auth.userId,
+          email: socket.data.email || null,
+          key,
+          raw: null,
+          parsed: null,
+          count: 0,
+          appointments: []
+        });
         return;
       }
       const parsed = parseStored(raw);
       const appointments = Array.isArray(parsed?.appointments) ? parsed.appointments : [];
       socket.emit('schedule:appointments:data', {
+        userId: auth.userId,
+        email: socket.data.email || null,
         key,
         raw,
         parsed: parsed === undefined ? null : parsed,
@@ -152,159 +125,45 @@ function register(socket) {
     }
   });
 
-  socket.on('fasah:land-schedule:poll:start', async (payload) => {
-    if (socket.data.landPollActive) {
-      socket.emit('fasah:land-schedule:poll:error', {
-        message: 'Poll already running'
-      });
-      return;
-    }
-    socket.data.landPollActive = true;
-
-    const intervalMs = Math.min(
-      60000,
-      Math.max(1000, Number(payload?.intervalMs) || DEFAULT_POLL_MS)
-    );
-
-    const maxRequests = Math.min(
-      200,
-      Math.max(1, Number(payload?.maxRequests) || DEFAULT_MAX_REQUESTS)
-    );
-
-    const { departure, arrival, type, token, userType, economicOperator } = payload || {};
-
-    if (!departure || !arrival || !type || !token) {
-      clearLandPoll(socket);
-      socket.emit('fasah:land-schedule:poll:error', {
-        message: 'Missing required fields'
-      });
+  socket.on('fasah:land-schedule:poll:start', (payload) => {
+    const auth = requireIdentifiedUser(socket);
+    if (!auth.ok) {
+      socket.emit('fasah:land-schedule:poll:error', { message: auth.message });
       return;
     }
 
-    const paramsBase = {
-      departure,
-      arrival,
-      type,
-      token,
-      userType: userType || 'broker',
-      ...(economicOperator && { economicOperator }),
-      proxyContext: undefined
-    };
-
-    socket.data.landPollRequestCount = 0;
-    socket.data.landPollMaxRequests = maxRequests;
-
-    socket.emit('fasah:land-schedule:poll:started', { intervalMs, maxRequests });
-    console.log('[poll] started', socket.id, { intervalMs, maxRequests });
-
-    try {
-      while (socket.data.landPollActive) {
-        if (socket.data.landPollRequestCount >= maxRequests) {
-          stopLandPoll(socket, 'max_requests');
-          break;
-        }
-
-        socket.data.landPollRequestCount += 1;
-        const requestNumber = socket.data.landPollRequestCount;
-        console.log('[poll] request start', socket.id, requestNumber, '/', maxRequests);
-
-        if (socket.connected) {
-          socket.emit('fasah:land-schedule:poll:progress', {
-            at: new Date().toISOString(),
-            phase: 'fetching',
-            requestNumber,
-            maxRequests,
-            active: true
-          });
-        }
-
-        const t0 = Date.now();
-        try {
-          const data = await fetchLandScheduleForPoll(paramsBase);
-          console.log('[poll] request done', socket.id, requestNumber, `${Date.now() - t0}ms`);
-
-          if (!socket.data.landPollActive) {
-            console.log('[poll] loop break: inactive after fetch', requestNumber);
-            break;
-          }
-
-          const hasSchedules = hasUsableLandSchedules(data);
-
-          if (!hasSchedules && data?.success === false) {
-            console.log('[poll] no schedules (FASAH success:false), continuing', requestNumber);
-          }
-
-          if (socket.connected) {
-            socket.emit('fasah:land-schedule:poll:tick', {
-              at: new Date().toISOString(),
-              requestNumber,
-              maxRequests,
-              hasSchedules,
-              stillPolling: true,
-              durationMs: Date.now() - t0,
-              data
-            });
-          }
-
-          if (hasSchedules) {
-            stopLandPoll(socket, 'schedules_found');
-            break;
-          }
-        } catch (err) {
-          console.log('[poll] request error, continuing', requestNumber, `${Date.now() - t0}ms`, err.message || err);
-          if (!socket.data.landPollActive) {
-            break;
-          }
-          if (socket.connected) {
-            socket.emit('fasah:land-schedule:poll:error', {
-              at: new Date().toISOString(),
-              requestNumber,
-              maxRequests,
-              message: err.message || String(err),
-              status: err.status
-            });
-          }
-        }
-
-        if (!socket.data.landPollActive) {
-          console.log('[poll] loop break: inactive before sleep', requestNumber);
-          break;
-        }
-
-        if (socket.data.landPollRequestCount >= maxRequests) {
-          stopLandPoll(socket, 'max_requests');
-          break;
-        }
-
-        await new Promise((resolve) => {
-          socket.data.landPollWaitResolve = resolve;
-          socket.data.landPollTimer = setTimeout(() => {
-            socket.data.landPollTimer = null;
-            if (socket.data.landPollWaitResolve === resolve) {
-              socket.data.landPollWaitResolve = null;
-            }
-            resolve();
-          }, intervalMs);
-        });
-      }
-    } catch (err) {
-      console.error('[poll] loop error', socket.id, err);
-      if (socket.connected) {
-        socket.emit('fasah:land-schedule:poll:error', {
-          at: new Date().toISOString(),
-          message: err.message || String(err)
-        });
-      }
-      stopLandPoll(socket, 'error');
+    const result = startUserPoll(auth.userId, payload);
+    if (!result.ok) {
+      socket.emit('fasah:land-schedule:poll:error', {
+        message: result.message,
+        status: result.status,
+        at: new Date().toISOString()
+      });
     }
   });
 
+  socket.on('fasah:land-schedule:poll:status', () => {
+    const auth = requireIdentifiedUser(socket);
+    if (!auth.ok) {
+      socket.emit('fasah:land-schedule:poll:error', { message: auth.message });
+      return;
+    }
+    socket.emit('fasah:land-schedule:poll:status', getPollStatusPayload(auth.userId));
+  });
+
   function onLandPollStop() {
-    stopLandPoll(socket, 'manual');
+    const auth = requireIdentifiedUser(socket);
+    if (!auth.ok) {
+      socket.emit('fasah:land-schedule:poll:error', { message: auth.message });
+      return;
+    }
+    if (!stopUserPoll(auth.userId, 'manual')) {
+      socket.emit('fasah:land-schedule:poll:error', { message: 'No poll running for this user' });
+    }
   }
 
   socket.on('fasah:land-schedule:poll:stop', onLandPollStop);
   socket.on('fasah:land-schedule:poll:close', onLandPollStop);
 }
 
-module.exports = { register };
+module.exports = { register, isPollActive, getPollStatusPayload };

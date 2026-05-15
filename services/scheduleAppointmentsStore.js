@@ -63,8 +63,17 @@ function parseStored(raw) {
   }
 }
 
+/** Redis key for one user's merged appointment list (survives reconnect / new socket id). */
+function redisKeyForUser(userId) {
+  return `fasah:user:${String(userId)}:schedule-appointments`;
+}
+
+const APPOINTMENTS_TTL_SEC = 60 * 60 * 24 * 7;
+
 module.exports = {
   extractAppointmentsFromPayload,
   mergeAppointments,
-  parseStored
+  parseStored,
+  redisKeyForUser,
+  APPOINTMENTS_TTL_SEC
 };

@@ -166,21 +166,36 @@
   <div class="layout">
     <aside class="sidebar">
       <section>
-        <h2>Connection</h2>
+        <h2>User login</h2>
+        <label>Email</label>
+        <input id="loginEmail" type="email" autocomplete="username" />
+        <label>Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" />
+        <div class="row">
+          <button type="button" id="btnLogin">Login</button>
+          <button type="button" id="btnLogout" class="secondary">Logout</button>
+        </div>
+        <p class="hint">Uses <code>POST /api/auth/login</code>. JWT is stored and used for the socket.</p>
+        <p class="hint">Logged in: <strong id="userLabel">—</strong></p>
+      </section>
+
+      <section>
+        <h2>Socket connection</h2>
         <label>Server URL</label>
         <input id="baseUrl" type="text" placeholder="http://127.0.0.1:3100" />
-        <label>App JWT (optional — socket:identify)</label>
-        <input id="appToken" type="text" placeholder="x-auth-token from /api/auth/login" />
+        <label>App JWT (filled by login)</label>
+        <input id="appToken" type="text" readonly placeholder="Login first" />
         <div class="row">
           <button type="button" id="btnConnect">Connect</button>
           <button type="button" id="btnDisconnect" class="secondary" disabled>Disconnect</button>
           <button type="button" id="btnIdentify" class="secondary" disabled>socket:identify</button>
         </div>
-        <p class="hint">Socket id: <code id="socketId">—</code></p>
+        <p class="hint">Socket id: <code id="socketId">—</code> (changes each connect)</p>
+        <p class="hint">Appointments are stored per <strong>user id</strong> in Redis, not per socket id.</p>
       </section>
 
       <section>
-        <h2>Redis — schedule:appointments</h2>
+        <h2>Redis — schedule:appointments (per user)</h2>
         <label>JSON payload (save)</label>
         <textarea id="appointmentsJson">{
   "appointments": [
@@ -218,9 +233,11 @@
           <button type="button" id="btnPollStart" disabled>poll:start</button>
           <button type="button" id="btnPollStop" class="danger" disabled>poll:stop</button>
           <button type="button" id="btnPollClose" class="secondary" disabled>poll:close</button>
+          <button type="button" id="btnPollStatus" class="secondary" disabled>poll:status</button>
         </div>
-        <p class="hint">Save <strong>merges</strong> appointments by <code>id</code> (append new, replace same id). Get returns the full list.</p>
-        <p class="hint">Poll stops on: schedules found, max requests, manual stop, disconnect.</p>
+        <p class="hint">Login + identify required. Save <strong>merges</strong> by <code>id</code> into <code>fasah:user:&lt;userId&gt;:schedule-appointments</code>.</p>
+        <p class="hint">One poll per <strong>logged-in user</strong> (all tabs share events). Login + identify required.</p>
+        <p class="hint">Poll stops on: schedules found, max requests, manual stop, or last tab disconnect.</p>
       </section>
     </aside>
 
@@ -242,13 +259,14 @@
       const $ = (id) => document.getElementById(id);
       const logEl = $('log');
       let socket = null;
+      let identifiedUser = null;
 
       const IN_EVENTS = [
         'connect', 'disconnect', 'connect_error',
         'socket:identified', 'socket:identify:error',
         'schedule:appointments:saved', 'schedule:appointments:error', 'schedule:appointments:data',
         'fasah:land-schedule:poll:started', 'fasah:land-schedule:poll:progress', 'fasah:land-schedule:poll:tick',
-        'fasah:land-schedule:poll:error', 'fasah:land-schedule:poll:stopped',
+        'fasah:land-schedule:poll:error', 'fasah:land-schedule:poll:stopped', 'fasah:land-schedule:poll:status',
         'user-login'
       ];
 
@@ -257,17 +275,52 @@
         return (v || window.location.origin).replace(/\/+$/, '');
       }
 
+      function setIdentified(user) {
+        identifiedUser = user;
+        if (user) {
+          $('userLabel').textContent = user.email + ' (' + user.userId + ')';
+        } else {
+          $('userLabel').textContent = $('appToken').value.trim() ? 'Connected — identify pending' : '—';
+        }
+        updateActionButtons();
+      }
+
+      function updateActionButtons() {
+        const on = socket && socket.connected;
+        const hasToken = !!$('appToken').value.trim();
+        $('btnConnect').disabled = on || !hasToken;
+        $('btnDisconnect').disabled = !on;
+        $('btnIdentify').disabled = !on || !hasToken;
+        $('btnSave').disabled = !on || !identifiedUser;
+        $('btnGet').disabled = !on || !identifiedUser;
+        $('btnPollStart').disabled = !on || !identifiedUser;
+        $('btnPollStop').disabled = !on || !identifiedUser;
+        $('btnPollClose').disabled = !on || !identifiedUser;
+        if ($('btnPollStatus')) $('btnPollStatus').disabled = !on || !identifiedUser;
+      }
+
       function setConnected(on, text) {
         $('statusDot').className = 'dot' + (on ? ' on' : text === 'error' ? ' err' : '');
         $('statusText').textContent = text;
-        $('btnConnect').disabled = on;
-        $('btnDisconnect').disabled = !on;
-        $('btnIdentify').disabled = !on;
-        $('btnSave').disabled = !on;
-        $('btnGet').disabled = !on;
-        $('btnPollStart').disabled = !on;
-        $('btnPollStop').disabled = !on;
-        $('btnPollClose').disabled = !on;
+        if (!on) identifiedUser = null;
+        updateActionButtons();
+        if (!on && !$('appToken').value.trim()) setIdentified(null);
+      }
+
+      function identifySocket(cb) {
+        const token = $('appToken').value.trim();
+        if (!socket || !socket.connected || !token) return;
+        appendLog('out', 'socket:identify', { token: '(set)' });
+        socket.emit('socket:identify', { token }, (reply) => {
+          appendLog('in', 'socket:identify (ack)', reply);
+          if (reply && reply.success) {
+            setIdentified({ userId: reply.userId, email: reply.email });
+            socket.emit('fasah:land-schedule:poll:status');
+          } else {
+            setIdentified(null);
+          }
+          if (cb) cb(reply);
+        });
       }
 
       function shouldShow(kind) {
@@ -321,8 +374,20 @@
         socket.on('connect', () => {
           $('socketId').textContent = socket.id;
           setConnected(true, 'Connected · ' + socket.id);
-          if (token) {
-            socket.emit('socket:identify', { token }, (reply) => appendLog('in', 'socket:identify (ack)', reply));
+          if (token) identifySocket();
+        });
+
+        socket.on('socket:identified', (payload) => {
+          if (payload && payload.userId) {
+            setIdentified({ userId: payload.userId, email: payload.email });
+          }
+        });
+
+        socket.on('socket:identify:error', () => setIdentified(null));
+
+        socket.on('user-login', (payload) => {
+          if (identifiedUser && payload && payload.userId === identifiedUser.userId) {
+            appendLog('in', 'user-login (this user)', payload);
           }
         });
 
@@ -347,23 +412,90 @@
         $('socketId').textContent = '—';
       }
 
+      function applyStoredAuth() {
+        const token = localStorage.getItem('fasah.authToken') || '';
+        const email = localStorage.getItem('fasah.userEmail') || '';
+        const userId = localStorage.getItem('fasah.userId') || '';
+        $('appToken').value = token;
+        if (email && userId) {
+          $('userLabel').textContent = email + ' (' + userId + ')';
+        }
+        updateActionButtons();
+      }
+
+      function clearAuth() {
+        localStorage.removeItem('fasah.authToken');
+        localStorage.removeItem('fasah.userEmail');
+        localStorage.removeItem('fasah.userId');
+        $('appToken').value = '';
+        setIdentified(null);
+        $('userLabel').textContent = '—';
+        updateActionButtons();
+      }
+
+      async function login() {
+        const email = $('loginEmail').value.trim();
+        const password = $('loginPassword').value;
+        if (!email || !password) {
+          appendLog('err', 'login', 'Email and password required');
+          return;
+        }
+        appendLog('out', 'POST /api/auth/login', { email });
+        try {
+          const res = await fetch(baseUrl() + '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            appendLog('err', 'login failed', data.message || res.statusText);
+            return;
+          }
+          const token = data.token;
+          const user = data.user || {};
+          const userId = String(user._id || user.id || '');
+          localStorage.setItem('fasah.authToken', token);
+          localStorage.setItem('fasah.userEmail', user.email || email);
+          localStorage.setItem('fasah.userId', userId);
+          $('appToken').value = token;
+          $('userLabel').textContent = (user.email || email) + ' (' + userId + ')';
+          appendLog('in', 'login ok', { email: user.email, userId });
+          updateActionButtons();
+          if (socket && socket.connected) {
+            identifySocket();
+          } else if (token) {
+            connect();
+          }
+        } catch (e) {
+          appendLog('err', 'login', e.message || String(e));
+        }
+      }
+
       $('baseUrl').value = localStorage.getItem('fasah.baseUrl') || window.location.origin;
-      $('appToken').value = localStorage.getItem('fasah.authToken') || '';
+      $('loginEmail').value = localStorage.getItem('fasah.userEmail') || '';
+      applyStoredAuth();
       const savedFasah = localStorage.getItem('fasah.fasahToken');
       if (savedFasah) $('fasahToken').value = savedFasah;
 
+      $('btnLogin').addEventListener('click', login);
+      $('btnLogout').addEventListener('click', () => {
+        clearAuth();
+        disconnect();
+        appendLog('out', 'logout', {});
+      });
+
       $('btnConnect').addEventListener('click', () => {
+        if (!$('appToken').value.trim()) {
+          appendLog('err', 'connect', 'Login first to get a JWT');
+          return;
+        }
         localStorage.setItem('fasah.baseUrl', $('baseUrl').value.trim() || window.location.origin);
-        localStorage.setItem('fasah.authToken', $('appToken').value.trim());
         connect();
       });
       $('btnDisconnect').addEventListener('click', disconnect);
 
-      $('btnIdentify').addEventListener('click', () => {
-        const token = $('appToken').value.trim();
-        appendLog('out', 'socket:identify', { token: token ? '(set)' : '(empty)' });
-        socket.emit('socket:identify', { token }, (reply) => appendLog('in', 'socket:identify (ack)', reply));
-      });
+      $('btnIdentify').addEventListener('click', () => identifySocket());
 
       $('btnSave').addEventListener('click', () => {
         let payload;
@@ -411,6 +543,11 @@
       $('btnPollClose').addEventListener('click', () => {
         appendLog('out', 'fasah:land-schedule:poll:close', {});
         socket.emit('fasah:land-schedule:poll:close');
+      });
+
+      $('btnPollStatus').addEventListener('click', () => {
+        appendLog('out', 'fasah:land-schedule:poll:status', {});
+        socket.emit('fasah:land-schedule:poll:status');
       });
 
       $('btnClearLog').addEventListener('click', () => { logEl.innerHTML = ''; });
