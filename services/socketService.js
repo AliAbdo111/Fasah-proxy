@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const { register: registerScheduleSocketHandlers } = require('./socketScheduleHandlers');
 const { bindSocketUser, roomForUserId, roomForEmail } = require('./socketAuth');
+const { emitPollStatusToSocket } = require('./landSchedulePollManager');
 
 let io = null;
 
@@ -55,15 +56,16 @@ function attachToHttpServer(httpServer) {
       }
       if (bound) {
         console.log('[socket] identified', { id: socket.id, userId: bound.userId, email: bound.email });
-        const { emitPollStatusToSocket } = require('./landSchedulePollManager');
-        const payload = emitPollStatusToSocket(socket);
-        ack(payload);
-        console.log('[socket] identified poll status', payload);
+        emitPollStatusToSocket(socket);
       }
-      ack(payload);
     });
 
     registerScheduleSocketHandlers(socket);
+
+    // JWT in handshake.auth.token → user bound in middleware → send poll status on connect
+    if (socket.data.userId) {
+      emitPollStatusToSocket(socket);
+    }
 
     socket.on('disconnect', (reason) => {
       console.log('[socket] client disconnected', {
