@@ -7,7 +7,7 @@
  *    Requires app JWT (socket:identify). Events go to all sockets in user:<userId>.
  *
  * 3) fasah:land-schedule:poll:stop | poll:close — stop this user's poll
- * 4) fasah:land-schedule:poll:status — current poll state (for reconnect / second tab)
+ * 4) fasah:land-schedule:poll:status — auto on connect/identify; manual emit still supported
  */
 
 const { getRedis } = require('./redisClient');
@@ -27,6 +27,7 @@ const {
   stopUserPoll,
   isPollActive,
   getPollStatusPayload,
+  emitPollStatusToSocket,
   stopPollIfUserDisconnected
 } = require('./landSchedulePollManager');
 
@@ -205,8 +206,12 @@ function register(socket) {
       socket.emit('fasah:land-schedule:poll:error', { message: auth.message });
       return;
     }
-    socket.emit('fasah:land-schedule:poll:status', getPollStatusPayload(auth.userId));
+    emitPollStatusToSocket(socket);
   });
+
+  if (socket.data.userId) {
+    emitPollStatusToSocket(socket);
+  }
 
   function onLandPollStop() {
     const auth = requireIdentifiedUser(socket);

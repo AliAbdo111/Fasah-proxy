@@ -55,7 +55,12 @@ function attachToHttpServer(httpServer) {
       }
       if (bound) {
         console.log('[socket] identified', { id: socket.id, userId: bound.userId, email: bound.email });
+        const { emitPollStatusToSocket } = require('./landSchedulePollManager');
+        const payload = emitPollStatusToSocket(socket);
+        ack(payload);
+        console.log('[socket] identified poll status', payload);
       }
+      ack(payload);
     });
 
     registerScheduleSocketHandlers(socket);

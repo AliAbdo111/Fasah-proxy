@@ -109,6 +109,7 @@ function stopUserPoll(userId, reason) {
     requestCount,
     maxRequests
   });
+  broadcastPollStatusToAllSockets();
   return true;
 }
 
@@ -131,14 +132,17 @@ function getPollStatusPayload(userId) {
   }
 
   if (global && global.ownerUserId !== uid) {
+    const ownerEntry = global.entry;
     return {
       active: false,
       userId: uid,
-      requestNumber: 0,
-      maxRequests: DEFAULT_MAX_REQUESTS,
-      intervalMs: DEFAULT_POLL_MS,
+      requestNumber: ownerEntry?.requestCount || 0,
+      maxRequests: ownerEntry?.maxRequests ?? DEFAULT_MAX_REQUESTS,
+      intervalMs: ownerEntry?.intervalMs ?? DEFAULT_POLL_MS,
+      startedAt: ownerEntry?.startedAt || null,
       systemPollActive: true,
       isOwner: false,
+      pollOwnerUserId: global.ownerUserId,
       status: 429,
       message: 'Polling already running'
     };
@@ -151,8 +155,41 @@ function getPollStatusPayload(userId) {
     maxRequests: DEFAULT_MAX_REQUESTS,
     intervalMs: DEFAULT_POLL_MS,
     systemPollActive: Boolean(global),
-    isOwner: false
+    isOwner: false,
+    pollOwnerUserId: null
   };
+}
+
+/** Push current poll status to one socket (on connect / identify). */
+function emitPollStatusToSocket(socket) {
+  if (!socket?.data?.userId) {
+    return;
+  }
+  const payload = getPollStatusPayload(socket.data.userId);
+  console.log('[poll] emitPollStatusToSocket', payload);
+  socket.emit('fasah:land-schedule:poll:status', {
+    at: new Date().toISOString(),
+    ...payload
+  });
+  return payload;
+}
+
+/** Notify every identified connected socket (after poll start/stop). */
+function broadcastPollStatusToAllSockets() {
+  const { getIo } = require('./socketService');
+  const io = getIo();
+  if (!io) {
+    return;
+  }
+  const at = new Date().toISOString();
+  for (const socket of io.sockets.sockets.values()) {
+    if (socket.data.userId) {
+      socket.emit('fasah:land-schedule:poll:status', {
+        at,
+        ...getPollStatusPayload(socket.data.userId)
+      });
+    }
+  }
 }
 
 async function sleepInterval(entry, intervalMs) {
@@ -326,6 +363,7 @@ function startUserPoll(userId, payload) {
 
   emitPoll(uid, 'fasah:land-schedule:poll:started', { intervalMs, maxRequests });
   console.log('[poll] started', uid, { intervalMs, maxRequests });
+  broadcastPollStatusToAllSockets();
 
   runPollLoop(uid).catch((err) => {
     console.error('[poll] unhandled', uid, err);
@@ -356,5 +394,7 @@ module.exports = {
   getGlobalActivePoll,
   isSystemPollBusy,
   getPollStatusPayload,
+  emitPollStatusToSocket,
+  broadcastPollStatusToAllSockets,
   stopPollIfUserDisconnected
 };

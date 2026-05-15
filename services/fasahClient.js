@@ -17,16 +17,28 @@ class FasahClient {
 
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
-    // host:port@username:password (invalid hosts like 1.1.1.1 omitted)
+    // host:port:username:password — 20-entry platform pool (FASAH_USE_PROXY=true)
     this.platformProxies = [
-      { host: '168.222.97.4', port: 54482, username: 'i3xbed8ht4yz', password: 'qroht7l5ie93', protocol: 'http', rejectUnauthorized: false },
-      { host: '168.222.97.5', port: 53006, username: 'lns05z1xjhto', password: '0wkmi95sf7jx', protocol: 'http', rejectUnauthorized: false },
-      { host: '168.222.97.6', port: 54130, username: 'nouzqe7sim5k', password: '6wtmzog5yl34', protocol: 'http', rejectUnauthorized: false },
-      { host: '168.222.97.228', port: 54039, username: '8lq30mpd7knj', password: 'ifkcyl82gtab', protocol: 'http', rejectUnauthorized: false },
-      { host: '168.222.97.229', port: 56152, username: 'c5ptnrishfx6', password: '35oes1laxfk0', protocol: 'http', rejectUnauthorized: false },
-      { host: '168.222.97.230', port: 51540, username: '3chxezmkiob8', password: '4wgzy3jeir8t', protocol: 'http', rejectUnauthorized: false },
-      { host: '168.222.97.226', port: 52678, username: 'b9zkf518tuap', password: 'jq86ce0z71ft', protocol: 'http', rejectUnauthorized: false },
-      { host: '168.222.97.227', port: 55065, username: 'ciy651qjomxf', password: '6i9nb5tcryx3', protocol: 'http', rejectUnauthorized: false }
+      { host: '82.23.74.101', port: 7356, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.26.83.122', port: 6331, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.6.125', port: 6803, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.64.142', port: 6397, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.47.203', port: 6457, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.11.39', port: 7216, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.58.6', port: 5761, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.48.34', port: 5289, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.27.103.12', port: 5220, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.79.6', port: 7761, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.24.148', port: 5824, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.45.229', port: 6481, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.5.33', port: 7211, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.51.50', port: 6802, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.17.94', port: 7270, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.79.190', port: 7945, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.52.32', port: 6785, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.79.204', port: 7959, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.27.101.197', port: 5906, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.6.25', port: 6703, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false }
     ];
 
     // Optional per-user proxy pools (hardcoded). If a request has `proxyContext._id` that matches,

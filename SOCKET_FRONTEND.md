@@ -571,7 +571,9 @@ When **another user** owns the system poll:
 }
 ```
 
-Call after `connect` + `socket:identify` on every tab.
+**Automatic:** server sends `fasah:land-schedule:poll:status` when you **connect** (with JWT) or finish **`socket:identify`**, and when any user **starts/stops** a poll (all connected users get an update).
+
+Manual: `socket.emit('fasah:land-schedule:poll:status')` anytime.
 
 ---
 
