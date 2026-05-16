@@ -35,11 +35,12 @@ function isBookableSlot(slot) {
   return Boolean(slot.zone_schedule_id);
 }
 
+const { getPreferredZoneScheduleId } = require('./appointmentBookingShape');
+
 /** Pick slot for one stored appointment (preferred zone_schedule_id or first bookable). */
 function pickSlotForAppointment(schedules, appointment) {
   const list = Array.isArray(schedules) ? schedules : [];
-  const preferredId =
-    appointment?.zone_schedule_id != null ? String(appointment.zone_schedule_id) : null;
+  const preferredId = getPreferredZoneScheduleId(appointment);
 
   if (preferredId) {
     const match = list.find(

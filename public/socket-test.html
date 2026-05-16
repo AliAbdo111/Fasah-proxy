@@ -225,7 +225,7 @@
         </div>
         <label>Admin get — target userId (optional)</label>
         <input id="getTargetUserId" type="text" placeholder="Leave empty = your user" />
-        <p class="hint">Flow: Load preset → save → poll → Apply slot → auto-book (or enable autoBook on poll).</p>
+        <p class="hint">Flow: Load preset → save → poll (auto-book runs when slots appear). Manual auto-book below is optional.</p>
       </section>
 
       <section>
@@ -281,7 +281,8 @@
           <label>intervalMs<input id="intervalMs" type="number" value="3000" min="1000" max="60000" /></label>
           <label>maxRequests<input id="maxRequests" type="number" value="200" min="1" max="200" /></label>
         </div>
-        <label><input type="checkbox" id="pollAutoBook" /> autoBook when schedules found</label>
+        <p class="hint">Poll <strong>auto-books by default</strong> when schedules are found (server-side). Uncheck only to disable for testing.</p>
+        <label><input type="checkbox" id="pollAutoBook" checked /> autoBook when schedules found (default on)</label>
         <div class="row">
           <button type="button" id="btnPollStart" disabled>poll:start</button>
           <button type="button" id="btnPollStop" class="danger" disabled>poll:stop</button>
@@ -391,6 +392,7 @@
         'connect', 'disconnect', 'connect_error',
         'socket:identified', 'socket:identify:error',
         'schedule:appointments:saved', 'schedule:appointments:deleted', 'schedule:appointments:error', 'schedule:appointments:data',
+        'schedule:appointment:booked', 'schedule:appointment:failed',
         'fasah:land-schedule:poll:started', 'fasah:land-schedule:poll:progress', 'fasah:land-schedule:poll:tick',
         'fasah:land-schedule:poll:error', 'fasah:land-schedule:poll:stopped', 'fasah:land-schedule:poll:status',
         'fasah:land-schedule:auto-book:started', 'fasah:land-schedule:auto-book:progress',
@@ -813,7 +815,7 @@
       function pollPayload() {
         const token = $('fasahToken').value.trim();
         localStorage.setItem('fasah.fasahToken', token);
-        return {
+        const p = {
           departure: $('departure').value.trim(),
           arrival: $('arrival').value.trim(),
           type: $('type').value.trim(),
@@ -821,9 +823,12 @@
           userType: $('userType').value,
           economicOperator: $('economicOperator').value.trim() || undefined,
           intervalMs: Number($('intervalMs').value) || 3000,
-          maxRequests: Number($('maxRequests').value) || 200,
-          autoBook: $('pollAutoBook').checked
+          maxRequests: Number($('maxRequests').value) || 200
         };
+        if (!$('pollAutoBook').checked) {
+          p.autoBook = false;
+        }
+        return p;
       }
 
       $('btnPollStart').addEventListener('click', () => {

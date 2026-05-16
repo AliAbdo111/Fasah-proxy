@@ -4,10 +4,14 @@
  * 1) schedule:appointments:save | get | delete — Redis per user; admin get via userId/email
  *
  * 2) fasah:land-schedule:poll:start — one loop system-wide; 429 if another user is polling
- *    Requires app JWT (socket:identify). Events go to all sockets in user:<userId>.
+ *    Requires app JWT (socket:identify). Auto-books pending queue when schedules found (default).
+ *    Events go to all sockets in user:<userId>.
  *
  * 3) fasah:land-schedule:poll:stop | poll:close — stop this user's poll
  * 4) fasah:land-schedule:poll:status — auto-emitted on connect (with JWT) + after socket:identify
+ *
+ * 5) schedule:appointment:booked | schedule:appointment:failed — per queue row after auto-book
+ *    (all tabs in user:<userId>). Payload includes full appointment object (no bearer in submitData).
  */
 
 const { getRedis } = require('./redisClient');
@@ -30,8 +34,42 @@ const {
   emitPollStatusToSocket,
   stopPollIfUserDisconnected
 } = require('./landSchedulePollManager');
-const { runAutoTransitBookForUser } = require('./autoTransitBookingService');
+const {
+  runAutoTransitBookForUser,
+  sanitizeAppointmentForClient
+} = require('./autoTransitBookingService');
 const { extractLandSchedules } = require('./landScheduleExtract');
+const { emitToUserId } = require('./socketService');
+
+function emitAutoBookToUser(userId, event, data) {
+  emitToUserId(String(userId), event, {
+    userId: String(userId),
+    at: new Date().toISOString(),
+    ...data
+  });
+}
+
+function emitAppointmentBooked(userId, payload) {
+  emitToUserId(String(userId), 'schedule:appointment:booked', {
+    success: true,
+    userId: String(userId),
+    at: new Date().toISOString(),
+    ...payload
+  });
+}
+
+function emitAppointmentFailed(userId, payload) {
+  emitToUserId(String(userId), 'schedule:appointment:failed', {
+    success: false,
+    userId: String(userId),
+    at: new Date().toISOString(),
+    ...payload
+  });
+}
+
+function sanitizeAppointmentsList(list) {
+  return (Array.isArray(list) ? list : []).map(sanitizeAppointmentForClient);
+}
 
 function requireIdentifiedUser(socket) {
   if (!socket.data.userId) {
@@ -71,7 +109,13 @@ function register(socket) {
       const existingRaw = await redis.get(key);
       const existingParsed = parseStored(existingRaw);
       const { appointments, count, saved } = mergeAppointments(existingParsed, payload);
-      const merged = { appointments, userId: auth.userId, email: socket.data.email || null };
+      const sanitized = sanitizeAppointmentsList(appointments);
+      const sanitizedSaved = sanitizeAppointmentsList(saved);
+      const merged = {
+        appointments: sanitized,
+        userId: auth.userId,
+        email: socket.data.email || null
+      };
       const body = JSON.stringify(merged);
       await redis.set(key, body, 'EX', APPOINTMENTS_TTL_SEC);
       console.log('[redis] schedule:appointments:save', {
@@ -86,9 +130,9 @@ function register(socket) {
         email: socket.data.email || null,
         key,
         count,
-        saved,
-        appointment: saved.length === 1 ? saved[0] : undefined,
-        appointments,
+        saved: sanitizedSaved,
+        appointment: sanitizedSaved.length === 1 ? sanitizedSaved[0] : undefined,
+        appointments: sanitized,
         ttlSeconds: APPOINTMENTS_TTL_SEC
       });
     } catch (err) {
@@ -250,9 +294,7 @@ function register(socket) {
     }
 
     try {
-      socket.emit('fasah:land-schedule:auto-book:started', {
-        at: new Date().toISOString(),
-        userId: auth.userId,
+      emitAutoBookToUser(auth.userId, 'fasah:land-schedule:auto-book:started', {
         scheduleCount: schedulesPayload.schedules.length
       });
 
@@ -263,21 +305,15 @@ function register(socket) {
         userType: payload?.userType,
         concurrency: payload?.concurrency,
         onProgress: (progress) => {
-          socket.emit('fasah:land-schedule:auto-book:progress', {
-            at: new Date().toISOString(),
-            userId: auth.userId,
-            ...progress
-          });
-        }
+          emitAutoBookToUser(auth.userId, 'fasah:land-schedule:auto-book:progress', progress);
+        },
+        onBooked: (p) => emitAppointmentBooked(auth.userId, p),
+        onFailed: (p) => emitAppointmentFailed(auth.userId, p)
       });
 
-      socket.emit('fasah:land-schedule:auto-book:done', {
-        at: new Date().toISOString(),
-        userId: auth.userId,
-        ...summary
-      });
+      emitAutoBookToUser(auth.userId, 'fasah:land-schedule:auto-book:done', summary);
     } catch (err) {
-      socket.emit('fasah:land-schedule:auto-book:error', {
+      emitAutoBookToUser(auth.userId, 'fasah:land-schedule:auto-book:error', {
         message: err.message || String(err)
       });
     }

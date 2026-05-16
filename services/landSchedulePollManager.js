@@ -269,7 +269,8 @@ async function runPollLoop(userId) {
         });
 
         if (hasSchedules) {
-          if (entry.autoBook) {
+          // Auto-book by default when schedules are found (opt out with autoBook: false).
+          if (entry.autoBook !== false) {
             triggerAutoBookAfterSchedules(uid, data, paramsBase, entry).catch((err) => {
               console.error('[poll] auto-book failed', uid, err.message || err);
               emitPoll(uid, 'fasah:land-schedule:auto-book:error', {
@@ -332,6 +333,18 @@ async function triggerAutoBookAfterSchedules(userId, landScheduleData, paramsBas
       emitPoll(userId, 'fasah:land-schedule:auto-book:progress', {
         at: new Date().toISOString(),
         ...progress
+      });
+    },
+    onBooked: (payload) => {
+      emitPoll(userId, 'schedule:appointment:booked', {
+        success: true,
+        ...payload
+      });
+    },
+    onFailed: (payload) => {
+      emitPoll(userId, 'schedule:appointment:failed', {
+        success: false,
+        ...payload
       });
     }
   });
@@ -400,7 +413,7 @@ function startUserPoll(userId, payload) {
     maxRequests,
     intervalMs,
     paramsBase,
-    autoBook: Boolean(payload?.autoBook),
+    autoBook: payload?.autoBook !== false,
     timer: null,
     waitResolve: null,
     startedAt: new Date().toISOString()
@@ -408,8 +421,12 @@ function startUserPoll(userId, payload) {
 
   pollsByUserId.set(uid, entry);
 
-  emitPoll(uid, 'fasah:land-schedule:poll:started', { intervalMs, maxRequests });
-  console.log('[poll] started', uid, { intervalMs, maxRequests });
+  emitPoll(uid, 'fasah:land-schedule:poll:started', {
+    intervalMs,
+    maxRequests,
+    autoBook: entry.autoBook
+  });
+  console.log('[poll] started', uid, { intervalMs, maxRequests, autoBook: entry.autoBook });
   broadcastPollStatusToAllSockets();
 
   runPollLoop(uid).catch((err) => {
