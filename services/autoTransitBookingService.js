@@ -51,6 +51,7 @@ async function persistAppointments(userId, appointments, email) {
  * @param {function} [options.onFailed] — ({ appointmentId, appointment, message })
  */
 async function runAutoTransitBookForUser(userId, options = {}) {
+  console.log('[autoTransitBookingService] runAutoTransitBookForUser', userId, options);
   const uid = String(userId);
   const fasahToken = options.fasahToken || options.token;
   if (!fasahToken) {
@@ -68,7 +69,18 @@ async function runAutoTransitBookForUser(userId, options = {}) {
   const stored = await loadAppointmentsForUser(uid);
   const pending = (stored.appointments || []).filter(isPendingAppointment);
 
+  console.log('[auto-book] queue', {
+    userId: uid,
+    scheduleCount: schedules.length,
+    totalStored: (stored.appointments || []).length,
+    pendingCount: pending.length
+  });
+
   if (!pending.length) {
+    console.warn('[auto-book] skipped — no pending appointments in Redis', {
+      userId: uid,
+      hint: 'Call schedule:appointments:save with pending jobs before poll:start'
+    });
     return {
       ok: true,
       message: 'No pending appointments in queue',
@@ -151,6 +163,7 @@ async function runAutoTransitBookForUser(userId, options = {}) {
         try {
           const result = await executeTransitBooking({
             mongoUserId: uid,
+            appointmentId,
             body,
             proxyIndex,
             proxyContext,
@@ -167,6 +180,13 @@ async function runAutoTransitBookForUser(userId, options = {}) {
             sourceAppointment: appointment
           };
         } catch (err) {
+          console.error('[booking] auto-book exception', {
+            userId: uid,
+            appointmentId,
+            proxyIndex,
+            message: err.message || String(err),
+            status: err.status
+          });
           return {
             appointmentId,
             ok: false,

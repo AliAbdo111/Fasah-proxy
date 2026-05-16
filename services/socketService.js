@@ -1,7 +1,12 @@
 const { Server } = require('socket.io');
-const { register: registerScheduleSocketHandlers } = require('./socketScheduleHandlers');
 const { bindSocketUser, roomForUserId, roomForEmail } = require('./socketAuth');
 const { emitPollStatusToSocket } = require('./landSchedulePollManager');
+
+/** Deferred to avoid circular require with socketScheduleHandlers → socketService. */
+function registerScheduleSocketHandlers(socket) {
+  const { register } = require('./socketScheduleHandlers');
+  register(socket);
+}
 
 let io = null;
 

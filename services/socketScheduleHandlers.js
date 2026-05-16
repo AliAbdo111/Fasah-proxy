@@ -39,10 +39,18 @@ const {
   sanitizeAppointmentForClient
 } = require('./autoTransitBookingService');
 const { extractLandSchedules } = require('./landScheduleExtract');
-const { emitToUserId } = require('./socketService');
+
+function emitToUser(userId, event, data) {
+  const { emitToUserId } = require('./socketService');
+  if (typeof emitToUserId !== 'function') {
+    console.error('[socket] emitToUserId missing — cannot emit', event);
+    return;
+  }
+  emitToUserId(String(userId), event, data);
+}
 
 function emitAutoBookToUser(userId, event, data) {
-  emitToUserId(String(userId), event, {
+  emitToUser(userId, event, {
     userId: String(userId),
     at: new Date().toISOString(),
     ...data
@@ -50,7 +58,7 @@ function emitAutoBookToUser(userId, event, data) {
 }
 
 function emitAppointmentBooked(userId, payload) {
-  emitToUserId(String(userId), 'schedule:appointment:booked', {
+  emitToUser(userId, 'schedule:appointment:booked', {
     success: true,
     userId: String(userId),
     at: new Date().toISOString(),
@@ -59,7 +67,7 @@ function emitAppointmentBooked(userId, payload) {
 }
 
 function emitAppointmentFailed(userId, payload) {
-  emitToUserId(String(userId), 'schedule:appointment:failed', {
+  emitToUser(userId, 'schedule:appointment:failed', {
     success: false,
     userId: String(userId),
     at: new Date().toISOString(),

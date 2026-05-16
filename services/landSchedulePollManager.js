@@ -269,16 +269,25 @@ async function runPollLoop(userId) {
         });
 
         if (hasSchedules) {
-          // Auto-book by default when schedules are found (opt out with autoBook: false).
-          if (entry.autoBook !== false) {
-            triggerAutoBookAfterSchedules(uid, data, paramsBase, entry).catch((err) => {
-              console.error('[poll] auto-book failed', uid, err.message || err);
+          const { schedules } = extractLandSchedules(data);
+          console.log('[poll] schedules found', uid, {
+            scheduleCount: schedules.length,
+            autoBook: entry.autoBook !== false
+          });
+
+            try {
+              console.log('[poll] auto-book starting', uid);
+              await triggerAutoBookAfterSchedules(uid, data, paramsBase, entry);
+              console.log('[poll] auto-book finished', uid);
+            } catch (err) {
+              console.error('[poll] auto-book failed', uid, err.message || err, err.stack);
               emitPoll(uid, 'fasah:land-schedule:auto-book:error', {
                 at: new Date().toISOString(),
                 message: err.message || String(err)
               });
-            });
-          }
+            }
+        
+
           stopUserPoll(uid, 'schedules_found');
           break;
         }
@@ -317,8 +326,13 @@ async function runPollLoop(userId) {
   }
 }
 
-async function triggerAutoBookAfterSchedules(userId, landScheduleData, paramsBase, entry) {
+async function triggerAutoBookAfterSchedules(userId, landScheduleData, paramsBase) {
   const { schedules, headerMsg } = extractLandSchedules(landScheduleData);
+  console.log('[poll] triggerAutoBookAfterSchedules', userId, {
+    scheduleCount: schedules.length,
+    hasToken: Boolean(paramsBase?.token)
+  });
+
   emitPoll(userId, 'fasah:land-schedule:auto-book:started', {
     at: new Date().toISOString(),
     scheduleCount: schedules.length,
@@ -347,6 +361,14 @@ async function triggerAutoBookAfterSchedules(userId, landScheduleData, paramsBas
         ...payload
       });
     }
+  });
+
+  console.log('[poll] auto-book summary', userId, {
+    ok: summary.ok,
+    message: summary.message,
+    booked: summary.booked?.length ?? 0,
+    failed: summary.failed?.length ?? 0,
+    skipped: summary.skipped?.length ?? 0
   });
 
   emitPoll(userId, 'fasah:land-schedule:auto-book:done', {
