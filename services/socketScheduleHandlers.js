@@ -30,6 +30,8 @@ const {
   emitPollStatusToSocket,
   stopPollIfUserDisconnected
 } = require('./landSchedulePollManager');
+const { runAutoTransitBookForUser } = require('./autoTransitBookingService');
+const { extractLandSchedules } = require('./landScheduleExtract');
 
 function requireIdentifiedUser(socket) {
   if (!socket.data.userId) {
@@ -222,6 +224,64 @@ function register(socket) {
 
   socket.on('fasah:land-schedule:poll:stop', onLandPollStop);
   socket.on('fasah:land-schedule:poll:close', onLandPollStop);
+
+  socket.on('fasah:land-schedule:auto-book', async (payload) => {
+    const auth = requireIdentifiedUser(socket);
+    if (!auth.ok) {
+      socket.emit('fasah:land-schedule:auto-book:error', { message: auth.message });
+      return;
+    }
+
+    const schedulesPayload = payload?.schedules
+      ? { schedules: payload.schedules, headerMsg: payload.headerMsg }
+      : extractLandSchedules(payload?.landScheduleData || payload?.data);
+
+    if (!schedulesPayload.schedules.length) {
+      socket.emit('fasah:land-schedule:auto-book:error', {
+        message: 'No schedules in payload. Pass schedules[] or landScheduleData from poll:tick.'
+      });
+      return;
+    }
+
+    const fasahToken = payload?.token || payload?.fasahToken;
+    if (!fasahToken) {
+      socket.emit('fasah:land-schedule:auto-book:error', { message: 'FASAH token required' });
+      return;
+    }
+
+    try {
+      socket.emit('fasah:land-schedule:auto-book:started', {
+        at: new Date().toISOString(),
+        userId: auth.userId,
+        scheduleCount: schedulesPayload.schedules.length
+      });
+
+      const summary = await runAutoTransitBookForUser(auth.userId, {
+        schedules: schedulesPayload.schedules,
+        headerMsg: schedulesPayload.headerMsg,
+        fasahToken,
+        userType: payload?.userType,
+        concurrency: payload?.concurrency,
+        onProgress: (progress) => {
+          socket.emit('fasah:land-schedule:auto-book:progress', {
+            at: new Date().toISOString(),
+            userId: auth.userId,
+            ...progress
+          });
+        }
+      });
+
+      socket.emit('fasah:land-schedule:auto-book:done', {
+        at: new Date().toISOString(),
+        userId: auth.userId,
+        ...summary
+      });
+    } catch (err) {
+      socket.emit('fasah:land-schedule:auto-book:error', {
+        message: err.message || String(err)
+      });
+    }
+  });
 }
 
 module.exports = { register, isPollActive, getPollStatusPayload };

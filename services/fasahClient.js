@@ -53,8 +53,28 @@ class FasahClient {
    * Next entry from hardcoded pools.
    * Always uses `platformProxies` (rotates on key `__platform__`).
    */
+  getPlatformProxies() {
+    return this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
+  }
+
+  getPlatformProxyAt(index) {
+    const proxies = this.getPlatformProxies();
+    if (!proxies.length) return null;
+    const i = ((Number(index) % proxies.length) + proxies.length) % proxies.length;
+    return proxies[i];
+  }
+
+  /** Pick proxy: fixed index for parallel auto-book, else rotate. */
+  resolvePlatformProxy(params = {}) {
+    if (!this.shouldUseProxy()) return null;
+    if (params.proxyIndex != null && Number.isFinite(Number(params.proxyIndex))) {
+      return this.getPlatformProxyAt(params.proxyIndex);
+    }
+    return this.getNextPlatformProxy(params.proxyContext);
+  }
+
   getNextPlatformProxy(proxyContext) {
-    const proxies = this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
+    const proxies = this.getPlatformProxies();
     if (proxies.length === 0) return null;
     return this.getNextProxy('__platform__', proxies);
   }
@@ -226,8 +246,8 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
         if (proxy) {
           axiosConfig.httpsAgent = this.createProxyAgent(proxy);
           console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
@@ -238,6 +258,8 @@ class FasahClient {
           const response = await axios.get(url, axiosConfig);
           if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          console.log('[fasahClient] getLandSchedule response', response.data);
+          console.log('[fasahClient] getLandSchedule status text', response.status);
           return response.data;
         } catch (err) {
           if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
@@ -289,8 +311,8 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
         if (proxy) {
           axiosConfig.httpsAgent = this.createProxyAgent(proxy);
           console.log(`Using proxy (fleet lookup): ${proxy.host}:${proxy.port}`);
@@ -349,8 +371,8 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
         if (proxy) {
           axiosConfig.httpsAgent = this.createProxyAgent(proxy);
           console.log(`Using proxy (fleet nationality): ${proxy.host}:${proxy.port}`);
@@ -409,8 +431,8 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
         if (proxy) {
           axiosConfig.httpsAgent = this.createProxyAgent(proxy);
           console.log(`Using proxy (fleet truck colors): ${proxy.host}:${proxy.port}`);
@@ -469,8 +491,8 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
         if (proxy) {
           axiosConfig.httpsAgent = this.createProxyAgent(proxy);
           console.log(`Using proxy (fleet v2 truck brands): ${proxy.host}:${proxy.port}`);
@@ -534,8 +556,8 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
         if (proxy) {
           axiosConfig.httpsAgent = this.createProxyAgent(proxy);
           console.log(`Using proxy (fleet v2 truck models): ${proxy.host}:${proxy.port}`);
@@ -594,8 +616,8 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
         if (proxy) {
           axiosConfig.httpsAgent = this.createProxyAgent(proxy);
           console.log(`Using proxy (zatca-tas customs driver-truck-info): ${proxy.host}:${proxy.port}`);
@@ -855,8 +877,8 @@ async createTransitAppointment(params) {
         return status >= 200 && status < 500;
       }
     };
-    if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy(params.proxyContext);
+    if (this.shouldUseProxy()) {
+      const proxy = this.resolvePlatformProxy(params);
       if (proxy) {
         postConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
@@ -959,8 +981,8 @@ async createNonDeclarationAppointment(params) {
         return status >= 200 && status < 500;
       }
     };
-    if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy(params.proxyContext);
+    if (this.shouldUseProxy()) {
+      const proxy = this.resolvePlatformProxy(params);
       if (proxy) {
         postConfig.httpsAgent = this.createProxyAgent(proxy);
         console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);

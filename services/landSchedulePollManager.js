@@ -6,6 +6,8 @@
 
 const FasahClient = require('./fasahClient');
 const { hasUsableLandSchedules } = require('./landSchedulePollUtils');
+const { extractLandSchedules } = require('./landScheduleExtract');
+const { runAutoTransitBookForUser } = require('./autoTransitBookingService');
 const { roomForUserId } = require('./socketAuth');
 
 const fasahClient = new FasahClient();
@@ -267,6 +269,15 @@ async function runPollLoop(userId) {
         });
 
         if (hasSchedules) {
+          if (entry.autoBook) {
+            triggerAutoBookAfterSchedules(uid, data, paramsBase, entry).catch((err) => {
+              console.error('[poll] auto-book failed', uid, err.message || err);
+              emitPoll(uid, 'fasah:land-schedule:auto-book:error', {
+                at: new Date().toISOString(),
+                message: err.message || String(err)
+              });
+            });
+          }
           stopUserPoll(uid, 'schedules_found');
           break;
         }
@@ -303,6 +314,33 @@ async function runPollLoop(userId) {
     });
     stopUserPoll(uid, 'error');
   }
+}
+
+async function triggerAutoBookAfterSchedules(userId, landScheduleData, paramsBase, entry) {
+  const { schedules, headerMsg } = extractLandSchedules(landScheduleData);
+  emitPoll(userId, 'fasah:land-schedule:auto-book:started', {
+    at: new Date().toISOString(),
+    scheduleCount: schedules.length,
+    headerMsg
+  });
+
+  const summary = await runAutoTransitBookForUser(userId, {
+    landScheduleData,
+    fasahToken: paramsBase.token,
+    userType: paramsBase.userType,
+    onProgress: (progress) => {
+      emitPoll(userId, 'fasah:land-schedule:auto-book:progress', {
+        at: new Date().toISOString(),
+        ...progress
+      });
+    }
+  });
+
+  emitPoll(userId, 'fasah:land-schedule:auto-book:done', {
+    at: new Date().toISOString(),
+    ...summary
+  });
+  return summary;
 }
 
 /**
@@ -362,6 +400,7 @@ function startUserPoll(userId, payload) {
     maxRequests,
     intervalMs,
     paramsBase,
+    autoBook: Boolean(payload?.autoBook),
     timer: null,
     waitResolve: null,
     startedAt: new Date().toISOString()

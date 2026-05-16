@@ -150,6 +150,16 @@
       word-break: break-word;
     }
     .hint { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+    .test-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent);
+      margin-left: 6px;
+    }
+    select { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -195,11 +205,52 @@
       </section>
 
       <section>
+        <h2>Appointment booking — test cases</h2>
+        <label>Preset</label>
+        <select id="appointmentPreset">
+          <option value="pendingImport">Pending IMPORT job (full transit fields)</option>
+          <option value="pendingWithSlot">Pending + zone_schedule_id (use after Apply slot)</option>
+          <option value="secondJob">Second pending job (merge test)</option>
+          <option value="minimal">Minimal save (id only)</option>
+        </select>
+        <div class="row">
+          <button type="button" id="btnLoadPreset" class="secondary">Load preset</button>
+          <button type="button" id="btnApplyPollSlot" class="secondary" disabled>Apply 1st schedule slot</button>
+        </div>
+        <p class="hint">Last poll schedules: <strong id="lastSchedulesLabel">none</strong></p>
+        <div class="row">
+          <button type="button" id="btnRunSavePreset" class="secondary" disabled>Run: save</button>
+          <button type="button" id="btnRunGetAck" class="secondary" disabled>Run: get (ack)</button>
+          <button type="button" id="btnRunAutoBook" class="secondary" disabled>Run: auto-book</button>
+        </div>
+        <label>Admin get — target userId (optional)</label>
+        <input id="getTargetUserId" type="text" placeholder="Leave empty = your user" />
+        <p class="hint">Flow: Load preset → save → poll → Apply slot → auto-book (or enable autoBook on poll).</p>
+      </section>
+
+      <section>
         <h2>Redis — schedule:appointments (per user)</h2>
-        <label>JSON payload (save)</label>
-        <textarea id="appointmentsJson">{
+        <label>JSON payload (save / delete)</label>
+        <textarea id="appointmentsJson" rows="12">{
   "appointments": [
-    { "id": "test-1", "note": "socket-test" }
+    {
+      "id": "job-import-1",
+      "status": "pending",
+      "port_code": "31",
+      "purpose": "6",
+      "declaration_number": "1234567890",
+      "cargo_type": "",
+      "userType": "broker",
+      "fleet_info": [
+        {
+          "licenseNo": "1234567890",
+          "plateCountry": "SA",
+          "residentCountry": "SA",
+          "vehicleSequenceNumber": "123456789",
+          "chassisNo": "12345678901234567"
+        }
+      ]
+    }
   ]
 }</textarea>
         <div class="row">
@@ -230,6 +281,7 @@
           <label>intervalMs<input id="intervalMs" type="number" value="3000" min="1000" max="60000" /></label>
           <label>maxRequests<input id="maxRequests" type="number" value="200" min="1" max="200" /></label>
         </div>
+        <label><input type="checkbox" id="pollAutoBook" /> autoBook when schedules found</label>
         <div class="row">
           <button type="button" id="btnPollStart" disabled>poll:start</button>
           <button type="button" id="btnPollStop" class="danger" disabled>poll:stop</button>
@@ -261,6 +313,79 @@
       const logEl = $('log');
       let socket = null;
       let identifiedUser = null;
+      let lastPollSchedules = [];
+      let lastPollHeaderMsg = '';
+
+      const APPOINTMENT_PRESETS = {
+        pendingImport: {
+          appointments: [
+            {
+              id: 'job-import-1',
+              status: 'pending',
+              port_code: '31',
+              purpose: '6',
+              declaration_number: '1234567890',
+              cargo_type: '',
+              userType: 'broker',
+              fleet_info: [
+                {
+                  licenseNo: '1234567890',
+                  plateCountry: 'SA',
+                  residentCountry: 'SA',
+                  vehicleSequenceNumber: '123456789',
+                  chassisNo: '12345678901234567'
+                }
+              ]
+            }
+          ]
+        },
+        pendingWithSlot: {
+          appointments: [
+            {
+              id: 'job-import-1',
+              status: 'pending',
+              port_code: '31',
+              purpose: '6',
+              declaration_number: '1234567890',
+              zone_schedule_id: 'PASTE_OR_APPLY_SLOT',
+              userType: 'broker',
+              fleet_info: [
+                {
+                  licenseNo: '1234567890',
+                  plateCountry: 'SA',
+                  residentCountry: 'SA',
+                  vehicleSequenceNumber: '123456789',
+                  chassisNo: '12345678901234567'
+                }
+              ]
+            }
+          ]
+        },
+        secondJob: {
+          appointments: [
+            {
+              id: 'job-import-2',
+              status: 'pending',
+              port_code: '31',
+              purpose: '6',
+              declaration_number: '9876543210',
+              userType: 'broker',
+              fleet_info: [
+                {
+                  licenseNo: '9876543210',
+                  plateCountry: 'SA',
+                  residentCountry: 'SA',
+                  vehicleSequenceNumber: '987654321',
+                  chassisNo: '98765432109876543'
+                }
+              ]
+            }
+          ]
+        },
+        minimal: {
+          appointments: [{ id: 'minimal-test-1', status: 'pending' }]
+        }
+      };
 
       const IN_EVENTS = [
         'connect', 'disconnect', 'connect_error',
@@ -268,8 +393,130 @@
         'schedule:appointments:saved', 'schedule:appointments:deleted', 'schedule:appointments:error', 'schedule:appointments:data',
         'fasah:land-schedule:poll:started', 'fasah:land-schedule:poll:progress', 'fasah:land-schedule:poll:tick',
         'fasah:land-schedule:poll:error', 'fasah:land-schedule:poll:stopped', 'fasah:land-schedule:poll:status',
+        'fasah:land-schedule:auto-book:started', 'fasah:land-schedule:auto-book:progress',
+        'fasah:land-schedule:auto-book:done', 'fasah:land-schedule:auto-book:error',
         'user-login'
       ];
+
+      function extractSchedulesFromPollData(data) {
+        if (!data || typeof data !== 'object') return { schedules: [], headerMsg: '' };
+        const candidates = [
+          data.schedules,
+          data.data?.schedules,
+          data.result?.schedules,
+          data.data?.data?.schedules
+        ];
+        const schedules = candidates.find((list) => Array.isArray(list) && list.length > 0) || [];
+        const headerMsg =
+          data.headerMsg ?? data.data?.headerMsg ?? data.result?.headerMsg ?? '';
+        return { schedules, headerMsg };
+      }
+
+      function capturePollSchedules(payload) {
+        if (!payload || !payload.hasSchedules) return;
+        const extracted = extractSchedulesFromPollData(payload.data);
+        if (!extracted.schedules.length) return;
+        lastPollSchedules = extracted.schedules;
+        lastPollHeaderMsg = extracted.headerMsg;
+        const first = lastPollSchedules[0];
+        const label = first
+          ? first.zone_schedule_id + ' · ' + (first.schedule_from || first.slot_status || 'slot')
+          : String(lastPollSchedules.length) + ' slot(s)';
+        $('lastSchedulesLabel').textContent = label;
+        updateActionButtons();
+      }
+
+      function setAppointmentsJson(obj) {
+        $('appointmentsJson').value = JSON.stringify(obj, null, 2);
+      }
+
+      function loadAppointmentPreset() {
+        const key = $('appointmentPreset').value;
+        const preset = APPOINTMENT_PRESETS[key];
+        if (!preset) {
+          appendLog('err', 'preset', 'Unknown preset: ' + key);
+          return;
+        }
+        setAppointmentsJson(JSON.parse(JSON.stringify(preset)));
+        appendLog('out', 'test:load-preset', { preset: key });
+      }
+
+      function applyFirstPollSlot() {
+        if (!lastPollSchedules.length) {
+          appendLog('err', 'apply slot', 'No schedules from poll:tick yet');
+          return;
+        }
+        const slot = lastPollSchedules[0];
+        let payload;
+        try {
+          payload = JSON.parse($('appointmentsJson').value);
+        } catch (e) {
+          appendLog('err', 'parse JSON', e.message);
+          return;
+        }
+        const list = Array.isArray(payload.appointments) ? payload.appointments : [];
+        if (!list.length) {
+          appendLog('err', 'apply slot', 'JSON has no appointments[]');
+          return;
+        }
+        list[0].zone_schedule_id = String(slot.zone_schedule_id);
+        if (slot.schedule_from) list[0].schedule_from = slot.schedule_from;
+        if (slot.schedule_to) list[0].schedule_to = slot.schedule_to;
+        setAppointmentsJson({ ...payload, appointments: list });
+        appendLog('out', 'test:apply-slot', {
+          zone_schedule_id: slot.zone_schedule_id,
+          schedule_from: slot.schedule_from,
+          schedule_to: slot.schedule_to
+        });
+      }
+
+      function runSavePreset() {
+        if (!socket || !socket.connected || !identifiedUser) return;
+        let payload;
+        try {
+          payload = JSON.parse($('appointmentsJson').value);
+        } catch (e) {
+          appendLog('err', 'parse JSON', e.message);
+          return;
+        }
+        appendLog('out', 'test:save → schedule:appointments:save', payload);
+        socket.emit('schedule:appointments:save', payload);
+      }
+
+      function runGetWithAck() {
+        if (!socket || !socket.connected || !identifiedUser) return;
+        const targetUserId = $('getTargetUserId').value.trim();
+        const emitPayload = targetUserId ? { userId: targetUserId } : {};
+        appendLog('out', 'test:get (ack) → schedule:appointments:get', emitPayload);
+        socket.emit('schedule:appointments:get', emitPayload, (reply) => {
+          appendLog('in', 'schedule:appointments:get (ack)', reply);
+        });
+      }
+
+      function runAutoBook() {
+        if (!socket || !socket.connected || !identifiedUser) return;
+        const token = $('fasahToken').value.trim();
+        if (!token) {
+          appendLog('err', 'auto-book', 'FASAH token required');
+          return;
+        }
+        if (!lastPollSchedules.length) {
+          appendLog('err', 'auto-book', 'No schedules — run poll or wait for poll:tick');
+          return;
+        }
+        const payload = {
+          schedules: lastPollSchedules,
+          headerMsg: lastPollHeaderMsg,
+          token,
+          userType: $('userType').value
+        };
+        appendLog('out', 'fasah:land-schedule:auto-book', {
+          scheduleCount: lastPollSchedules.length,
+          userType: payload.userType,
+          token: '(set)'
+        });
+        socket.emit('fasah:land-schedule:auto-book', payload);
+      }
 
       function baseUrl() {
         const v = $('baseUrl').value.trim();
@@ -299,6 +546,14 @@
         $('btnPollStop').disabled = !on || !identifiedUser;
         $('btnPollClose').disabled = !on || !identifiedUser;
         if ($('btnPollStatus')) $('btnPollStatus').disabled = !on || !identifiedUser;
+        const hasSchedules = lastPollSchedules.length > 0;
+        const hasFasah = !!$('fasahToken').value.trim();
+        if ($('btnApplyPollSlot')) $('btnApplyPollSlot').disabled = !hasSchedules;
+        if ($('btnRunSavePreset')) $('btnRunSavePreset').disabled = !on || !identifiedUser;
+        if ($('btnRunGetAck')) $('btnRunGetAck').disabled = !on || !identifiedUser;
+        if ($('btnRunAutoBook')) {
+          $('btnRunAutoBook').disabled = !on || !identifiedUser || !hasSchedules || !hasFasah;
+        }
       }
 
       function setConnected(on, text) {
@@ -355,6 +610,9 @@
       function wireIncoming(s) {
         IN_EVENTS.forEach((ev) => {
           s.on(ev, (payload) => {
+            if (ev === 'fasah:land-schedule:poll:tick') {
+              capturePollSchedules(payload);
+            }
             const kind = ev.includes('error') || ev === 'connect_error' ? 'err' : 'in';
             appendLog(kind, ev, payload);
           });
@@ -462,7 +720,14 @@
           localStorage.setItem('fasah.userId', userId);
           $('appToken').value = token;
           $('userLabel').textContent = (user.email || email) + ' (' + userId + ')';
-          appendLog('in', 'login ok', { email: user.email, userId });
+          appendLog('in', 'login ok', {
+            email: user.email,
+            userId,
+            pollStatus: data.pollStatus
+          });
+          if (data.pollStatus) {
+            appendLog('in', 'pollStatus (from login)', data.pollStatus);
+          }
           updateActionButtons();
           if (socket && socket.connected) {
             identifySocket();
@@ -498,6 +763,13 @@
       $('btnDisconnect').addEventListener('click', disconnect);
 
       $('btnIdentify').addEventListener('click', () => identifySocket());
+
+      $('btnLoadPreset').addEventListener('click', loadAppointmentPreset);
+      $('btnApplyPollSlot').addEventListener('click', applyFirstPollSlot);
+      $('btnRunSavePreset').addEventListener('click', runSavePreset);
+      $('btnRunGetAck').addEventListener('click', runGetWithAck);
+      $('btnRunAutoBook').addEventListener('click', runAutoBook);
+      $('fasahToken').addEventListener('input', updateActionButtons);
 
       $('btnSave').addEventListener('click', () => {
         let payload;
@@ -549,7 +821,8 @@
           userType: $('userType').value,
           economicOperator: $('economicOperator').value.trim() || undefined,
           intervalMs: Number($('intervalMs').value) || 3000,
-          maxRequests: Number($('maxRequests').value) || 200
+          maxRequests: Number($('maxRequests').value) || 200,
+          autoBook: $('pollAutoBook').checked
         };
       }
 

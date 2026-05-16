@@ -4,18 +4,11 @@ const FasahClient = require('../services/fasahClient');
 const User = require('./models/User');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
+const { executeTransitBooking, extractTasBookRef } = require('../services/transitBookingCore');
+const { extractLandSchedules } = require('../services/landScheduleExtract');
 
 // Initialize client
 const client = new FasahClient();
-
-function extractTasBookRef(result) {
-  return (
-    result?.data?.data?.result?.validated?.[0]?.tasBookRef ||
-    result?.data?.result?.validated?.[0]?.tasBookRef ||
-    result?.result?.validated?.[0]?.tasBookRef ||
-    ''
-  );
-}
 
 /**
  * GET /api/fasah/schedule/land
@@ -65,10 +58,13 @@ router.get('/schedule/land', async (req, res) => {
         data: result
       });
     }
-
+      
+    const { schedules, headerMsg } = extractLandSchedules(result);
     res.json({
       success: true,
-      data: result
+      data: result,
+      schedules,
+      headerMsg
     });
   } catch (error) {
     const status = error.status || 500;
@@ -274,99 +270,40 @@ router.post('/appointment/transit/create', async (req, res) => {
       });
     }
 
-    let bookingDecision = null;
-    if (req.user && req.user._id) {
-      try {
-        const gate = await bookingDailyLimits.assertCanTransitBook(req.user._id);
-        bookingDecision = gate && gate.decision ? gate.decision : null;
-      } catch (e) {
-        const status = e.status || 403;
-        return res.status(status).json({ success: false, message: e.message });
-      }
-    }
-
-    // استدعاء Method إنشاء الموعد
-    const result = await client.createTransitAppointment({
-      port_code,
-      zone_schedule_id,
-      purpose,
-      cargo_type,
-      fleet_info,
-      bayan_appointment,
-      declaration_number,
-      token,
-      userType: userType,
-      proxyContext: req.user
+    const booking = await executeTransitBooking({
+      mongoUserId: req.user && req.user._id,
+      body: {
+        port_code,
+        zone_schedule_id,
+        purpose,
+        cargo_type,
+        fleet_info,
+        bayan_appointment,
+        declaration_number,
+        token,
+        userType
+      },
+      proxyContext: req.user,
+      proxyIndex: req.body?.proxyIndex
     });
 
-    // Count as success only when tasBookRef exists
-    const tasBookRef = extractTasBookRef(result);
-    const hasSuccessfulBooking = Boolean(tasBookRef);
-    if (!hasSuccessfulBooking) {
-      const upstreamMessage =
-        result?.message ||
-        result?.data?.message ||
-        result?.data?.data?.message ||
-        'Booking not created';
-      await bookingHistoryService.logBooking({
-        userId: req.user && req.user._id,
-        endpoint: '/api/fasah/appointment/transit/create',
-        kind: 'transit',
+    if (!booking.success) {
+      return res.status(booking.httpStatus || 400).json({
         success: false,
-        httpStatus: 400,
-        message: upstreamMessage,
-        requestBody: req.body || {},
-        requestQuery: req.query || {},
-        responseBody: result,
-        consumptionType: bookingDecision && bookingDecision.consumptionType,
-        extraPriceApplied: bookingDecision && bookingDecision.extraPriceApplied
-      });
-      return res.status(400).json({
-        success: false,
-        message: upstreamMessage,
-        data: result
+        message: booking.message,
+        ...(booking.data && { data: booking.data }),
+        ...(booking.error && { error: booking.error })
       });
     }
 
-    if (req.user && req.user._id) {
-      await bookingDailyLimits.recordTransitBookingSuccess(req.user._id, bookingDecision);
-    }
-
-    await bookingHistoryService.logBooking({
-      userId: req.user && req.user._id,
-      endpoint: '/api/fasah/appointment/transit/create',
-      kind: 'transit',
-      success: true,
-      httpStatus: 200,
-      message: 'Booking created',
-      requestBody: req.body || {},
-      requestQuery: req.query || {},
-      responseBody: result,
-      consumptionType: bookingDecision && bookingDecision.consumptionType,
-      extraPriceApplied: bookingDecision && bookingDecision.extraPriceApplied
-    });
-
-    // إرجاع النتيجة الناجحة
     res.json({
       success: true,
-      data: result,
+      tasBookRef: booking.tasBookRef,
+      data: booking.data
     });
   } catch (error) {
     const status = error.status || 500;
     console.error('خطأ في إنشاء موعد النقل العابر:', error);
-    await bookingHistoryService.logBooking({
-      userId: req.user && req.user._id,
-      endpoint: '/api/fasah/appointment/transit/create',
-      kind: 'transit',
-      success: false,
-      httpStatus: status,
-      message: error?.message || 'Booking error',
-      requestBody: req.body || {},
-      requestQuery: req.query || {},
-      responseBody: error?.data || {},
-      consumptionType: '',
-      extraPriceApplied: 0
-    });
     res.status(status).json({
       success: false,
       error: error?.message,
