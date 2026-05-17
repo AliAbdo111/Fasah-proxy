@@ -34,10 +34,8 @@ const {
   emitPollStatusToSocket,
   stopPollIfUserDisconnected
 } = require('./landSchedulePollManager');
-const {
-  runAutoTransitBookForUser,
-  sanitizeAppointmentForClient
-} = require('./autoTransitBookingService');
+const { runAutoTransitBookForUser } = require('./autoTransitBookingService');
+const { normalizeAppointmentForRedis } = require('./appointmentBookingShape');
 const { extractLandSchedules } = require('./landScheduleExtract');
 
 function emitToUser(userId, event, data) {
@@ -76,7 +74,7 @@ function emitAppointmentFailed(userId, payload) {
 }
 
 function sanitizeAppointmentsList(list) {
-  return (Array.isArray(list) ? list : []).map(sanitizeAppointmentForClient);
+  return (Array.isArray(list) ? list : []).map(normalizeAppointmentForRedis);
 }
 
 function requireIdentifiedUser(socket) {
@@ -119,6 +117,7 @@ function register(socket) {
       const { appointments, count, saved } = mergeAppointments(existingParsed, payload);
       const sanitized = sanitizeAppointmentsList(appointments);
       const sanitizedSaved = sanitizeAppointmentsList(saved);
+      console.log('[schedule:appointments:save] sanitizedSaved', sanitizedSaved);
       const merged = {
         appointments: sanitized,
         userId: auth.userId,
@@ -238,6 +237,7 @@ function register(socket) {
   });
 
   socket.on('fasah:land-schedule:poll:start', (payload) => {
+    console.log('[poll] start', payload);
     const auth = requireIdentifiedUser(socket);
     if (!auth.ok) {
       socket.emit('fasah:land-schedule:poll:error', { message: auth.message });
@@ -246,6 +246,7 @@ function register(socket) {
 
     const result = startUserPoll(auth.userId, payload);
     if (!result.ok) {
+      console.error('[poll] start failed', auth.userId, payload, result);
       socket.emit('fasah:land-schedule:poll:error', {
         message: result.message,
         status: result.status,

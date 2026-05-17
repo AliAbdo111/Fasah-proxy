@@ -12,21 +12,27 @@ const {
   APPOINTMENTS_TTL_SEC,
   appointmentKey
 } = require('./scheduleAppointmentsStore');
-const { loadAppointmentsForUser } = require('./scheduleAppointmentsService');
+const {
+  loadAppointmentsForUser,
+  listUserIdsWithPendingAppointments
+} = require('./scheduleAppointmentsService');
 const { extractLandSchedules, pickSlotForAppointment } = require('./landScheduleExtract');
 const {
   hasBookingPayload,
   buildTransitCreateBody,
   applyBookedState,
-  applyFailedState,
-  sanitizeAppointmentForClient
+  sanitizeAppointmentForClient,
+  normalizeAppointmentForRedis,
+  resolveFasahBearer,
+  needsBooking,
+  applyBookingAttemptFailure,
+  MAX_BOOKING_ATTEMPTS
 } = require('./appointmentBookingShape');
 const { executeTransitBooking, client: fasahClient } = require('./transitBookingCore');
 const User = require('../routes/models/User');
 
 function isPendingAppointment(apt) {
-  const status = String(apt?.status || 'pending').toLowerCase();
-  return status !== 'booked' && status !== 'success' && status !== 'cancelled';
+  return needsBooking(apt);
 }
 
 async function persistAppointments(userId, appointments, email) {
@@ -53,10 +59,7 @@ async function persistAppointments(userId, appointments, email) {
 async function runAutoTransitBookForUser(userId, options = {}) {
   console.log('[autoTransitBookingService] runAutoTransitBookForUser', userId, options);
   const uid = String(userId);
-  const fasahToken = options.fasahToken || options.token;
-  if (!fasahToken) {
-    return { ok: false, status: 400, message: 'FASAH token required (fasahToken)' };
-  }
+  let fasahToken = options.fasahToken || options.token;
 
   const { schedules, headerMsg } = options.schedules
     ? { schedules: options.schedules, headerMsg: options.headerMsg || '' }
@@ -67,7 +70,21 @@ async function runAutoTransitBookForUser(userId, options = {}) {
   }
 
   const stored = await loadAppointmentsForUser(uid);
-  const pending = (stored.appointments || []).filter(isPendingAppointment);
+  const pending = (stored.appointments || []).filter(needsBooking);
+
+  if (!fasahToken && pending.length) {
+    for (const apt of pending) {
+      const bearer = resolveFasahBearer(apt);
+      if (bearer) {
+        fasahToken = bearer;
+        break;
+      }
+    }
+  }
+
+  if (!fasahToken) {
+    return { ok: false, status: 400, message: 'FASAH token required (fasahToken or token on appointment)' };
+  }
 
   console.log('[auto-book] queue', {
     userId: uid,
@@ -103,6 +120,7 @@ async function runAutoTransitBookForUser(userId, options = {}) {
 
   const booked = [];
   const failed = [];
+  const retried = [];
   const skipped = [];
   const updatedById = new Map((stored.appointments || []).map((a) => [appointmentKey(a), { ...a }]));
 
@@ -120,6 +138,7 @@ async function runAutoTransitBookForUser(userId, options = {}) {
 
         if (options.onProgress) {
           options.onProgress({
+            userId: uid,
             index: taskIndex,
             total,
             appointmentId,
@@ -132,6 +151,7 @@ async function runAutoTransitBookForUser(userId, options = {}) {
             appointmentId,
             ok: false,
             skipped: true,
+            sourceAppointment: appointment,
             message:
               'Missing submitData (declaration_number, purpose, fleet_info) or legacy booking fields'
           };
@@ -143,6 +163,7 @@ async function runAutoTransitBookForUser(userId, options = {}) {
             appointmentId,
             ok: false,
             skipped: true,
+            sourceAppointment: appointment,
             message: 'No matching bookable slot in schedules'
           };
         }
@@ -151,6 +172,7 @@ async function runAutoTransitBookForUser(userId, options = {}) {
 
         if (options.onProgress) {
           options.onProgress({
+            userId: uid,
             index: taskIndex,
             total,
             appointmentId,
@@ -208,13 +230,27 @@ async function runAutoTransitBookForUser(userId, options = {}) {
       const prev = updatedById.get(key) || {};
 
       if (item.skipped) {
-        skipped.push({ appointmentId: key, message: item.message });
-        updatedById.set(key, {
-          ...sanitizeAppointmentForClient(prev),
-          status: 'pending',
-          lastError: item.message,
-          updatedAt: new Date().toISOString()
-        });
+        const { record, isFinalFailure, attempts } = applyBookingAttemptFailure(
+          item.sourceAppointment || prev,
+          item.message
+        );
+        updatedById.set(key, record);
+        skipped.push({ appointmentId: key, message: item.message, attempts, isFinalFailure });
+        if (isFinalFailure) {
+          failed.push({ appointmentId: key, message: item.message, attempts, appointment: record });
+          if (options.onFailed) {
+            options.onFailed({
+              userId: uid,
+              appointmentId: key,
+              message: item.message,
+              attempts,
+              final: true,
+              appointment: record
+            });
+          }
+        } else {
+          retried.push({ appointmentId: key, message: item.message, attempts });
+        }
         continue;
       }
 
@@ -236,6 +272,7 @@ async function runAutoTransitBookForUser(userId, options = {}) {
 
         if (options.onBooked) {
           options.onBooked({
+            userId: uid,
             appointmentId: key,
             tasBookRef: item.result.tasBookRef,
             slot: item.slot,
@@ -244,27 +281,43 @@ async function runAutoTransitBookForUser(userId, options = {}) {
         }
       } else {
         const errMsg = item.result?.message || 'Booking failed';
-        const record = applyFailedState(item.sourceAppointment || prev, errMsg);
+        const { record, isFinalFailure, attempts } = applyBookingAttemptFailure(
+          item.sourceAppointment || prev,
+          errMsg
+        );
         updatedById.set(key, record);
 
-        failed.push({
-          appointmentId: key,
-          message: errMsg,
-          proxyIndex: item.proxyIndex,
-          appointment: record
-        });
-
-        if (options.onFailed) {
-          options.onFailed({
+        if (isFinalFailure) {
+          failed.push({
             appointmentId: key,
             message: errMsg,
+            attempts,
+            proxyIndex: item.proxyIndex,
             appointment: record
+          });
+          if (options.onFailed) {
+            options.onFailed({
+              userId: uid,
+              appointmentId: key,
+              message: errMsg,
+              attempts,
+              final: true,
+              appointment: record
+            });
+          }
+        } else {
+          retried.push({
+            appointmentId: key,
+            message: errMsg,
+            attempts,
+            proxyIndex: item.proxyIndex
           });
         }
       }
 
       if (options.onProgress) {
         options.onProgress({
+          userId: uid,
           index: taskIndex,
           total,
           appointmentId: key,
@@ -275,25 +328,85 @@ async function runAutoTransitBookForUser(userId, options = {}) {
     }
   }
 
-  const appointments = Array.from(updatedById.values()).map(sanitizeAppointmentForClient);
+  const appointments = Array.from(updatedById.values()).map(normalizeAppointmentForRedis);
   await persistAppointments(uid, appointments, mongoUser?.email || stored.email);
 
   return {
     ok: true,
+    userId: uid,
     schedules,
     headerMsg,
     concurrency,
     proxyCount: proxies.length,
     booked,
     failed,
+    retried,
     skipped,
+    maxBookingAttempts: MAX_BOOKING_ATTEMPTS,
     appointments
+  };
+}
+
+/**
+ * When schedules are available, book pending queue rows for every user with Redis appointments.
+ * @param {object} options — same as runAutoTransitBookForUser (landScheduleData, fasahToken, callbacks)
+ */
+async function runAutoTransitBookForAllUsersWithPending(options = {}) {
+  const userIds = await listUserIdsWithPendingAppointments();
+  console.log('[auto-book] all users with pending', { count: userIds.length, userIds });
+
+  if (!userIds.length) {
+    const { schedules, headerMsg } = options.schedules
+      ? { schedules: options.schedules, headerMsg: options.headerMsg || '' }
+      : extractLandSchedules(options.landScheduleData);
+    return {
+      ok: true,
+      message: 'No users with pending appointments',
+      userIds: [],
+      users: [],
+      schedules,
+      headerMsg,
+      booked: [],
+      failed: [],
+      skipped: []
+    };
+  }
+
+  const users = [];
+  const booked = [];
+  const failed = [];
+  const retried = [];
+  const skipped = [];
+
+  for (const userId of userIds) {
+    const summary = await runAutoTransitBookForUser(userId, options);
+    users.push(summary);
+    if (Array.isArray(summary.booked)) booked.push(...summary.booked);
+    if (Array.isArray(summary.failed)) failed.push(...summary.failed);
+    if (Array.isArray(summary.retried)) retried.push(...summary.retried);
+    if (Array.isArray(summary.skipped)) skipped.push(...summary.skipped);
+  }
+
+  const first = users[0] || {};
+  return {
+    ok: users.every((u) => u.ok !== false),
+    userIds,
+    users,
+    schedules: first.schedules,
+    headerMsg: first.headerMsg,
+    booked,
+    failed,
+    retried,
+    skipped,
+    maxBookingAttempts: MAX_BOOKING_ATTEMPTS
   };
 }
 
 module.exports = {
   runAutoTransitBookForUser,
+  runAutoTransitBookForAllUsersWithPending,
   isPendingAppointment,
+  needsBooking,
   buildTransitCreateBody: buildTransitCreateBody,
   sanitizeAppointmentForClient
 };

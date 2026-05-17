@@ -5,27 +5,68 @@
 
 const { appointmentKey } = require('./scheduleAppointmentsStore');
 
+/** submitData for Redis / FASAH create body — no duplicate bearer or userType. */
 function stripSubmitDataSecrets(submitData) {
   if (!submitData || typeof submitData !== 'object') return submitData;
   const { token, userType, ...rest } = submitData;
   return { ...rest };
 }
 
-/** Remove bearer tokens before Redis / socket payloads. */
+function resolveFasahBearer(appointment) {
+  if (!appointment || typeof appointment !== 'object') return '';
+  const block = appointment.token;
+  if (block && typeof block === 'object' && block.token) {
+    return String(block.token);
+  }
+  if (typeof block === 'string') return block;
+  if (appointment.submitData?.token) return String(appointment.submitData.token);
+  return '';
+}
+
+/** Ensure token: { token: Bearer…, declarationNumber, type, vehicleType }. */
+function normalizeTokenBlock(appointment) {
+  const prev = appointment?.token;
+  const bearer = resolveFasahBearer(appointment);
+  const meta = typeof prev === 'object' && prev ? { ...prev } : {};
+
+  if (bearer) {
+    meta.token = bearer.startsWith('Bearer ') ? bearer : `Bearer ${bearer.replace(/^Bearer\s+/i, '')}`;
+  }
+
+  if (meta.declarationNumber == null && appointment?.submitData?.declaration_number != null) {
+    meta.declarationNumber = String(appointment.submitData.declaration_number);
+  }
+  if (meta.declarationNumber == null && appointment?.declaration_number != null) {
+    meta.declarationNumber = String(appointment.declaration_number);
+  }
+
+  if (!meta.type) {
+    meta.type = appointment?.submitData?.userType || appointment?.userType || 'broker';
+  }
+  if (meta.vehicleType == null && appointment?.token?.vehicleType != null) {
+    meta.vehicleType = appointment.token.vehicleType;
+  }
+
+  return Object.keys(meta).length ? meta : prev;
+}
+
+/** Normalize for Redis + socket responses (keeps FASAH JWT on token.token). */
 function sanitizeAppointmentForClient(appointment) {
   if (!appointment || typeof appointment !== 'object') return appointment;
   const out = { ...appointment };
+
+  // Copy bearer into token.token while it may still live on submitData.token
+  out.token = normalizeTokenBlock(out);
 
   if (out.submitData) {
     out.submitData = stripSubmitDataSecrets(out.submitData);
   }
 
-  if (out.token && typeof out.token === 'object') {
-    const { token: bearer, ...meta } = out.token;
-    out.token = { ...meta };
-  }
-
   return out;
+}
+
+function normalizeAppointmentForRedis(appointment) {
+  return sanitizeAppointmentForClient(appointment);
 }
 
 function getPreferredZoneScheduleId(appointment) {
@@ -98,9 +139,8 @@ function hasBookingPayload(appointment) {
  */
 function buildTransitCreateBody(appointment, slot, fasahToken, userTypeFallback) {
   const zone_schedule_id = String(slot.zone_schedule_id);
-  const token = String(
-    fasahToken || appointment?.token?.token || appointment?.token || ''
-  ).replace(/^Bearer\s+/i, '');
+  const token = String(fasahToken || resolveFasahBearer(appointment) || '')
+    .replace(/^Bearer\s+/i, '');
   const userType = resolveUserType(appointment, userTypeFallback);
 
   if (appointment?.submitData && typeof appointment.submitData === 'object') {
@@ -164,9 +204,51 @@ function applyFailedState(appointment, message) {
   });
 }
 
+const MAX_BOOKING_ATTEMPTS = 3;
+
+function getBookingAttempts(appointment) {
+  const n = Number(appointment?.bookingAttempts);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}
+
+/** True while this row still needs a booking try (success or 3 failures ends it). */
+function needsBooking(appointment) {
+  if (!appointment || typeof appointment !== 'object') return false;
+  const status = String(appointment.status || 'pending').toLowerCase();
+  if (status === 'booked' || status === 'success' || status === 'cancelled') return false;
+  return getBookingAttempts(appointment) < MAX_BOOKING_ATTEMPTS;
+}
+
+/**
+ * Record a failed try; after MAX_BOOKING_ATTEMPTS mark status failed.
+ * @returns {{ record: object, isFinalFailure: boolean, attempts: number }}
+ */
+function applyBookingAttemptFailure(appointment, message) {
+  const prev = appointment || {};
+  const attempts = getBookingAttempts(prev) + 1;
+  const isFinalFailure = attempts >= MAX_BOOKING_ATTEMPTS;
+  const base = {
+    ...prev,
+    bookingAttempts: attempts,
+    lastError: message,
+    updatedAt: new Date().toISOString()
+  };
+  const record = isFinalFailure
+    ? applyFailedState(base, message)
+    : sanitizeAppointmentForClient({ ...base, status: 'pending' });
+  return { record, isFinalFailure, attempts };
+}
+
 module.exports = {
+  MAX_BOOKING_ATTEMPTS,
+  getBookingAttempts,
+  needsBooking,
+  applyBookingAttemptFailure,
   appointmentKey,
   sanitizeAppointmentForClient,
+  normalizeAppointmentForRedis,
+  resolveFasahBearer,
+  normalizeTokenBlock,
   stripSubmitDataSecrets,
   getPreferredZoneScheduleId,
   hasBookingPayload,

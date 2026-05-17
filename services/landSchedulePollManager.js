@@ -7,7 +7,8 @@
 const FasahClient = require('./fasahClient');
 const { hasUsableLandSchedules } = require('./landSchedulePollUtils');
 const { extractLandSchedules } = require('./landScheduleExtract');
-const { runAutoTransitBookForUser } = require('./autoTransitBookingService');
+const { runAutoTransitBookForAllUsersWithPending } = require('./autoTransitBookingService');
+const { hasUnresolvedBookingsGlobally } = require('./scheduleAppointmentsService');
 const { roomForUserId } = require('./socketAuth');
 
 const fasahClient = new FasahClient();
@@ -275,6 +276,7 @@ async function runPollLoop(userId) {
             autoBook: entry.autoBook !== false
           });
 
+          if (entry.autoBook !== false) {
             try {
               console.log('[poll] auto-book starting', uid);
               await triggerAutoBookAfterSchedules(uid, data, paramsBase, entry);
@@ -286,10 +288,32 @@ async function runPollLoop(userId) {
                 message: err.message || String(err)
               });
             }
-        
 
-          stopUserPoll(uid, 'schedules_found');
-          break;
+            const unresolved = await hasUnresolvedBookingsGlobally();
+            if (!unresolved.hasUnresolved) {
+              console.log('[poll] all bookings resolved — stopping', uid);
+              stopUserPoll(uid, 'all_bookings_resolved');
+              break;
+            }
+
+            console.log('[poll] schedules found but queue still open — keep polling', {
+              userId: uid,
+              unresolvedCount: unresolved.unresolvedCount,
+              userIds: unresolved.userIds
+            });
+            emitPoll(uid, 'fasah:land-schedule:poll:tick', {
+              at: new Date().toISOString(),
+              requestNumber,
+              maxRequests,
+              hasSchedules: true,
+              stillPolling: true,
+              bookingsPending: true,
+              unresolvedCount: unresolved.unresolvedCount
+            });
+          } else {
+            stopUserPoll(uid, 'schedules_found');
+            break;
+          }
         }
       } catch (err) {
         console.log('[poll] request error, continuing', uid, requestNumber, err.message || err);
@@ -339,36 +363,43 @@ async function triggerAutoBookAfterSchedules(userId, landScheduleData, paramsBas
     headerMsg
   });
 
-  const summary = await runAutoTransitBookForUser(userId, {
+  const summary = await runAutoTransitBookForAllUsersWithPending({
     landScheduleData,
     fasahToken: paramsBase.token,
     userType: paramsBase.userType,
     onProgress: (progress) => {
-      emitPoll(userId, 'fasah:land-schedule:auto-book:progress', {
+      const targetUserId = progress.userId || userId;
+      emitPoll(targetUserId, 'fasah:land-schedule:auto-book:progress', {
         at: new Date().toISOString(),
         ...progress
       });
     },
     onBooked: (payload) => {
-      emitPoll(userId, 'schedule:appointment:booked', {
+      const targetUserId = payload.userId || userId;
+      emitPoll(targetUserId, 'schedule:appointment:booked', {
         success: true,
         ...payload
       });
     },
     onFailed: (payload) => {
-      emitPoll(userId, 'schedule:appointment:failed', {
+      const targetUserId = payload.userId || userId;
+      emitPoll(targetUserId, 'schedule:appointment:failed', {
         success: false,
         ...payload
       });
     }
   });
 
+  const unresolved = await hasUnresolvedBookingsGlobally();
   console.log('[poll] auto-book summary', userId, {
     ok: summary.ok,
     message: summary.message,
+    userCount: summary.userIds?.length ?? 1,
     booked: summary.booked?.length ?? 0,
     failed: summary.failed?.length ?? 0,
-    skipped: summary.skipped?.length ?? 0
+    retried: summary.retried?.length ?? 0,
+    skipped: summary.skipped?.length ?? 0,
+    unresolvedCount: unresolved.unresolvedCount
   });
 
   emitPoll(userId, 'fasah:land-schedule:auto-book:done', {
@@ -415,7 +446,7 @@ function startUserPoll(userId, payload) {
   const { departure, arrival, type, token, userType, economicOperator } = payload || {};
 
   if (!departure || !arrival || !type || !token) {
-    return { ok: false, status: 400, message: 'Missing required fields' };
+    return { ok: false, status: 400, message: 'Missing required fields' + (!departure ? ' departure' : '') + (!arrival ? ' arrival' : '') + (!type ? ' type' : '') + (!token ? ' token' : '') + (!userType ? ' userType' : '')};
   }
 
   const paramsBase = {

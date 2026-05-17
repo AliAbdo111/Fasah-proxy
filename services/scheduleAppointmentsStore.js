@@ -83,7 +83,8 @@ function mergeAppointments(existingParsed, incomingPayload) {
   for (const key of savedKeys) {
     if (byId.has(key)) saved.push(byId.get(key));
   }
-
+  console.log('[mergeAppointments] appointments', appointments);
+  console.log('[mergeAppointments] saved', saved);
   return { appointments, count: appointments.length, saved };
 }
 

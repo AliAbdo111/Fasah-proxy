@@ -815,7 +815,7 @@ async getVerifiedTrucks(params) {
  * @returns {Promise<Object>} نتيجة إنشاء الموعد
  */
 async createTransitAppointment(params) {
-  console.log('[fasahClient] createTransitAppointment', params);
+  console.log('[fasahClient] createTransitAppointment provider called with params', params);
   try {
     const {
       port_code,
@@ -828,7 +828,6 @@ async createTransitAppointment(params) {
       token,
       userType = 'broker'
     } = params;
-    console.log('[fasahClient] createTransitAppointment', );
     // التحقق من المعاملات المطلوبة
     const requiredParams = ['port_code', 'zone_schedule_id', 'purpose', 'declaration_number', 'fleet_info'];
     const missingParams = requiredParams.filter(param => !params[param]);

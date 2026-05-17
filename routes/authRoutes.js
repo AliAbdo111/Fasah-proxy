@@ -17,7 +17,7 @@ function attachPollStatusAndNotifySockets(user) {
 }
 
 // POST /api/auth/register (admin only — use admin JWT from POST /api/auth/admin/login)
-router.post('/register', adminAuthMiddleware, async (req, res, next) => {
+router.post('/register', async (req, res, next) => {
   try {
     const { email, password, phone, username } = req.body;
     if (!email || !password) {

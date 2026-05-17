@@ -1,6 +1,72 @@
 const { getRedis } = require('./redisClient');
 const { parseStored, redisKeyForUser } = require('./scheduleAppointmentsStore');
+const { needsBooking } = require('./appointmentBookingShape');
 const User = require('../routes/models/User');
+
+/** @deprecated use needsBooking */
+function isPendingAppointment(apt) {
+  return needsBooking(apt);
+}
+
+async function scanAllAppointmentStores() {
+  const redis = getRedis();
+  if (!redis) {
+    return [];
+  }
+
+  const pattern = 'fasah:user:*:schedule-appointments';
+  const stores = [];
+  let cursor = '0';
+
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+    cursor = next;
+
+    for (const key of keys) {
+      const m = /^fasah:user:(.+):schedule-appointments$/.exec(key);
+      if (!m) continue;
+      const raw = await redis.get(key);
+      if (raw == null) continue;
+      const parsed = parseStored(raw);
+      const appointments = Array.isArray(parsed?.appointments) ? parsed.appointments : [];
+      stores.push({ userId: m[1], appointments });
+    }
+  } while (cursor !== '0');
+
+  return stores;
+}
+
+/** Mongo user ids with at least one appointment that still needs booking. */
+async function listUserIdsWithPendingAppointments() {
+  const stores = await scanAllAppointmentStores();
+  return stores
+    .filter((s) => s.appointments.some(needsBooking))
+    .map((s) => s.userId);
+}
+
+/**
+ * Poll stops only when every queued appointment is booked or failed 3 times.
+ * @returns {Promise<{ hasUnresolved: boolean, unresolvedCount: number, userIds: string[] }>}
+ */
+async function hasUnresolvedBookingsGlobally() {
+  const stores = await scanAllAppointmentStores();
+  let unresolvedCount = 0;
+  const userIds = [];
+
+  for (const { userId, appointments } of stores) {
+    const n = appointments.filter(needsBooking).length;
+    if (n > 0) {
+      unresolvedCount += n;
+      userIds.push(userId);
+    }
+  }
+
+  return {
+    hasUnresolved: unresolvedCount > 0,
+    unresolvedCount,
+    userIds
+  };
+}
 
 /**
  * Load merged appointment list for a Mongo user id.
@@ -109,5 +175,9 @@ async function resolveAppointmentsTarget(socket, payload) {
 
 module.exports = {
   loadAppointmentsForUser,
-  resolveAppointmentsTarget
+  resolveAppointmentsTarget,
+  listUserIdsWithPendingAppointments,
+  hasUnresolvedBookingsGlobally,
+  isPendingAppointment,
+  needsBooking
 };
