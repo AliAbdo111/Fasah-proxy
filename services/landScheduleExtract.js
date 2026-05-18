@@ -40,24 +40,36 @@ const { getPreferredZoneScheduleId } = require('./appointmentBookingShape');
 /** Pick slot for one stored appointment (preferred zone_schedule_id or first bookable). */
 function pickSlotForAppointment(schedules, appointment) {
   const list = Array.isArray(schedules) ? schedules : [];
-  console.log('[landScheduleExtract] pickSlotForAppointment', {
-    schedules: list.length,
-    appointment
-  });
   const preferredId = getPreferredZoneScheduleId(appointment);
-  console.log('[landScheduleExtract] preferredId', preferredId);
+
   if (preferredId) {
-    const match =  list[preferredId]?.zone_schedule_id 
-    console.log('[landScheduleExtract] match', match);
+    const match = list.find(
+      (s) => String(s.zone_schedule_id) === preferredId && isBookableSlot(s)
+    );
     if (match) return match;
   }
 
-  console.log('[landScheduleExtract] no match, returning first bookable');
-  return list[Math.floor(Math.random() * list.length)]?.zone_schedule_id;
+  return list.find((s) => isBookableSlot(s)) || null;
+}
+
+/** Bookable slots only → unique zone_schedule_id strings. */
+function extractBookableZoneScheduleIds(data) {
+  const { schedules } = extractLandSchedules(data);
+  const ids = [];
+  const seen = new Set();
+  for (const slot of schedules) {
+    if (!isBookableSlot(slot)) continue;
+    const id = String(slot.zone_schedule_id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
 }
 
 module.exports = {
   extractLandSchedules,
+  extractBookableZoneScheduleIds,
   isBookableSlot,
   pickSlotForAppointment
 };

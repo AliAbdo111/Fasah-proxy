@@ -282,7 +282,7 @@
           <label>maxRequests<input id="maxRequests" type="number" value="200" min="1" max="200" /></label>
         </div>
         <p class="hint">Poll <strong>auto-books by default</strong> when schedules are found (server-side). Uncheck only to disable for testing.</p>
-        <label><input type="checkbox" id="pollAutoBook" checked /> autoBook when schedules found (default on)</label>
+        <label><input type="checkbox" id="pollAutoBook" /> server autoBook (default off — use poll:data on frontend)</label>
         <div class="row">
           <button type="button" id="btnPollStart" disabled>poll:start</button>
           <button type="button" id="btnPollStop" class="danger" disabled>poll:stop</button>
@@ -394,6 +394,7 @@
         'schedule:appointments:saved', 'schedule:appointments:deleted', 'schedule:appointments:error', 'schedule:appointments:data',
         'schedule:appointment:booked', 'schedule:appointment:failed',
         'fasah:land-schedule:poll:started', 'fasah:land-schedule:poll:progress', 'fasah:land-schedule:poll:tick',
+        'fasah:land-schedule:poll:data',
         'fasah:land-schedule:poll:error', 'fasah:land-schedule:poll:stopped', 'fasah:land-schedule:poll:status',
         'fasah:land-schedule:auto-book:started', 'fasah:land-schedule:auto-book:progress',
         'fasah:land-schedule:auto-book:done', 'fasah:land-schedule:auto-book:error',
@@ -825,8 +826,8 @@
           intervalMs: Number($('intervalMs').value) || 3000,
           maxRequests: Number($('maxRequests').value) || 200
         };
-        if (!$('pollAutoBook').checked) {
-          p.autoBook = false;
+        if ($('pollAutoBook').checked) {
+          p.autoBook = true;
         }
         return p;
       }

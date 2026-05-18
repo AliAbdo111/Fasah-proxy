@@ -6,7 +6,10 @@
 
 const FasahClient = require('./fasahClient');
 const { hasUsableLandSchedules } = require('./landSchedulePollUtils');
-const { extractLandSchedules } = require('./landScheduleExtract');
+const {
+  extractLandSchedules,
+  extractBookableZoneScheduleIds
+} = require('./landScheduleExtract');
 const { runAutoTransitBookForAllUsersWithPending } = require('./autoTransitBookingService');
 const { hasUnresolvedBookingsGlobally } = require('./scheduleAppointmentsService');
 const { roomForUserId } = require('./socketAuth');
@@ -259,24 +262,36 @@ async function runPollLoop(userId) {
           console.log('[poll] no schedules (FASAH success:false), continuing', requestNumber);
         }
 
+        const bookableIds = hasSchedules ? extractBookableZoneScheduleIds(data) : [];
+
         emitPoll(uid, 'fasah:land-schedule:poll:tick', {
           at: new Date().toISOString(),
           requestNumber,
           maxRequests,
-          hasSchedules,
+          hasSchedules: bookableIds.length > 0,
+          scheduleCount: bookableIds.length,
           stillPolling: true,
-          durationMs: Date.now() - t0,
-          data
+          durationMs: Date.now() - t0
         });
 
-        if (hasSchedules) {
-          const { schedules } = extractLandSchedules(data);
-          console.log('[poll] schedules found', uid, {
-            scheduleCount: schedules.length,
-            autoBook: entry.autoBook !== false
+        if (bookableIds.length > 0) {
+          const { headerMsg } = extractLandSchedules(data);
+
+          emitPoll(uid, 'fasah:land-schedule:poll:data', {
+            at: new Date().toISOString(),
+            requestNumber,
+            maxRequests,
+            schedules: bookableIds,
+            count: bookableIds.length,
+            headerMsg: headerMsg || ''
           });
 
-          if (entry.autoBook !== false) {
+          console.log('[poll] schedules found', uid, {
+            scheduleCount: bookableIds.length,
+            autoBook: entry.autoBook === true
+          });
+
+          if (entry.autoBook === true) {
             try {
               console.log('[poll] auto-book starting', uid);
               await triggerAutoBookAfterSchedules(uid, data, paramsBase, entry);
@@ -314,6 +329,8 @@ async function runPollLoop(userId) {
             stopUserPoll(uid, 'schedules_found');
             break;
           }
+        } else if (hasSchedules && bookableIds.length === 0) {
+          console.log('[poll] raw schedules but none bookable after filter', uid, requestNumber);
         }
       } catch (err) {
         console.log('[poll] request error, continuing', uid, requestNumber, err.message || err);
@@ -466,7 +483,8 @@ function startUserPoll(userId, payload) {
     maxRequests,
     intervalMs,
     paramsBase,
-    autoBook: payload?.autoBook !== false,
+    /** Server auto-book only when explicitly true; default = push poll:data to frontend. */
+    autoBook: payload?.autoBook === true,
     timer: null,
     waitResolve: null,
     startedAt: new Date().toISOString()

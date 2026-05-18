@@ -3,9 +3,9 @@
  *
  * 1) schedule:appointments:save | get | delete — Redis per user; admin get via userId/email
  *
- * 2) fasah:land-schedule:poll:start — one loop system-wide; 429 if another user is polling
- *    Requires app JWT (socket:identify). Auto-books pending queue when schedules found (default).
- *    Events go to all sockets in user:<userId>.
+ * 2) fasah:land-schedule:poll:start | poll:stop — fetch land schedules (autoBook off by default).
+ *    On bookable slots: fasah:land-schedule:poll:data { schedules: zone_schedule_id[] }.
+ *    Server auto-book only if poll:start includes autoBook: true.
  *
  * 3) fasah:land-schedule:poll:stop | poll:close — stop this user's poll
  * 4) fasah:land-schedule:poll:status — auto-emitted on connect (with JWT) + after socket:identify
