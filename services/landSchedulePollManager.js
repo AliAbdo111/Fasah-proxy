@@ -325,9 +325,6 @@ async function runPollLoop(userId) {
               bookingsPending: true,
               unresolvedCount: unresolved.unresolvedCount
             });
-          } else {
-            stopUserPoll(uid, 'schedules_found');
-            break;
           }
         } else if (hasSchedules && bookableIds.length === 0) {
           console.log('[poll] raw schedules but none bookable after filter', uid, requestNumber);
