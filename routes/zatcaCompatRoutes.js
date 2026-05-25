@@ -251,6 +251,52 @@ router.get('/zone/schedule/land/server-five', async (req, res) => {
  }
 });
 
+router.get('/zone/schedule/land/server-six', async (req, res) => {
+  try {
+    const { finalDest = 31, type='TRANSIT', userType } = req.query;
+ 
+    const token =
+      req.headers['x-fasah-token'] ||
+      req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+      req.headers['token']?.replace(/^Bearer\s+/i, '');
+ 
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token is required. Provide token via x-fasah-token, token, or Authorization header.',
+        error: 'Missing authentication token'
+      });
+    }
+ 
+    const result = await client.getLandSchedule({
+      finalDest,
+      type,
+      token,
+      userType: userType || 'broker',
+      proxyContext: req.user
+    });
+ 
+    if (result?.success === false && result.errors) {
+      return res.status(200).json({
+        success: false,
+        data: result
+      });
+    }
+ 
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to retrieve schedule',
+      ...(error.data && { details: error.data })
+    });
+  }
+ });
+
 // Import schedule presets (defaults: departure 31, arrival AGF)
 router.get('/zone/schedule/land/import-server-one', async (req, res) => {
   try {

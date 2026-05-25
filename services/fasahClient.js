@@ -636,6 +636,78 @@ class FasahClient {
     }
   }
 
+  async getLandScheduleSix(params) {
+    try {
+      const { finalDest = 31, type='TRANSIT', userType = 'broker', token } = params;
+
+      // Validate required parameters
+      if (!finalDest || !type) {
+        throw new Error('Missing required parameters: finalDest and type are required');
+      }
+
+      if (!token) {
+        throw new Error('Authentication token is required');
+      }
+
+      // Select base URL based on user type
+      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+      const url = `${baseUrl}${this.apiPath}/zone/schedule/land`;
+
+      // Build query parameters
+      const queryParams = {
+          finalDest,
+          type
+      };
+
+      // Prepare headers
+      const headers = {
+        'Accept': 'application/json',
+        'Accept-Language': 'ar',
+        'Content-Type': 'application/json; charset=utf-8',
+        'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
+      };
+      console.log('headers', headers);
+
+      const axiosConfig = {
+        params: queryParams,
+        headers,
+        timeout: 30000,
+        validateStatus: function (status) {
+          return status >= 200 && status < 500;
+        }
+      };
+
+      if (this.shouldUseProxy()) {
+        const proxy = this.resolvePlatformProxy(params);
+        if (proxy) {
+          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
+          console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
+        }
+        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        try {
+          const response = await axios.get(url, axiosConfig);
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          console.log('[fasahClient] getLandSchedule response', response.data);
+          console.log('[fasahClient] getLandSchedule status text', response.status);
+          return response.data;
+        } catch (err) {
+          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          throw err;
+        }
+      }
+      
+
+      const response = await axios.get(url, axiosConfig);
+      return response.data;
+
+    } catch (error) {
+      console.log(error);
+      this.handleError(error);
+    }
+  }
   /**
    * GET /api/zatca-fleet/v1/lookup/resident/countries
    * @param {Object} params
