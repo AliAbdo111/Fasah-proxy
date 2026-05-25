@@ -268,7 +268,7 @@ router.get('/zone/schedule/land/server-six', async (req, res) => {
       });
     }
  
-    const result = await client.getLandSchedule({
+    const result = await client.getLandScheduleSix({
       finalDest,
       type,
       token,
