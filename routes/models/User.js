@@ -100,6 +100,12 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  /** Successful exit_transit appointments today (type=exit_transit on transit/create) */
+  exitTransitBookingCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   /** Successful land/import appointments today */
   importBookingCount: {
     type: Number,
@@ -113,6 +119,12 @@ const userSchema = new mongoose.Schema({
   },
   /** Successful transit appointments in current UTC month */
   totalMonthlyTransitBookingCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  /** Successful exit_transit appointments in current month */
+  totalMonthlyExitTransitBookingCount: {
     type: Number,
     default: 0,
     min: 0

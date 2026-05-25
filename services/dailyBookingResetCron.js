@@ -4,7 +4,7 @@ const bookingDailyLimits = require('./bookingDailyLimits');
 let job = null;
 
 /**
- * Every day at 00:00 — reset transitBookingCount + importBookingCount for all users.
+ * Every day at 00:00 — reset transitBookingCount + exitTransitBookingCount + importBookingCount for all users.
  * Midnight uses BOOKING_DAY_TIMEZONE, BOOKING_DAILY_RESET_TZ, or default Africa/Cairo (same as bookingDailyLimits).
  * Disable: BOOKING_DAILY_RESET_ENABLED=false
  */

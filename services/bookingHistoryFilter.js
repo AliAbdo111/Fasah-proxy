@@ -1,4 +1,4 @@
-const KIND_VALUES = ['transit', 'import', 'other'];
+  const KIND_VALUES = ['transit', 'exit_transit', 'import', 'other'];
 const CONSUMPTION_VALUES = ['daily', 'monthly', 'paid_extra', 'open'];
 
 function parseDayStart(isoDate) {

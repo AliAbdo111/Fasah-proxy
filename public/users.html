@@ -162,6 +162,7 @@
           <select id="bhKind">
             <option value="">All</option>
             <option value="transit">transit</option>
+            <option value="exit_transit">exit_transit</option>
             <option value="import">import</option>
             <option value="other">other</option>
           </select>
@@ -575,13 +576,13 @@
               <td>${u.isActive ? 'Yes' : 'No'}</td>
               <td>${esc(u.role === 'admin' ? 'admin' : 'user')}</td>
               <td>${u.bookingCount || 0}</td>
-              <td>Transit: ${u.transitBookingCount || 0} / Import: ${u.importBookingCount || 0} / Sum: ${u.totalDailyBookings || 0}</td>
+              <td>Transit: ${u.transitBookingCount || 0} / Exit: ${u.exitTransitBookingCount || 0} / Import: ${u.importBookingCount || 0} / Sum: ${u.totalDailyBookings || 0}</td>
               <td>${esc(u.planType || 'limited')}${u.dailyLimitEnabled ? ' (daily on)' : ''}</td>
               <td class="muted" style="font-size:12px">${esc(formatPackageSummary(u))}</td>
               <td>${u.totalMonthlyBookings || 0} / ${u.maxMonthlyBookings || 0}</td>
               <td>${u.allowPaidExtra ? 'Yes (' + (u.extraBookingPrice || 0) + ')' : 'No'} / Used: ${u.paidExtraBookingsCount || 0}</td>
               <td>Transit: ${u.maxTransitBookingCount || 0} / Import: ${u.maxImportBookingCount || 0}</td>
-              <td>Transit: ${u.totalMonthlyTransitBookingCount || 0} / Import: ${u.totalMonthlyImportBookingCount || 0}</td>
+              <td>Transit: ${u.totalMonthlyTransitBookingCount || 0} / Exit: ${u.totalMonthlyExitTransitBookingCount || 0} / Import: ${u.totalMonthlyImportBookingCount || 0}</td>
               <td>${chips}</td>
             </tr>
           `);

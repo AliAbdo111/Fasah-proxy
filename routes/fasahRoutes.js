@@ -247,7 +247,8 @@ router.post('/appointment/transit/create', async (req, res) => {
       fleet_info,
       bayan_appointment = {},
       declaration_number,
-      userType = 'broker'
+      userType = 'broker',
+      type = null
     } = req.body;
     
     // الحصول على رمز المصادقة من الهيدرات

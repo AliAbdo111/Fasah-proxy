@@ -15,7 +15,7 @@ const bookingHistorySchema = new mongoose.Schema(
     },
     kind: {
       type: String,
-      enum: ['transit', 'import', 'other'],
+      enum: ['transit', 'exit_transit', 'import', 'other'],
       default: 'other',
       index: true
     },

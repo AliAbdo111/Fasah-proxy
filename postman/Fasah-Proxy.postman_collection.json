@@ -446,7 +446,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"port_code\": \"\",\n  \"zone_schedule_id\": \"\",\n  \"purpose\": \"\",\n  \"cargo_type\": \"\",\n  \"declaration_number\": \"\",\n  \"fleet_info\": {},\n  \"bayan_appointment\": {},\n  \"userType\": \"broker\"\n}"
+              "raw": "{\n  \"port_code\": \"\",\n  \"zone_schedule_id\": \"\",\n  \"purpose\": \"\",\n  \"cargo_type\": \"\",\n  \"declaration_number\": \"\",\n  \"fleet_info\": {},\n  \"bayan_appointment\": {},\n  \"userType\": \"broker\",\n  \"type\": \"exit_transit\"\n}"
             },
             "url": "{{base_url}}/api/fasah/appointment/transit/create"
           }

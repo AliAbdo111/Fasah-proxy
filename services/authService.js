@@ -464,8 +464,10 @@ async function resetBookingCount(userId) {
       $set: {
         bookingCount: 0,
         transitBookingCount: 0,
+        exitTransitBookingCount: 0,
         importBookingCount: 0,
         totalMonthlyTransitBookingCount: 0,
+        totalMonthlyExitTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
         paidExtraBookingsCount: 0,
         paidExtraAmount: 0,
@@ -475,7 +477,7 @@ async function resetBookingCount(userId) {
     },
     { new: true }
   ).select(
-    'email role bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount proxyEnabled proxies'
+    'email role bookingCount transitBookingCount exitTransitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyExitTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount proxyEnabled proxies'
   );
   if (!user) throw { status: 404, message: 'User not found' };
   return {
@@ -495,8 +497,10 @@ async function resetAllBookingCounts() {
       $set: {
         bookingCount: 0,
         transitBookingCount: 0,
+        exitTransitBookingCount: 0,
         importBookingCount: 0,
         totalMonthlyTransitBookingCount: 0,
+        totalMonthlyExitTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
         paidExtraBookingsCount: 0,
         paidExtraAmount: 0,

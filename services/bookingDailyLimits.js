@@ -13,6 +13,14 @@ const CONSUMPTION_MONTHLY = 'monthly';
 const CONSUMPTION_PAID_EXTRA = 'paid_extra';
 const CONSUMPTION_OPEN = 'open';
 
+const TRANSIT_KIND_STANDARD = 'transit';
+const TRANSIT_KIND_EXIT = 'exit_transit';
+
+function normalizeTransitBookingKind(type) {
+  const t = String(type || '').trim().toLowerCase();
+  return t === TRANSIT_KIND_EXIT ? TRANSIT_KIND_EXIT : TRANSIT_KIND_STANDARD;
+}
+
 function bookingDayTimezone() {
   return process.env.BOOKING_DAY_TIMEZONE || process.env.BOOKING_DAILY_RESET_TZ || 'Africa/Cairo';
 }
@@ -66,11 +74,19 @@ function normalizePlanType(user) {
 }
 
 function totalDailyBookings(user) {
-  return (user.transitBookingCount || 0) + (user.importBookingCount || 0);
+  return (
+    (user.transitBookingCount || 0) +
+    (user.exitTransitBookingCount || 0) +
+    (user.importBookingCount || 0)
+  );
 }
 
 function totalMonthlyBookings(user) {
-  return (user.totalMonthlyTransitBookingCount || 0) + (user.totalMonthlyImportBookingCount || 0);
+  return (
+    (user.totalMonthlyTransitBookingCount || 0) +
+    (user.totalMonthlyExitTransitBookingCount || 0) +
+    (user.totalMonthlyImportBookingCount || 0)
+  );
 }
 
 function effectiveMaxDaily(user) {
@@ -104,6 +120,7 @@ async function syncUserBookingDay(userId) {
     {
       $set: {
         transitBookingCount: 0,
+        exitTransitBookingCount: 0,
         importBookingCount: 0,
         lastBookingCountDay: today
       }
@@ -122,6 +139,7 @@ async function syncUserBookingDay(userId) {
     {
       $set: {
         totalMonthlyTransitBookingCount: 0,
+        totalMonthlyExitTransitBookingCount: 0,
         totalMonthlyImportBookingCount: 0,
         paidExtraBookingsCount: 0,
         paidExtraAmount: 0,
@@ -148,8 +166,10 @@ function bookingStatsPayload(user) {
   return {
     bookingCount: user.bookingCount || 0,
     transitBookingCount: user.transitBookingCount || 0,
+    exitTransitBookingCount: user.exitTransitBookingCount || 0,
     importBookingCount: user.importBookingCount || 0,
     totalMonthlyTransitBookingCount: user.totalMonthlyTransitBookingCount || 0,
+    totalMonthlyExitTransitBookingCount: user.totalMonthlyExitTransitBookingCount || 0,
     totalMonthlyImportBookingCount: user.totalMonthlyImportBookingCount || 0,
     totalDailyBookings: totalDailyBookings(user),
     totalMonthlyBookings: totalMonthlyBookings(user),
@@ -175,7 +195,7 @@ function bookingStatsPayload(user) {
 async function loadUserBookingState(userId) {
   await syncUserBookingDay(userId);
   return User.findById(userId).select(
-    'transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount bookingCount features lastBookingCountDay lastBookingCountMonth planType dailyLimitEnabled allowPaidExtra extraBookingPrice maxDailyBookings maxMonthlyBookings paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt'
+    'transitBookingCount exitTransitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyExitTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount bookingCount features lastBookingCountDay lastBookingCountMonth planType dailyLimitEnabled allowPaidExtra extraBookingPrice maxDailyBookings maxMonthlyBookings paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt'
   );
 }
 
@@ -258,7 +278,10 @@ async function assertCanImportBook(userId) {
 async function recordBookingSuccess(userId, kind, decision) {
   await syncUserBookingDay(userId);
   const inc = { bookingCount: 1 };
-  if (kind === 'transit') {
+  if (kind === TRANSIT_KIND_EXIT) {
+    inc.exitTransitBookingCount = 1;
+    inc.totalMonthlyExitTransitBookingCount = 1;
+  } else if (kind === 'transit') {
     inc.transitBookingCount = 1;
     inc.totalMonthlyTransitBookingCount = 1;
   } else {
@@ -272,8 +295,9 @@ async function recordBookingSuccess(userId, kind, decision) {
   await User.findByIdAndUpdate(userId, { $inc: inc });
 }
 
-async function recordTransitBookingSuccess(userId, decision) {
-  return recordBookingSuccess(userId, 'transit', decision);
+async function recordTransitBookingSuccess(userId, decision, transitType) {
+  const kind = normalizeTransitBookingKind(transitType);
+  return recordBookingSuccess(userId, kind, decision);
 }
 
 async function recordImportBookingSuccess(userId, decision) {
@@ -284,7 +308,14 @@ async function resetAllUsersDailyBookingCounters() {
   const today = bookingDayYmd();
   const res = await User.updateMany(
     {},
-    { $set: { transitBookingCount: 0, importBookingCount: 0, lastBookingCountDay: today } }
+    {
+      $set: {
+        transitBookingCount: 0,
+        exitTransitBookingCount: 0,
+        importBookingCount: 0,
+        lastBookingCountDay: today
+      }
+    }
   );
   return {
     matched: res.matchedCount ?? res.n ?? 0,
@@ -294,6 +325,9 @@ async function resetAllUsersDailyBookingCounters() {
 }
 
 module.exports = {
+  TRANSIT_KIND_STANDARD,
+  TRANSIT_KIND_EXIT,
+  normalizeTransitBookingKind,
   FEATURE_TRANSIT_BOOKING,
   FEATURE_IMPORT_BOOKING,
   DEFAULT_USER_FEATURES,
