@@ -310,7 +310,7 @@ router.post('/appointment/transit/create', async (req, res) => {
       await bookingHistoryService.logBooking({
         userId: req.user && req.user._id,
         endpoint: '/api/fasah/appointment/transit/create',
-        kind: 'transit',
+        kind: bookingDailyLimits.normalizeTransitBookingKind(type),
         success: false,
         httpStatus: 400,
         message: upstreamMessage,
@@ -328,13 +328,17 @@ router.post('/appointment/transit/create', async (req, res) => {
     }
 
     if (req.user && req.user._id) {
-      await bookingDailyLimits.recordTransitBookingSuccess(req.user._id, bookingDecision);
+      await bookingDailyLimits.recordTransitBookingSuccess(
+        req.user._id,
+        bookingDecision,
+        type
+      );
     }
 
     await bookingHistoryService.logBooking({
       userId: req.user && req.user._id,
       endpoint: '/api/fasah/appointment/transit/create',
-      kind: 'transit',
+      kind: bookingDailyLimits.normalizeTransitBookingKind(type),
       success: true,
       httpStatus: 200,
       message: 'Booking created',
@@ -356,7 +360,7 @@ router.post('/appointment/transit/create', async (req, res) => {
     await bookingHistoryService.logBooking({
       userId: req.user && req.user._id,
       endpoint: '/api/fasah/appointment/transit/create',
-      kind: 'transit',
+      kind: bookingDailyLimits.normalizeTransitBookingKind(req.body && req.body.type),
       success: false,
       httpStatus: status,
       message: error?.message || 'Booking error',
