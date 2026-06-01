@@ -4,6 +4,7 @@ const FasahClient = require('../services/fasahClient');
 const User = require('./models/User');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
+const loggerService = require('../services/loggerSerivce');
 
 // Initialize client
 const client = new FasahClient();
@@ -15,6 +16,34 @@ function extractTasBookRef(result) {
     result?.result?.validated?.[0]?.tasBookRef ||
     ''
   );
+}
+
+function extractFasahTokenFromRequest(req) {
+  const raw =
+    req.headers['x-fasah-token'] ||
+    req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+    req.headers['token']?.replace(/^Bearer\s+/i, '');
+  return raw ? String(raw).replace(/^Bearer\s+/i, '').trim() : '';
+}
+
+async function persistFasahTokenAndDeclarationLog(user, fasahToken, { decNo, arrivalPort, userType }, response) {
+  if (!user || !user._id) return;
+  const cleanToken = fasahToken ? String(fasahToken).replace(/^Bearer\s+/i, '').trim() : '';
+  if (cleanToken) {
+    await User.findByIdAndUpdate(user._id, {
+      $set: { fasahToken: cleanToken, fasahTokenUpdatedAt: new Date() }
+    });
+  }
+  await loggerService.createLogger({
+    message: 'GET /api/fasah/appointment/transit/getDeclarationInfo',
+    type: 'getDeclarationInfo_response',
+    data: {
+      userId: user._id,
+      email: user.email,
+      query: { decNo, arrivalPort, userType },
+      response
+    }
+  });
 }
 
 /**
@@ -189,12 +218,10 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
  * Query: decNo (required), arrivalPort (required), userType (optional, default broker)
  */
 router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
+  const { decNo, arrivalPort, userType: userTypeQ, usertype: usertypeQ } = req.query;
+  const userType = userTypeQ || usertypeQ || 'broker';
+  const token = extractFasahTokenFromRequest(req);
   try {
-    const { decNo, arrivalPort, userType: userTypeQ, usertype: usertypeQ } = req.query;
-    const userType = userTypeQ || usertypeQ || 'broker';
-    const token = req.headers['x-fasah-token'] ||
-                  req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
-                  req.headers['token']?.replace(/^Bearer\s+/i, '');
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -215,6 +242,20 @@ router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
       userType,
       proxyContext: req.user
     });
+
+    if (req.user && req.user._id) {
+      try {
+        await persistFasahTokenAndDeclarationLog(
+          req.user,
+          token,
+          { decNo, arrivalPort, userType },
+          result
+        );
+      } catch (persistErr) {
+        console.error('getDeclarationInfo persist/log failed:', persistErr);
+      }
+    }
+
     // Handle FASAH API returning success: false with errors (e.g. invalid declaration)
     if (result && result.success === false && result.errors && result.errors.length > 0) {
       const firstError = result.errors[0];
@@ -227,6 +268,18 @@ router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
     }
     res.json({ success: true, data: result });
   } catch (error) {
+    if (req.user && req.user._id) {
+      try {
+        await persistFasahTokenAndDeclarationLog(
+          req.user,
+          token,
+          { decNo, arrivalPort, userType },
+          { error: error.message || String(error), data: error.data || null }
+        );
+      } catch (persistErr) {
+        console.error('getDeclarationInfo persist/log failed:', persistErr);
+      }
+    }
     const status = error.status || 500;
     res.status(status).json({
       success: false,

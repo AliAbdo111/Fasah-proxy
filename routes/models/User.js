@@ -218,6 +218,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: null
   },
+  /** Latest FASAH upstream token (x-fasah-token / Authorization) from getDeclarationInfo. */
+  fasahToken: {
+    type: String,
+    default: '',
+    select: false
+  },
+  fasahTokenUpdatedAt: {
+    type: Date,
+    default: null
+  },
   /** Sequential proxy pool for this user (overrides platform list when non-empty). */
   proxies: {
     type: [
