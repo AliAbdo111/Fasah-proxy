@@ -439,7 +439,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
     User.find(filter)
       .select(
         'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt createdAt updatedAt'
-        + ' proxyEnabled proxies'
+        + ' proxyEnabled proxies +fasahToken fasahTokenUpdatedAt'
       )
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)

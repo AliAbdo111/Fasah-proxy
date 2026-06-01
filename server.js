@@ -15,6 +15,7 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const loggerService = require('./services/loggerSerivce');
+const adminAuthMiddleware = require('./middleware/adminAuthMiddleware');
 const path = require('path');
 // Middleware
 app.use(cors());
@@ -68,6 +69,23 @@ app.get('/schedule', async (req, res) => {
 app.get('/loggers', async (req, res) => {
   const loggers = await loggerService.getLoggers();
   res.json(loggers);
+});
+
+/** DELETE /loggers — remove all documents in the logger collection (admin only). */
+app.delete('/loggers', adminAuthMiddleware, async (req, res) => {
+  try {
+    const result = await loggerService.deleteAllLoggers();
+    res.json({
+      success: true,
+      message: 'All logger history deleted',
+      deletedCount: result.deletedCount
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to delete logger history'
+    });
+  }
 });
 const ScheduleCron = require('./services/scheduleCron'); // الجديد
 
