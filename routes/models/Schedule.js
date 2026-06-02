@@ -1,10 +1,17 @@
 const mongoose = require('mongoose');
 
-const scheduleSchema = new mongoose.Schema({
-scheduleData: { type: Object, required: true },
-createdAt: { type: Date, default: Date.now },
-updatedAt: { type: Date, default: Date.now },
-});
+const scheduleSchema = new mongoose.Schema(
+  {
+    departure: { type: String, index: true },
+    arrival: { type: String, index: true },
+    type: { type: String, index: true },
+    finalDest: { type: String },
+    economicOperator: { type: String },
+    userType: { type: String },
+    scheduleData: { type: Object, required: true },
+  },
+  { timestamps: true }
+);
 
 const Schedule = mongoose.model('Schedule', scheduleSchema);
 

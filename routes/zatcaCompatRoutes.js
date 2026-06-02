@@ -1,8 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
+const Schedule = require('./models/Schedule');
 
 const client = new FasahClient();
+
+/**
+ * Persist a fetched schedule into the Schedule collection.
+ * Never throws: a DB failure must not break the proxy response.
+ */
+async function persistSchedule(meta, result) {
+  try {
+    await Schedule.create({ ...meta, scheduleData: result });
+  } catch (err) {
+    console.error(`[Schedule] Failed to save schedule: ${err.message}`);
+  }
+}
 
 /**
  * GET /api/zatca-tas/v2/zone/schedule/land
@@ -37,6 +50,8 @@ router.get('/zone/schedule/land/server-one', async (req, res) => {
       userType: userType || 'broker',
       proxyContext: req.user
     });
+
+    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
 
     if (result?.success === false && result.errors) {
       return res.status(200).json({
@@ -86,6 +101,8 @@ router.get('/zone/schedule/land/server-two', async (req, res) => {
      proxyContext: req.user
    });
 
+   await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
+
    if (result?.success === false && result.errors) {
      return res.status(200).json({
        success: false,
@@ -134,6 +151,8 @@ router.get('/zone/schedule/land/server-three', async (req, res) => {
      proxyContext: req.user
    });
 
+   await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
+
    if (result?.success === false && result.errors) {
      return res.status(200).json({
        success: false,
@@ -153,7 +172,7 @@ router.get('/zone/schedule/land/server-three', async (req, res) => {
      ...(error.data && { details: error.data })
    });
  }
-});
+}); 
 
 router.get('/zone/schedule/land/server-four', async (req, res) => {
  try {
@@ -181,6 +200,8 @@ router.get('/zone/schedule/land/server-four', async (req, res) => {
      userType: userType || 'broker',
      proxyContext: req.user
    });
+
+   await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
 
    if (result?.success === false && result.errors) {
      return res.status(200).json({
@@ -230,6 +251,8 @@ router.get('/zone/schedule/land/server-five', async (req, res) => {
      proxyContext: req.user
    });
 
+   await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
+
    if (result?.success === false && result.errors) {
      return res.status(200).json({
        success: false,
@@ -275,6 +298,8 @@ router.get('/zone/schedule/land/server-six', async (req, res) => {
       userType: userType || 'broker',
       proxyContext: req.user
     });
+
+    await persistSchedule({ finalDest: String(finalDest), type, userType: userType || 'broker' }, result);
  
     if (result?.success === false && result.errors) {
       return res.status(200).json({
@@ -325,6 +350,8 @@ router.get('/zone/schedule/land/import-server-one', async (req, res) => {
       proxyContext: req.user
     });
 
+    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
+
     if (result?.success === false && result.errors) {
       return res.status(200).json({
         success: false,
@@ -373,6 +400,8 @@ router.get('/zone/schedule/land/import-server-two', async (req, res) => {
       proxyContext: req.user
     });
 
+    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
+
     if (result?.success === false && result.errors) {
       return res.status(200).json({
         success: false,
@@ -420,6 +449,8 @@ router.get('/zone/schedule/land/import-server-three', async (req, res) => {
       userType: userType || 'broker',
       proxyContext: req.user
     });
+
+    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
 
     if (result?.success === false && result.errors) {
       return res.status(200).json({
