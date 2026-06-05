@@ -27,20 +27,23 @@ const POLL_REQUEST_TIMEOUT_MS = Math.min(
 const pollsByUserId = new Map();
 
 function fetchLandScheduleForPoll(paramsBase) {
-  return Promise.race([
-    fasahClient.getLandSchedule(paramsBase),
-    new Promise((_, reject) => {
-      setTimeout(
-        () =>
-          reject(
-            new Error(
-              `FASAH request timeout after ${POLL_REQUEST_TIMEOUT_MS}ms (slow or dead proxy — poll continues)`
-            )
-          ),
-        POLL_REQUEST_TIMEOUT_MS
+  let timer;
+  const upstream = fasahClient.getLandSchedule(paramsBase);
+
+  // The race loser stays pending; swallow its late rejection (e.g. axios timeout)
+  // so a slow/dead proxy can't surface as a noisy unhandled error after we moved on.
+  upstream.catch(() => {});
+
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(
+        `[poll] FASAH request timeout after ${POLL_REQUEST_TIMEOUT_MS}ms (slow or dead proxy — poll continues)`
       );
-    })
-  ]);
+      resolve(null);
+    }, POLL_REQUEST_TIMEOUT_MS);
+  });
+
+  return Promise.race([upstream, timeout]).finally(() => clearTimeout(timer));
 }
 
 function getPoll(userId) {
