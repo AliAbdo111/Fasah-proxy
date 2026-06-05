@@ -11,7 +11,8 @@ const client = new FasahClient();
  */
 async function persistSchedule(meta, result) {
   try {
-    await Schedule.create({ ...meta, scheduleData: result });
+    // await Schedule.create({ ...meta, scheduleData: result });
+    
   } catch (err) {
     console.error(`[Schedule] Failed to save schedule: ${err.message}`);
   }
