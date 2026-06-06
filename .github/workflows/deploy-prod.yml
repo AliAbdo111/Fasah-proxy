@@ -27,7 +27,7 @@ name: Deploy (prod)
 
 on:
   push:
-    branches: [main,dev-omar]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
