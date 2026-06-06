@@ -1,0 +1,98 @@
+# Deploy to the three production servers over SSH (user + password), then PM2 restart.
+#
+# Triggers: push to `main` (after you merge/push your release) and manual run.
+#
+# ── Required configuration (GitHub → Settings → Secrets and variables → Actions) ──
+#
+# Secrets:
+#   PROD_SSH_PASSWORD        Shared SSH password (used if a per-server one is not set)
+#   PROD_SSH_PASSWORD_1      (optional) password for 187.124.45.121
+#   PROD_SSH_PASSWORD_2      (optional) password for 187.124.50.4
+#   PROD_SSH_PASSWORD_3      (optional) password for 187.124.50.8
+#
+Variables:
+#   PROD_SSH_USER            SSH user (e.g. root)                       [default: root]
+  PROD_SSH_PORT            SSH port                                   [default: 22]
+  PROD_APP_PATH            App dir on server                          [default: /root/fasah-omar/Fasah-proxy]
+#   PROD_DEPLOY_BRANCH       Branch to deploy                          [default: main]
+  PROD_PM2_APP             PM2 process name                          [default: server]
+#   PROD_GIT_REMOTE_URL      (optional) force `origin` URL on server (e.g. the new repo)
+#
+# Notes:
+#   • Each server must already have the repo cloned at PROD_APP_PATH and be able to
+#     `git pull` the branch (deploy key / token), and have Node + PM2 installed.
+#   • `.env` lives on each server and is NOT touched by this workflow.
+
+name: Deploy (prod)
+
+on:
+  push:
+    branches: [main,dev-omar]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.server.name }} (${{ matrix.server.host }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        server:
+          - name: srv1736417
+            host: 187.124.45.121
+            password_secret: Aliomran@11  
+          - name: srv1736862
+            host: 187.124.50.4
+            password_secret: Aliomran@11
+          - name: srv1736867
+            host: 187.124.50.8
+            password_secret: Aliomran@11
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          PM2_APP: ${{ vars.PROD_PM2_APP || 'server' }}
+          DEPLOY_BRANCH: ${{ vars.PROD_DEPLOY_BRANCH || 'main' }}
+          APP_PATH_RAW: ${{ vars.PROD_APP_PATH || '/root/fasah-omar/Fasah-proxy' }}
+          GIT_REMOTE_URL: ${{ vars.PROD_GIT_REMOTE_URL }}
+        with:
+          host: ${{ matrix.server.host }}
+          username: ${{ vars.PROD_SSH_USER || 'root' }}
+          password: ${{ secrets[matrix.server.password_secret] || secrets.PROD_SSH_PASSWORD }}
+          port: ${{ vars.PROD_SSH_PORT || 22 }}
+          script_stop: true
+          envs: PM2_APP,DEPLOY_BRANCH,APP_PATH_RAW,GIT_REMOTE_URL
+          script: |
+            set -euo pipefail
+
+            APP_PATH="$APP_PATH_RAW"
+            case "$APP_PATH" in
+              /*) ;;
+              *) APP_PATH="/$APP_PATH" ;;
+            esac
+
+            echo "==> Deploying $DEPLOY_BRANCH to $APP_PATH"
+            cd "$APP_PATH"
+
+            if [ -n "${GIT_REMOTE_URL:-}" ]; then
+              echo "==> Setting origin to $GIT_REMOTE_URL"
+              git remote set-url origin "$GIT_REMOTE_URL"
+            fi
+
+            git fetch --all --prune
+            git checkout "$DEPLOY_BRANCH"
+            git reset --hard "origin/$DEPLOY_BRANCH"
+
+            echo "==> Installing dependencies"
+            npm ci --omit=dev
+
+            echo "==> Restarting PM2 app: $PM2_APP"
+            pm2 restart "$PM2_APP" --update-env || pm2 start server.js --name "$PM2_APP"
+            pm2 save
+
+            echo "==> Done on $(hostname)"
