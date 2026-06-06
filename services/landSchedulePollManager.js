@@ -98,6 +98,19 @@ function emitPoll(userId, event, data) {
   });
 }
 
+/**
+ * Broadcast a poll event to EVERY connected client, not just the poll owner.
+ * Used for schedule-availability events so all logged-in users are notified
+ * when appointments open (there is only one system-wide poll).
+ */
+function broadcastPollToAll(ownerUserId, event, data) {
+  const { emit } = require('./socketService');
+  emit(event, {
+    pollOwnerUserId: String(ownerUserId),
+    ...data
+  });
+}
+
 function stopUserPoll(userId, reason) {
   const uid = String(userId);
   const entry = pollsByUserId.get(uid);
@@ -267,7 +280,7 @@ async function runPollLoop(userId) {
 
         const bookableIds = hasSchedules ? extractBookableZoneScheduleIds(data) : [];
 
-        emitPoll(uid, 'fasah:land-schedule:poll:tick', {
+        broadcastPollToAll(uid, 'fasah:land-schedule:poll:tick', {
           at: new Date().toISOString(),
           requestNumber,
           maxRequests,
@@ -280,7 +293,7 @@ async function runPollLoop(userId) {
         if (bookableIds.length > 0) {
           const { headerMsg } = extractLandSchedules(data);
 
-          emitPoll(uid, 'fasah:land-schedule:poll:data', {
+          broadcastPollToAll(uid, 'fasah:land-schedule:poll:data', {
             at: new Date().toISOString(),
             requestNumber,
             maxRequests,
