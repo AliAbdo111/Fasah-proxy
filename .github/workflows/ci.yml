@@ -4,7 +4,7 @@
 #   ENABLE_SSH_DEPLOY   `true` to run deploy after CI on pushes to `dev-omar`.
 #   DEV_SSH_HOST        hostname or IP
 #   DEV_SSH_USER        SSH user (e.g. root)
-#   DEV_APP_PATH        app directory on server (leading / optional, e.g. /home/ubuntu/Fasah-proxy-omar)
+#   DEV_APP_PATH        app directory on server (leading / optional, e.g. /home/ubuntu/Fasah-proxy)
 #   DEV_PM2_APP         optional PM2 app name
 #
 # Repository secrets (Actions → Secrets) — preferred for password:
