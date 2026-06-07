@@ -85,6 +85,10 @@ const userSchema = new mongoose.Schema({
     },
     min: 0
   },
+  servers:{
+    getBaseUrl:String,
+    createBaseUrl:String
+  },
   bookingCount: {
     type: Number,
     default: 0
@@ -112,6 +116,7 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+
   /** Calendar month key (YYYY-MM) in booking timezone (see bookingDailyLimits). */
   lastBookingCountMonth: {
     type: String,

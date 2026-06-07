@@ -90,6 +90,7 @@ async function login(email, password) {
       emailVerified: refreshed.emailVerified,
       phoneVerified: refreshed.phoneVerified,
       isActive: refreshed.isActive,
+      servers:refreshed.servers,
       role: resolveRole(refreshed),
       ...bookingDailyLimits.bookingStatsPayload(refreshed)
     },
@@ -253,7 +254,8 @@ async function updateUser(userId, payload = {}) {
     packagePriceSar,
     subscriptionEndsAt,
     proxyEnabled,
-    proxies
+    proxies,
+    servers
   } = payload;
 
   const hasAnyField =
@@ -278,7 +280,8 @@ async function updateUser(userId, payload = {}) {
     packagePriceSar !== undefined ||
     subscriptionEndsAt !== undefined ||
     proxyEnabled !== undefined ||
-    proxies !== undefined;
+    proxies !== undefined ||
+    servers!==undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -291,7 +294,7 @@ async function updateUser(userId, payload = {}) {
     if (existingEmail) throw { status: 400, message: 'Email already registered' };
     user.email = normalizedEmail;
   }
-
+  if(servers!==undefined) user.servers = servers
   if (username !== undefined) {
     const normalizedUsername = String(username).trim();
     if (normalizedUsername) {
@@ -370,6 +373,7 @@ async function updateUser(userId, payload = {}) {
   if (packageName !== undefined) {
     user.packageName = String(packageName).trim();
   }
+  
   if (packagePriceSar !== undefined) {
     const n = Number(packagePriceSar);
     if (!Number.isFinite(n) || n < 0) throw { status: 400, message: 'packagePriceSar must be a non-negative number' };
@@ -418,6 +422,7 @@ async function updateUser(userId, payload = {}) {
       role: resolveRole(user),
       proxyEnabled: user.proxyEnabled,
       proxies: Array.isArray(user.proxies) ? user.proxies : [],
+      servers: user.servers,
       ...bookingDailyLimits.bookingStatsPayload(user)
     }
   };
@@ -438,7 +443,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
   const [items, total] = await Promise.all([
     User.find(filter)
       .select(
-        'email phone username role isActive bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt createdAt updatedAt'
+        'email phone username role isActive servers bookingCount transitBookingCount importBookingCount totalMonthlyTransitBookingCount totalMonthlyImportBookingCount maxTransitBookingCount maxImportBookingCount lastBookingCountDay lastBookingCountMonth features emailVerified phoneVerified planType dailyLimitEnabled maxDailyBookings maxMonthlyBookings allowPaidExtra extraBookingPrice paidExtraBookingsCount paidExtraAmount packageName packagePriceSar subscriptionEndsAt createdAt updatedAt'
         + ' proxyEnabled proxies +fasahToken fasahTokenUpdatedAt'
       )
       .sort({ createdAt: -1 })
