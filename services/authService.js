@@ -32,6 +32,26 @@ function generateResetToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function normalizeServers(servers) {
+  if (servers === undefined || servers === null) return undefined;
+  if (typeof servers !== 'object' || Array.isArray(servers)) {
+    throw { status: 400, message: 'servers must be an object' };
+  }
+  const out = {};
+  if (servers.getBaseUrl !== undefined) {
+    out.getBaseUrl = String(servers.getBaseUrl).trim();
+  }
+  if (servers.createBaseUrl !== undefined) {
+    const raw = servers.createBaseUrl;
+    if (raw !== null && !Array.isArray(raw) && typeof raw !== 'string') {
+      throw { status: 400, message: 'createBaseUrl must be an array of strings' };
+    }
+    const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    out.createBaseUrl = list.map((x) => String(x).trim()).filter(Boolean);
+  }
+  return out;
+}
+
 async function register({ email, password, phone, username }) {
   const orConditions = [{ email }];
   if (username && username.trim()) orConditions.push({ username: username.trim() });
@@ -90,7 +110,7 @@ async function login(email, password) {
       emailVerified: refreshed.emailVerified,
       phoneVerified: refreshed.phoneVerified,
       isActive: refreshed.isActive,
-      servers:refreshed.servers,
+      servers: normalizeServers(refreshed.servers) ?? refreshed.servers,
       role: resolveRole(refreshed),
       ...bookingDailyLimits.bookingStatsPayload(refreshed)
     },
@@ -281,7 +301,7 @@ async function updateUser(userId, payload = {}) {
     subscriptionEndsAt !== undefined ||
     proxyEnabled !== undefined ||
     proxies !== undefined ||
-    servers!==undefined;
+    servers !== undefined;
 
   if (!hasAnyField) {
     throw { status: 400, message: 'No fields provided to update' };
@@ -294,7 +314,15 @@ async function updateUser(userId, payload = {}) {
     if (existingEmail) throw { status: 400, message: 'Email already registered' };
     user.email = normalizedEmail;
   }
-  if(servers!==undefined) user.servers = servers
+  if (servers !== undefined) {
+    const normalized = normalizeServers(servers);
+    user.servers = {
+      ...(user.servers && typeof user.servers.toObject === 'function'
+        ? user.servers.toObject()
+        : user.servers || {}),
+      ...normalized
+    };
+  }
   if (username !== undefined) {
     const normalizedUsername = String(username).trim();
     if (normalizedUsername) {
@@ -422,7 +450,7 @@ async function updateUser(userId, payload = {}) {
       role: resolveRole(user),
       proxyEnabled: user.proxyEnabled,
       proxies: Array.isArray(user.proxies) ? user.proxies : [],
-      servers: user.servers,
+      servers: normalizeServers(user.servers) ?? user.servers,
       ...bookingDailyLimits.bookingStatsPayload(user)
     }
   };
@@ -455,6 +483,7 @@ async function listUsers({ page = 1, limit = 20, q = '' } = {}) {
     const o = doc.toObject();
     return {
       ...o,
+      servers: normalizeServers(o.servers) ?? o.servers,
       ...bookingDailyLimits.bookingStatsPayload(o)
     };
   });

@@ -87,7 +87,7 @@ const userSchema = new mongoose.Schema({
   },
   servers:{
     getBaseUrl:String,
-    createBaseUrl:String
+    createBaseUrl:[String]
   },
   bookingCount: {
     type: Number,
