@@ -18,7 +18,10 @@ const loggerService = require('./services/loggerSerivce');
 const adminAuthMiddleware = require('./middleware/adminAuthMiddleware');
 const path = require('path');
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*'  // ✅ Explicit wildcard
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
