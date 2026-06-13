@@ -49,7 +49,9 @@ router.get('/zone/schedule/land/server-one', async (req, res) => {
       economicOperator,
       token,
       userType: userType || 'broker',
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token'],
+     authToken: req.headers['x-auth-token']
     });
 
     await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
@@ -99,7 +101,8 @@ router.get('/zone/schedule/land/server-two', async (req, res) => {
      economicOperator,
      token,
      userType: userType || 'broker',
-     proxyContext: req.user
+     proxyContext: req.user,
+     authToken: req.headers['x-auth-token']
    });
 
    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
@@ -149,7 +152,8 @@ router.get('/zone/schedule/land/server-three', async (req, res) => {
      economicOperator,
      token,
      userType: userType || 'broker',
-     proxyContext: req.user
+     proxyContext: req.user,
+     authToken: req.headers['x-auth-token']
    });
 
    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
@@ -199,7 +203,8 @@ router.get('/zone/schedule/land/server-four', async (req, res) => {
      economicOperator,
      token,
      userType: userType || 'broker',
-     proxyContext: req.user
+     proxyContext: req.user,
+     authToken: req.headers['x-auth-token']
    });
 
    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
@@ -249,7 +254,8 @@ router.get('/zone/schedule/land/server-five', async (req, res) => {
      economicOperator,
      token,
      userType: userType || 'broker',
-     proxyContext: req.user
+     proxyContext: req.user,
+     authToken: req.headers['x-auth-token']
    });
 
    await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
@@ -297,7 +303,9 @@ router.get('/zone/schedule/land/server-six', async (req, res) => {
       type,
       token,
       userType: userType || 'broker',
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token'],
+     authToken: req.headers['x-auth-token']
     });
 
     await persistSchedule({ finalDest: String(finalDest), type, userType: userType || 'broker' }, result);
@@ -348,7 +356,9 @@ router.get('/zone/schedule/land/import-server-one', async (req, res) => {
       economicOperator,
       token,
       userType: userType || 'broker',
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token'],
+     authToken: req.headers['x-auth-token']
     });
 
     await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
@@ -398,7 +408,9 @@ router.get('/zone/schedule/land/import-server-two', async (req, res) => {
       economicOperator,
       token,
       userType: userType || 'broker',
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token'],
+     authToken: req.headers['x-auth-token']
     });
 
     await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);
@@ -448,7 +460,9 @@ router.get('/zone/schedule/land/import-server-three', async (req, res) => {
       economicOperator,
       token,
       userType: userType || 'broker',
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token'],
+     authToken: req.headers['x-auth-token']
     });
 
     await persistSchedule({ departure, arrival, type, economicOperator, userType: userType || 'broker' }, result);

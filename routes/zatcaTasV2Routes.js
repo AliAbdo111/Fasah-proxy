@@ -33,7 +33,8 @@ router.get('/appointment/bulk/getDeclarationInfo', async (req, res) => {
       token,
       userType,
       query: upstreamQuery,
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     if (result && result.success === false && result.errors && result.errors.length > 0) {
@@ -103,7 +104,8 @@ router.post('/appointment/land/create', async (req, res) => {
       body: payload,
       token,
       userType,
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     if (result?.success === false) {

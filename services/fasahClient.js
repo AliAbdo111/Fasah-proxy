@@ -3,6 +3,7 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const https = require('https');
 require('dotenv').config();
 const loggerService = require('./loggerSerivce');
+const fasahHttp = require('./fasahHttpClient');
 
 const MSG_SCHEDULE_NO_SLOTS = 'لا يوجد مواعيد متاحة';
 const MSG_CREATE_FASAH_ERROR = 'حدث خطا علي منصة فسح';
@@ -128,6 +129,131 @@ class FasahClient {
     };
   }
 
+  normalizeServerBase(url) {
+    return String(url || '').trim().replace(/\/+$/, '');
+  }
+
+  getUserFromContext(proxyContext) {
+    if (!proxyContext) return null;
+    if (proxyContext.user && proxyContext.user._id) return proxyContext.user;
+    if (proxyContext._id) return proxyContext;
+    return null;
+  }
+
+  getUserServers(proxyContext) {
+    const user = this.getUserFromContext(proxyContext);
+    if (!user || !user.servers) return null;
+    if (typeof user.servers.toObject === 'function') return user.servers.toObject();
+    return user.servers;
+  }
+
+  getAuthTokenFromParams(params = {}) {
+    return String(params.authToken || params.proxyContext?.authToken || '').trim();
+  }
+
+  resolveScheduleServerBase(proxyContext, userType = 'broker') {
+    const servers = this.getUserServers(proxyContext);
+    const list = servers && Array.isArray(servers.getBaseUrl)
+      ? servers.getBaseUrl.map((u) => this.normalizeServerBase(u)).filter(Boolean)
+      : servers && servers.getBaseUrl
+        ? [this.normalizeServerBase(servers.getBaseUrl)].filter(Boolean)
+        : [];
+    if (list.length > 0) {
+      const userKey = this.getUserFromContext(proxyContext)?._id || 'anonymous';
+      const picked = this.getNextProxy(`schedule:${userKey}`, list);
+      return { base: picked, viaVps: true };
+    }
+    const base = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    return { base, viaVps: false };
+  }
+
+  resolveCreateServerBase(proxyContext, userType = 'broker') {
+    const servers = this.getUserServers(proxyContext);
+    const list = servers && Array.isArray(servers.createBaseUrl)
+      ? servers.createBaseUrl.map((u) => this.normalizeServerBase(u)).filter(Boolean)
+      : [];
+    if (list.length > 0) {
+      const userKey = this.getUserFromContext(proxyContext)?._id || 'anonymous';
+      const picked = this.getNextProxy(`create:${userKey}`, list);
+      return { base: picked, viaVps: true };
+    }
+    const base = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
+    return { base, viaVps: false };
+  }
+
+  buildProxyApiUrl(vpsBase, internalPath) {
+    const base = this.normalizeServerBase(vpsBase);
+    const path = internalPath.startsWith('/') ? internalPath : `/${internalPath}`;
+    return `${base}${path}`;
+  }
+
+  buildFasahDirectUrl(directBase, fasahPath) {
+    const base = this.normalizeServerBase(directBase);
+    const path = fasahPath.startsWith('/') ? fasahPath : `/${fasahPath}`;
+    return `${base}${path}`;
+  }
+
+  buildRequestHeaders({ token, baseUrl, viaVps, authToken }) {
+    const fasahToken = `Bearer ${String(token).replace(/^Bearer\s+/i, '')}`;
+    if (viaVps) {
+      const headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
+        'x-fasah-token': fasahToken,
+        token: fasahToken
+      };
+      if (authToken) {
+        headers['x-auth-token'] = authToken;
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+      return headers;
+    }
+    return {
+      Accept: 'application/json',
+      'Accept-Language': 'ar',
+      'Content-Type': 'application/json; charset=utf-8',
+      token: fasahToken,
+      Origin: baseUrl,
+      Referer: `${baseUrl}/ar/broker/2.0/`
+    };
+  }
+
+  unwrapVpsResponse(data) {
+    if (!data || typeof data !== 'object') return data;
+    if (Object.prototype.hasOwnProperty.call(data, 'data')) return data.data;
+    return data;
+  }
+
+  finalizeClientResponse(data, viaVps, context) {
+    const payload = viaVps ? this.unwrapVpsResponse(data) : data;
+    return normalizeFasahResponse(payload, context);
+  }
+
+  getUndiciDispatcher(proxyContext) {
+    if (this.shouldUseProxy(proxyContext)) {
+      const proxy = this.getNextPlatformProxy(proxyContext);
+      if (proxy) {
+        console.log(`Using undici proxy: ${proxy.host}:${proxy.port}`);
+        return fasahHttp.createProxyDispatcher(proxy);
+      }
+    }
+    return fasahHttp.sharedAgent;
+  }
+
+  async executeHotPathRequest({ proxyContext, buildAttempt }) {
+    const userId = this.getUserFromContext(proxyContext)?._id || 'anonymous';
+    return fasahHttp.executeReliableRequest({
+      userId,
+      buildAttempt: (attemptIndex) => {
+        const attempt = buildAttempt(attemptIndex);
+        return {
+          ...attempt,
+          dispatcher: attempt.dispatcher || this.getUndiciDispatcher(proxyContext)
+        };
+      }
+    });
+  }
+
   /** Only `FASAH_USE_PROXY`; ignores per-user `proxyEnabled` and any user-stored proxy list. */
   shouldUseProxy() {
     return Boolean(this.platformProxyEnabled);
@@ -234,10 +360,6 @@ class FasahClient {
         throw new Error('Authentication token is required');
       }
 
-      // Select base URL based on user type
-      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
-      const url = `${baseUrl}${this.apiPath}/zone/schedule/land`;
-
       // Build query parameters
       const queryParams = {
         departure,
@@ -246,48 +368,26 @@ class FasahClient {
         ...(economicOperator && { economicOperator })
       };
 
-      // Prepare headers
-      const headers = {
-        'Accept': 'application/json',
-        'Accept-Language': 'ar',
-        'Content-Type': 'application/json; charset=utf-8',
-        'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
-      };
-      console.log('headers', headers);
-
-      const axiosConfig = {
-        params: queryParams,
-        headers,
-        timeout: 30000,
-        validateStatus: function (status) {
-          return status >= 200 && status < 500;
+      const result = await this.executeHotPathRequest({
+        proxyContext: params.proxyContext,
+        buildAttempt: () => {
+          const { base, viaVps } = this.resolveScheduleServerBase(params.proxyContext, userType);
+          const url = viaVps
+            ? this.buildProxyApiUrl(base, '/api/fasah/schedule/land')
+            : this.buildFasahDirectUrl(base, `${this.apiPath}/zone/schedule/land`);
+          const headers = this.buildRequestHeaders({
+            token,
+            baseUrl: base,
+            viaVps,
+            authToken: this.getAuthTokenFromParams(params)
+          });
+          if (viaVps) console.log(`[fasahClient] schedule via VPS: ${url}`);
+          return { method: 'GET', url, headers, query: queryParams, viaVps };
         }
-      };
+      });
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          console.log('response', response.data);
-          return normalizeFasahResponse(response.data, 'schedule');
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-      
-
-      const response = await axios.get(url, axiosConfig);
-      return normalizeFasahResponse(response.data, 'schedule');
+      console.log('response', result.data);
+      return this.finalizeClientResponse(result.data, result.viaVps, 'schedule');
 
     } catch (error) {
       console.log(error);
@@ -308,59 +408,31 @@ class FasahClient {
         throw new Error('Authentication token is required');
       }
 
-      // Select base URL based on user type
-      const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
-      const url = `${baseUrl}${this.apiPath}/zone/schedule/land`;
-
-      // Build query parameters
       const queryParams = {
-          finalDest,
-          type
+        finalDest,
+        type
       };
 
-      // Prepare headers
-      const headers = {
-        'Accept': 'application/json',
-        'Accept-Language': 'ar',
-        'Content-Type': 'application/json; charset=utf-8',
-        'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}` // Ensure Bearer prefix
-      };
-      console.log('headers', headers);
-
-      const axiosConfig = {
-        params: queryParams,
-        headers,
-        timeout: 30000,
-        validateStatus: function (status) {
-          return status >= 200 && status < 500;
+      const result = await this.executeHotPathRequest({
+        proxyContext: params.proxyContext,
+        buildAttempt: () => {
+          const { base, viaVps } = this.resolveScheduleServerBase(params.proxyContext, userType);
+          const url = viaVps
+            ? this.buildProxyApiUrl(base, '/api/fasah/schedule/land')
+            : this.buildFasahDirectUrl(base, `${this.apiPath}/zone/schedule/land`);
+          const headers = this.buildRequestHeaders({
+            token,
+            baseUrl: base,
+            viaVps,
+            authToken: this.getAuthTokenFromParams(params)
+          });
+          if (viaVps) console.log(`[fasahClient] schedule (six) via VPS: ${url}`);
+          return { method: 'GET', url, headers, query: queryParams, viaVps };
         }
-      };
+      });
 
-      if (this.shouldUseProxy()) {
-        const proxy = this.resolvePlatformProxy(params);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          console.log('[fasahClient] getLandSchedule response', response.data);
-          console.log('[fasahClient] getLandSchedule status text', response.status);
-          return normalizeFasahResponse(response.data, 'schedule');
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-      
-
-      const response = await axios.get(url, axiosConfig);
-      return normalizeFasahResponse(response.data, 'schedule');
+      console.log('[fasahClient] getLandSchedule response', result.data);
+      return this.finalizeClientResponse(result.data, result.viaVps, 'schedule');
 
     } catch (error) {
       console.log(error);
@@ -934,11 +1006,6 @@ async createTransitAppointment(params) {
       throw new Error('fleet_info يجب أن يكون مصفوفة تحتوي على معلومات السائق والمركبة');
     }
 
-    // اختيار الرابط حسب نوع المستخدم
-    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
-    const url = `${baseUrl}/api/zatca-tas/v2/appointment/transit/create`;
-
-    // بناء بيانات الطلب
     const requestData = {
       port_code,
       zone_schedule_id,
@@ -949,56 +1016,40 @@ async createTransitAppointment(params) {
       declaration_number
     };
 
-    // إعداد الهيدرات
-    const headers = {
-      'Accept': 'application/json',
-      'Accept-Language': 'ar',
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Origin': baseUrl,
-      'Referer': `${baseUrl}/ar/broker/2.0/`,
-      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
-    };
+    await loggerService.createLogger({
+      message: 'Create transit appointment request',
+      data: { requestData },
+      type: 'info_request'
+    });
 
-    const postConfig = {
-      headers,
-      timeout: 30000,
-      validateStatus: function (status) {
-        return status >= 200 && status < 500;
+    const result = await this.executeHotPathRequest({
+      proxyContext: params.proxyContext,
+      buildAttempt: () => {
+        const { base, viaVps } = this.resolveCreateServerBase(params.proxyContext, userType);
+        const url = viaVps
+          ? this.buildProxyApiUrl(base, '/api/fasah/appointment/transit/create')
+          : this.buildFasahDirectUrl(base, '/api/zatca-tas/v2/appointment/transit/create');
+        const headers = this.buildRequestHeaders({
+          token,
+          baseUrl: base,
+          viaVps,
+          authToken: this.getAuthTokenFromParams(params)
+        });
+        if (viaVps) console.log(`[fasahClient] create transit via VPS: ${url}`);
+        return { method: 'POST', url, headers, body: requestData, viaVps };
       }
-    };
-    if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy(params.proxyContext);
-      if (proxy) {
-        postConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
-      }
-      await loggerService.createLogger({
-        message: proxy ? `Create transit appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create transit appointment via proxy: (no proxy available)',
-        data: { requestData },
-        type: 'info_request'
-      });
-      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      try {
-        const response = await axios.post(url, requestData, postConfig);
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-        return normalizeFasahResponse(response.data, 'create');
-      } catch (error) {
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        this.loggerService.createLogger({ message: `Create transit appointment error: ${error}`, data: { error: String(error) }, type: 'error' });
-        throw error;
-      }
-    }
-    const response = await axios.post(url, requestData, postConfig);
-    await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-    return normalizeFasahResponse(response.data, 'create');
+    });
+
+    await loggerService.createLogger({
+      message: 'Create transit appointment response',
+      data: { response: result.data },
+      type: 'info_response'
+    });
+    return this.finalizeClientResponse(result.data, result.viaVps, 'create');
 
   } catch (error) {
     this.loggerService.createLogger({
-      message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
+      message: `📅 خطأ في إنشاع موعد نقل عابر ${error}`,
       data: {
         error: JSON.stringify(error)
       },
@@ -1039,11 +1090,6 @@ async createNonDeclarationAppointment(params) {
       throw new Error('fleet_info يجب أن يكون مصفوفة تحتوي على معلومات السائق والمركبة');
     }
 
-    // اختيار الرابط حسب نوع المستخدم
-    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
-    const url = `${baseUrl}/api/zatca-tas/v2/appointment/non-declaration/create`;
-
-    // بناء بيانات الطلب
     const requestData = {
       port_code,
       zone_schedule_id,
@@ -1053,56 +1099,40 @@ async createNonDeclarationAppointment(params) {
       bayan_appointment
     };
 
-    // إعداد الهيدرات
-    const headers = {
-      'Accept': 'application/json',
-      'Accept-Language': 'ar',
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Origin': baseUrl,
-      'Referer': `${baseUrl}/ar/broker/2.0/`,
-      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
-    };
+    await loggerService.createLogger({
+      message: 'Create non-declaration appointment request',
+      data: { requestData },
+      type: 'info_request'
+    });
 
-    const postConfig = {
-      headers,
-      timeout: 30000,
-      validateStatus: function (status) {
-        return status >= 200 && status < 500;
+    const result = await this.executeHotPathRequest({
+      proxyContext: params.proxyContext,
+      buildAttempt: () => {
+        const { base, viaVps } = this.resolveCreateServerBase(params.proxyContext, userType);
+        const url = viaVps
+          ? this.buildProxyApiUrl(base, '/api/fasah/appointment/non-declaration/create')
+          : this.buildFasahDirectUrl(base, '/api/zatca-tas/v2/appointment/non-declaration/create');
+        const headers = this.buildRequestHeaders({
+          token,
+          baseUrl: base,
+          viaVps,
+          authToken: this.getAuthTokenFromParams(params)
+        });
+        if (viaVps) console.log(`[fasahClient] create non-declaration via VPS: ${url}`);
+        return { method: 'POST', url, headers, body: requestData, viaVps };
       }
-    };
-    if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy(params.proxyContext);
-      if (proxy) {
-        postConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
-      }
-      await loggerService.createLogger({
-        message: proxy ? `Create transit appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create transit appointment via proxy: (no proxy available)',
-        data: { requestData },
-        type: 'info_request'
-      });
-      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      try {
-        const response = await axios.post(url, requestData, postConfig);
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-        return normalizeFasahResponse(response.data, 'create');
-      } catch (error) {
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        this.loggerService.createLogger({ message: `Create transit appointment error: ${error}`, data: { error: String(error) }, type: 'error' });
-        throw error;
-      }
-    }
-    const response = await axios.post(url, requestData, postConfig);
-    await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-    return normalizeFasahResponse(response.data, 'create');
+    });
+
+    await loggerService.createLogger({
+      message: 'Create non-declaration appointment response',
+      data: { response: result.data },
+      type: 'info_response'
+    });
+    return this.finalizeClientResponse(result.data, result.viaVps, 'create');
 
   } catch (error) {
     this.loggerService.createLogger({
-      message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
+      message: `📅 خطأ في إنشاع موعد non-declaration ${error}`,
       data: {
         error: JSON.stringify(error)
       },
@@ -1119,7 +1149,7 @@ async createNonDeclarationAppointment(params) {
  * @param {string} params.token - Bearer token
  * @param {string} [params.userType='broker'] - broker | transporter
  */
-async createLandAppointment({ body, token, userType = 'broker', proxyContext }) {
+async createLandAppointment({ body, token, userType = 'broker', proxyContext, authToken }) {
   try {
     if (!token) {
       throw new Error('رمز المصادقة مطلوب');
@@ -1128,68 +1158,36 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext }) 
       throw new Error('Request body is required');
     }
 
-    const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
-    const url = `${baseUrl}/api/zatca-tas/v2/appointment/land/create`;
+    await loggerService.createLogger({
+      message: 'Create land appointment request',
+      data: { body },
+      type: 'info_request'
+    });
 
-    const headers = {
-      Accept: 'application/json',
-      'Accept-Language': 'ar',
-      'Content-Type': 'application/json; charset=UTF-8',
-      Origin: baseUrl,
-      Referer: `${baseUrl}/ar/broker/2.0/`,
-      token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
-    };
-
-    const postConfig = {
-      headers,
-      timeout: 30000,
-      validateStatus(status) {
-        return status >= 200 && status < 500;
-      }
-    };
-
-    if (this.shouldUseProxy(proxyContext)) {
-      const proxy = this.getNextPlatformProxy(proxyContext);
-      if (proxy) {
-        postConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy for create land appointment: ${proxy.host}:${proxy.port}`);
-      }
-      await loggerService.createLogger({
-        message: proxy ? `Create land appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create land appointment via proxy: (no proxy available)',
-        data: { body },
-        type: 'info_request'
-      });
-      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      try {
-        const response = await axios.post(url, body, postConfig);
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        await loggerService.createLogger({
-          message: 'Create land appointment response',
-          data: { response: response.data },
-          type: 'info_response'
+    const result = await this.executeHotPathRequest({
+      proxyContext,
+      buildAttempt: () => {
+        const { base, viaVps } = this.resolveCreateServerBase(proxyContext, userType);
+        const url = viaVps
+          ? this.buildProxyApiUrl(base, '/api/zatca-tas/v2/appointment/land/create')
+          : this.buildFasahDirectUrl(base, '/api/zatca-tas/v2/appointment/land/create');
+        const headers = this.buildRequestHeaders({
+          token,
+          baseUrl: base,
+          viaVps,
+          authToken: this.getAuthTokenFromParams({ authToken, proxyContext })
         });
-        return normalizeFasahResponse(response.data, 'create');
-      } catch (error) {
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        this.loggerService.createLogger({
-          message: `Create land appointment error: ${error}`,
-          data: { error: String(error) },
-          type: 'error'
-        });
-        throw error;
+        if (viaVps) console.log(`[fasahClient] create land via VPS: ${url}`);
+        return { method: 'POST', url, headers, body, viaVps };
       }
-    }
+    });
 
-    const response = await axios.post(url, body, postConfig);
     await loggerService.createLogger({
       message: 'Create land appointment response',
-      data: { response: response.data },
+      data: { response: result.data },
       type: 'info_response'
     });
-    return normalizeFasahResponse(response.data, 'create');
+    return this.finalizeClientResponse(result.data, result.viaVps, 'create');
   } catch (error) {
     this.loggerService.createLogger({
       message: `Land appointment create error: ${error}`,

@@ -85,7 +85,8 @@ router.get('/schedule/land', async (req, res) => {
       economicOperator,
       token,
       userType: userType || 'broker',
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     // Check if the response indicates no schedules available
@@ -143,7 +144,8 @@ router.get('/drivers/verified/all/forAdd', async (req, res) => {
       q: q || '',
       localTrucks,
       userType: userType, // This endpoint is for transporter portal
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     // Return the API response directly
@@ -193,7 +195,8 @@ router.get('/trucks/verified/all/forAdd', async (req, res) => {
       q: q || '',
       localTrucks,
       userType: userType,
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     // إرجاع النتيجة
@@ -241,7 +244,8 @@ router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
       arrivalPort,
       token,
       userType,
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     if (req.user && req.user._id) {
@@ -349,7 +353,8 @@ router.post('/appointment/transit/create', async (req, res) => {
       declaration_number,
       token,
       userType: userType,
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     // Count as success only when tasBookRef exists
@@ -489,7 +494,8 @@ router.post('/appointment/non-declaration/create', async (req, res) => {
       bayan_appointment,
       token,
       userType: userType,
-      proxyContext: req.user
+      proxyContext: req.user,
+      authToken: req.headers['x-auth-token']
     });
 
     // Count as success only when tasBookRef exists
