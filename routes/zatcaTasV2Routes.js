@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
+const { extractFasahMessage } = FasahClient;
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
 
@@ -106,13 +107,14 @@ router.post('/appointment/land/create', async (req, res) => {
     });
 
     if (result?.success === false) {
+      const upstreamMessage = result?.message || extractFasahMessage(result) || 'Booking not created';
       await bookingHistoryService.logBooking({
         userId: req.user && req.user._id,
         endpoint: '/api/zatca-tas/v2/appointment/land/create',
         kind: 'import',
         success: false,
         httpStatus: 400,
-        message: 'Booking not created',
+        message: upstreamMessage,
         requestBody: req.body || {},
         requestQuery: req.query || {},
         responseBody: result,
@@ -121,6 +123,7 @@ router.post('/appointment/land/create', async (req, res) => {
       });
       return res.status(400).json({
         success: false,
+        message: upstreamMessage,
         data: result
       });
     }

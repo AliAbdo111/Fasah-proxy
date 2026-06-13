@@ -4,6 +4,65 @@ const https = require('https');
 require('dotenv').config();
 const loggerService = require('./loggerSerivce');
 
+const MSG_SCHEDULE_NO_SLOTS = 'لا يوجد مواعيد متاحة';
+const MSG_CREATE_FASAH_ERROR = 'حدث خطا علي منصة فسح';
+
+function extractFasahMessage(data) {
+  if (!data || typeof data !== 'object') return '';
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    const err = data.errors[0];
+    if (err && (err.message || err.code)) return String(err.message || err.code).trim();
+  }
+  if (data.message) return String(data.message).trim();
+  if (data.data && typeof data.data === 'object') {
+    const nested = extractFasahMessage(data.data);
+    if (nested) return nested;
+  }
+  if (data.error) return String(data.error).trim();
+  return '';
+}
+
+function isMaxLimitExceededMessage(message) {
+  if (!message) return false;
+  const raw = String(message);
+  const m = raw.toLowerCase();
+  const normalizedAr = raw.replace(/\s+/g, ' ');
+  return (
+    (normalizedAr.includes('تجاوز') && normalizedAr.includes('حد')) ||
+    normalizedAr.includes('الحد الاقصى') ||
+    normalizedAr.includes('الحد الأقصى') ||
+    m.includes('rate limit') ||
+    m.includes('limit exceeded') ||
+    m.includes('too many requests') ||
+    m.includes('maximum')
+  );
+}
+
+function mapFasahUserMessage(originalMessage, context) {
+  if (!originalMessage) return originalMessage;
+  if (!isMaxLimitExceededMessage(originalMessage)) return originalMessage;
+  if (context === 'schedule') return MSG_SCHEDULE_NO_SLOTS;
+  if (context === 'create') return MSG_CREATE_FASAH_ERROR;
+  return originalMessage;
+}
+
+function normalizeFasahResponse(data, context) {
+  if (!data || typeof data !== 'object') return data;
+  const originalMessage = extractFasahMessage(data);
+  const userMessage = mapFasahUserMessage(originalMessage, context);
+  if (!userMessage) return data;
+
+  const out = { ...data, message: userMessage };
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    out.errors = data.errors.map((err, index) =>
+      index === 0 ? { ...err, message: userMessage } : { ...err }
+    );
+  } else if (data.success === false) {
+    out.errors = [{ message: userMessage }];
+  }
+  return out;
+}
+
 class FasahClient {
   constructor() {
     this.loggerService = loggerService;
@@ -18,406 +77,6 @@ class FasahClient {
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.platformProxies = [
-      {
-        host: '104.252.75.116',
-        port: 5486,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '82.23.88.206',
-        port: 7962,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '45.39.157.227',
-        port: 9259,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '9.142.210.52',
-        port: 5717,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '46.203.30.252',
-        port: 6253,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.59.213',
-        port: 7685,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '82.23.89.137',
-        port: 7894,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '82.22.96.171',
-        port: 7879,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '5.59.251.212',
-        port: 6251,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '96.62.194.237',
-        port: 6439,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '150.241.110.176',
-        port: 7180,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '9.142.11.91',
-        port: 5247,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '9.142.215.239',
-        port: 6404,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '45.58.244.176',
-        port: 6589,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '216.98.254.137',
-        port: 6447,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '82.24.35.109',
-        port: 7832,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.62.89',
-        port: 5460,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.75.133',
-        port: 5503,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '166.0.41.52',
-        port: 6560,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '82.21.51.40',
-        port: 7803,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '166.0.40.187',
-        port: 7195,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.19.225',
-        port: 6376,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.18.229',
-        port: 6880,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '87.86.24.109',
-        port: 5760,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.75.174',
-        port: 5544,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.19.16',
-        port: 6167,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.75.175',
-        port: 5545,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '87.86.25.172',
-        port: 5323,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '87.86.24.84',
-        port: 5735,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.18.118',
-        port: 6769,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.75.190',
-        port: 5560,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.62.242',
-        port: 5613,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.18.168',
-        port: 6819,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.62.230',
-        port: 5601,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '87.86.25.95',
-        port: 5246,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.97.229',
-        port: 6099,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.62.250',
-        port: 5621,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.62.90',
-        port: 5461,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.81.247',
-        port: 6118,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.75.208',
-        port: 5578,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.19.92',
-        port: 6243,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.81.140',
-        port: 6011,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.18.20',
-        port: 6671,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.19.208',
-        port: 6359,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.75.159',
-        port: 5529,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.62.50',
-        port: 5421,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '87.86.25.28',
-        port: 5179,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '104.252.81.231',
-        port: 6102,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.18.211',
-        port: 6862,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
-      {
-        host: '212.212.18.210',
-        port: 6861,
-        username: 'xpphhyal',
-        password: 'e2m0f0vlmxmr',
-        protocol: 'http',
-        rejectUnauthorized: false,
-      },
     ];
 
     // Optional per-user proxy pools (hardcoded). If a request has `proxyContext._id` that matches,
@@ -618,7 +277,7 @@ class FasahClient {
           if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
           console.log('response', response.data);
-          return response.data;
+          return normalizeFasahResponse(response.data, 'schedule');
         } catch (err) {
           if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -628,7 +287,7 @@ class FasahClient {
       
 
       const response = await axios.get(url, axiosConfig);
-      return response.data;
+      return normalizeFasahResponse(response.data, 'schedule');
 
     } catch (error) {
       console.log(error);
@@ -691,7 +350,7 @@ class FasahClient {
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
           console.log('[fasahClient] getLandSchedule response', response.data);
           console.log('[fasahClient] getLandSchedule status text', response.status);
-          return response.data;
+          return normalizeFasahResponse(response.data, 'schedule');
         } catch (err) {
           if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
           else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -701,7 +360,7 @@ class FasahClient {
       
 
       const response = await axios.get(url, axiosConfig);
-      return response.data;
+      return normalizeFasahResponse(response.data, 'schedule');
 
     } catch (error) {
       console.log(error);
@@ -1325,7 +984,7 @@ async createTransitAppointment(params) {
         if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
         else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-        return response.data;
+        return normalizeFasahResponse(response.data, 'create');
       } catch (error) {
         if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
         else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -1335,7 +994,7 @@ async createTransitAppointment(params) {
     }
     const response = await axios.post(url, requestData, postConfig);
     await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-    return response.data;
+    return normalizeFasahResponse(response.data, 'create');
 
   } catch (error) {
     this.loggerService.createLogger({
@@ -1429,7 +1088,7 @@ async createNonDeclarationAppointment(params) {
         if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
         else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
         await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-        return response.data;
+        return normalizeFasahResponse(response.data, 'create');
       } catch (error) {
         if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
         else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -1439,7 +1098,7 @@ async createNonDeclarationAppointment(params) {
     }
     const response = await axios.post(url, requestData, postConfig);
     await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-    return response.data;
+    return normalizeFasahResponse(response.data, 'create');
 
   } catch (error) {
     this.loggerService.createLogger({
@@ -1511,7 +1170,7 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext }) 
           data: { response: response.data },
           type: 'info_response'
         });
-        return response.data;
+        return normalizeFasahResponse(response.data, 'create');
       } catch (error) {
         if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
         else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -1530,7 +1189,7 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext }) 
       data: { response: response.data },
       type: 'info_response'
     });
-    return response.data;
+    return normalizeFasahResponse(response.data, 'create');
   } catch (error) {
     this.loggerService.createLogger({
       message: `Land appointment create error: ${error}`,
@@ -1750,4 +1409,6 @@ async getLandAppointmentPdf(params) {
 }
 
 module.exports = FasahClient;
+module.exports.extractFasahMessage = extractFasahMessage;
+module.exports.normalizeFasahResponse = normalizeFasahResponse;
 

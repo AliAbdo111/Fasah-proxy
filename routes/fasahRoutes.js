@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
+const { extractFasahMessage } = FasahClient;
 const User = require('./models/User');
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
@@ -357,6 +358,7 @@ router.post('/appointment/transit/create', async (req, res) => {
     if (!hasSuccessfulBooking) {
       const upstreamMessage =
         result?.message ||
+        extractFasahMessage(result) ||
         result?.data?.message ||
         result?.data?.data?.message ||
         'Booking not created';
@@ -496,6 +498,7 @@ router.post('/appointment/non-declaration/create', async (req, res) => {
     if (!hasSuccessfulBooking) {
       const upstreamMessage =
         result?.message ||
+        extractFasahMessage(result) ||
         result?.data?.message ||
         result?.data?.data?.message ||
         'Booking not created';
