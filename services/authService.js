@@ -39,7 +39,12 @@ function normalizeServers(servers) {
   }
   const out = {};
   if (servers.getBaseUrl !== undefined) {
-    out.getBaseUrl = String(servers.getBaseUrl).trim();
+    const raw = servers.getBaseUrl;
+    if (raw !== null && !Array.isArray(raw) && typeof raw !== 'string') {
+      throw { status: 400, message: 'getBaseUrl must be an array of strings' };
+    }
+    const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    out.getBaseUrl = list.map((x) => String(x).trim()).filter(Boolean);
   }
   if (servers.createBaseUrl !== undefined) {
     const raw = servers.createBaseUrl;
