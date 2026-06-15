@@ -70,13 +70,13 @@ router.get('/schedule/land', async (req, res) => {
                   req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
                   req.headers['token']?.replace(/^Bearer\s+/i, '');
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication token is required. Provide token via x-fasah-token header or Authorization header.',
-        error: 'Missing authentication token'
-      });
-    }
+    // if (!token) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: 'Authentication token is required. Provide token via x-fasah-token header or Authorization header.',
+    //     error: 'Missing authentication token'
+    //   });
+    // }
 
     const result = await client.getLandSchedule({
       departure,

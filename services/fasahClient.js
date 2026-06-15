@@ -3,6 +3,7 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const https = require('https');
 require('dotenv').config();
 const loggerService = require('./loggerSerivce');
+const ProxyPool = require('./proxyPool');
 
 const MSG_SCHEDULE_NO_SLOTS = 'لا يوجد مواعيد متاحة';
 const MSG_CREATE_FASAH_ERROR = 'حدث خطا علي منصة فسح';
@@ -77,34 +78,96 @@ class FasahClient {
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
     this.platformProxies = [
-      { host: '82.23.61.41', port: 7793, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '104.252.97.159', port: 6029, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '195.40.133.87', port: 6307, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '82.23.57.147', port: 7401, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '195.40.129.152', port: 6873, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '104.252.75.122', port: 5492, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '195.40.129.29', port: 6750, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '82.22.96.63', port: 7771, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '179.61.172.191', port: 6742, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '31.98.13.34', port: 6211, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '31.98.13.21', port: 6198, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '46.203.86.208', port: 5708, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '46.203.15.11', port: 7012, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '87.86.24.127', port: 5778, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '195.40.129.114', port: 6835, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '87.86.24.170', port: 5821, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '212.212.19.64', port: 6215, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '31.98.15.181', port: 5358, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '87.86.25.168', port: 5319, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
-      { host: '46.203.60.87', port: 7087, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false }
+      { host: '195.40.137.26', port: 5747, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '87.86.25.136', port: 5287, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '212.212.18.74', port: 6725, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '87.86.25.31', port: 5182, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.142.19', port: 5239, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '212.212.19.186', port: 6337, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.137.170', port: 5891, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.75.132', port: 5502, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.137.188', port: 5909, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.143.90', port: 5311, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.81.172', port: 6043, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.137.163', port: 5884, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.62.222', port: 5593, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.143.228', port: 5449, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.81.153', port: 6024, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.142.122', port: 5342, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.75.66', port: 5436, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.138.187', port: 5907, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '212.212.18.22', port: 6673, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.62.206', port: 5577, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.234', port: 7958, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.237', port: 7960, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.68', port: 7791, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.91', port: 7814, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.214', port: 7937, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.212', port: 7935, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.67', port: 7791, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.17', port: 7741, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.22', port: 7745, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.80', port: 7803, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.51', port: 7774, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.70', port: 7793, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.177', port: 7901, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.82', port: 7806, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.89', port: 7812, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.112', port: 7836, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.149', port: 7873, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.249', port: 7973, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.151', port: 7875, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.102', port: 7826, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.75', port: 7798, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.211', port: 7935, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.123', port: 7846, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.160', port: 7884, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.7', port: 7730, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.95', port: 7818, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.194', port: 7917, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.29.47.180', port: 7904, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.213', port: 7936, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.24.35.105', port: 7828, username: 'xpphhyal', password: 'e2m0f0vlmxmr', protocol: 'http', rejectUnauthorized: false }
     ];
 
     // Optional per-user proxy pools (hardcoded). If a request has `proxyContext._id` that matches,
     // that user's pool is used; otherwise we fall back to `platformProxies`.
     this.userProxyPoolsById = new Map();
     
-    // Rotation index for the shared platform proxy pool.
+    // Rotation index for legacy per-key pools (VPS URLs, etc.).
     this.proxyRotationMap = new Map();
+    this._platformProxyPool = null;
+  }
+
+  _getPlatformProxyPool() {
+    const proxies = this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
+    if (!this._platformProxyPool || this._platformProxyPool.size !== proxies.length) {
+      this._platformProxyPool = new ProxyPool(proxies);
+    }
+    return this._platformProxyPool;
+  }
+
+  /**
+   * Run a task with one platform proxy (max 1 concurrent request per proxy).
+   * @param {function(Object|null): Promise<*>} task
+   * @param {string} [logLabel]
+   */
+  async withPlatformProxy(task, logLabel = '') {
+    if (!this.shouldUseProxy() || this._getPlatformProxyPool().size === 0) {
+      return task(null);
+    }
+    return this._getPlatformProxyPool().run(task, logLabel);
+  }
+
+  _withTlsBypass(fn) {
+    const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    return Promise.resolve()
+      .then(fn)
+      .finally(() => {
+        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      });
   }
 
   /**
@@ -203,31 +266,25 @@ class FasahClient {
    * Ensures every request can use one proxy from the list when enabled.
    */
   async performRequest(method, url, config = {}, body = undefined, proxyLogLabel = '', proxyContext = undefined) {
-    const axiosConfig = { ...config };
-
-    if (this.shouldUseProxy(proxyContext)) {
-      const proxy = this.getNextPlatformProxy(proxyContext);
+    const execute = async (proxy) => {
+      const axiosConfig = { ...config };
       if (proxy) {
         axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-        const label = proxyLogLabel ? ` (${proxyLogLabel})` : '';
-        console.log(`Using proxy${label}: ${proxy.host}:${proxy.port}`);
+      } else if (!axiosConfig.httpsAgent) {
+        axiosConfig.httpsAgent = this.keepAliveHttpsAgent;
       }
-    }
-    if (!axiosConfig.httpsAgent) {
-      axiosConfig.httpsAgent = this.keepAliveHttpsAgent;
-    }
+      return this._withTlsBypass(() => {
+        if (method === 'post') {
+          return axios.post(url, body, axiosConfig);
+        }
+        return axios.get(url, axiosConfig);
+      });
+    };
 
-    const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    try {
-      if (method === 'post') {
-        return await axios.post(url, body, axiosConfig);
-      }
-      return await axios.get(url, axiosConfig);
-    } finally {
-      if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-      else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    if (this.shouldUseProxy(proxyContext)) {
+      return this.withPlatformProxy((proxy) => execute(proxy), proxyLogLabel);
     }
+    return execute(null);
   }
  
   /**
@@ -250,9 +307,9 @@ class FasahClient {
         throw new Error('Missing required parameters: departure, arrival, and type are required');
       }
 
-      if (!token) {
-        throw new Error('Authentication token is required');
-      }
+      // if (!token) {
+      //   throw new Error('Authentication token is required');
+      // }
 
       // Select base URL based on user type
       const baseUrl = userType === 'transporter' ? this.transporterBaseUrl : this.brokerBaseUrl;
@@ -284,29 +341,15 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          console.log('response', response.data);
-          return normalizeFasahResponse(response.data, 'schedule');
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-      
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'schedule',
+        params.proxyContext
+      );
+      console.log('response', response.data);
       return normalizeFasahResponse(response.data, 'schedule');
 
     } catch (error) {
@@ -356,30 +399,16 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy()) {
-        const proxy = this.resolvePlatformProxy(params);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          console.log('[fasahClient] getLandSchedule response', response.data);
-          console.log('[fasahClient] getLandSchedule status text', response.status);
-          return normalizeFasahResponse(response.data, 'schedule');
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-      
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'schedule six',
+        params.proxyContext
+      );
+      console.log('[fasahClient] getLandSchedule response', response.data);
+      console.log('[fasahClient] getLandSchedule status text', response.status);
       return normalizeFasahResponse(response.data, 'schedule');
 
     } catch (error) {
@@ -420,27 +449,14 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy (fleet lookup): ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          return response.data;
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'fleet resident countries',
+        params.proxyContext
+      );
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -480,27 +496,14 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy (fleet nationality): ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          return response.data;
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'fleet nationality',
+        params.proxyContext
+      );
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -540,27 +543,14 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy (fleet truck colors): ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          return response.data;
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'fleet truck colors',
+        params.proxyContext
+      );
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -600,27 +590,14 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy (fleet v2 truck brands): ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          return response.data;
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'fleet v2 truck brands',
+        params.proxyContext
+      );
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -665,27 +642,14 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy (fleet v2 truck models): ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          return response.data;
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'fleet v2 truck models',
+        params.proxyContext
+      );
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -725,27 +689,14 @@ class FasahClient {
         }
       };
 
-      if (this.shouldUseProxy(params.proxyContext)) {
-        const proxy = this.getNextPlatformProxy(params.proxyContext);
-        if (proxy) {
-          axiosConfig.httpsAgent = this.createProxyAgent(proxy);
-          console.log(`Using proxy (zatca-tas customs driver-truck-info): ${proxy.host}:${proxy.port}`);
-        }
-        const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        try {
-          const response = await axios.get(url, axiosConfig);
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          return response.data;
-        } catch (err) {
-          if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-          else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-          throw err;
-        }
-      }
-
-      const response = await axios.get(url, axiosConfig);
+      const response = await this.performRequest(
+        'get',
+        url,
+        axiosConfig,
+        undefined,
+        'zatca-tas customs driver-truck-info',
+        params.proxyContext
+      );
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -986,39 +937,25 @@ async createTransitAppointment(params) {
         return status >= 200 && status < 500;
       }
     };
-    if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy(params.proxyContext);
-      if (proxy) {
-        postConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
-      }
-      await loggerService.createLogger({
-        message: proxy ? `Create transit appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create transit appointment via proxy: (no proxy available)',
-        data: { requestData },
-        type: 'info_request'
-      });
-      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      try {
-        const response = await axios.post(url, requestData, postConfig);
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-        return normalizeFasahResponse(response.data, 'create');
-      } catch (error) {
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        this.loggerService.createLogger({ message: `Create transit appointment error: ${error}`, data: { error: String(error) }, type: 'error' });
-        throw error;
-      }
-    }
-    const response = await axios.post(url, requestData, postConfig);
+    await loggerService.createLogger({
+      message: 'Create transit appointment request',
+      data: { requestData },
+      type: 'info_request'
+    });
+    const response = await this.performRequest(
+      'post',
+      url,
+      postConfig,
+      requestData,
+      'create transit',
+      params.proxyContext
+    );
     await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
     return normalizeFasahResponse(response.data, 'create');
 
   } catch (error) {
     this.loggerService.createLogger({
-      message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
+      message: `📅 خطأ في إنشاع موعد نقل عابر ${error}`,
       data: {
         error: JSON.stringify(error)
       },
@@ -1090,39 +1027,25 @@ async createNonDeclarationAppointment(params) {
         return status >= 200 && status < 500;
       }
     };
-    if (this.shouldUseProxy(params.proxyContext)) {
-      const proxy = this.getNextPlatformProxy(params.proxyContext);
-      if (proxy) {
-        postConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy for create appointment: ${proxy.host}:${proxy.port}`);
-      }
-      await loggerService.createLogger({
-        message: proxy ? `Create transit appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create transit appointment via proxy: (no proxy available)',
-        data: { requestData },
-        type: 'info_request'
-      });
-      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      try {
-        const response = await axios.post(url, requestData, postConfig);
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
-        return normalizeFasahResponse(response.data, 'create');
-      } catch (error) {
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        this.loggerService.createLogger({ message: `Create transit appointment error: ${error}`, data: { error: String(error) }, type: 'error' });
-        throw error;
-      }
-    }
-    const response = await axios.post(url, requestData, postConfig);
-    await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
+    await loggerService.createLogger({
+      message: 'Create non-declaration appointment request',
+      data: { requestData },
+      type: 'info_request'
+    });
+    const response = await this.performRequest(
+      'post',
+      url,
+      postConfig,
+      requestData,
+      'create non-declaration',
+      params.proxyContext
+    );
+    await loggerService.createLogger({ message: 'Create non-declaration appointment response', data: { response: response.data }, type: 'info_response' });
     return normalizeFasahResponse(response.data, 'create');
 
   } catch (error) {
     this.loggerService.createLogger({
-      message: `📅 خطأ في إنشاع موعد نقل عابر باستخدام البروكسي ${error}`,
+      message: `📅 خطأ في إنشاع موعد non-declaration ${error}`,
       data: {
         error: JSON.stringify(error)
       },
@@ -1168,42 +1091,19 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext }) 
       }
     };
 
-    if (this.shouldUseProxy(proxyContext)) {
-      const proxy = this.getNextPlatformProxy(proxyContext);
-      if (proxy) {
-        postConfig.httpsAgent = this.createProxyAgent(proxy);
-        console.log(`Using proxy for create land appointment: ${proxy.host}:${proxy.port}`);
-      }
-      await loggerService.createLogger({
-        message: proxy ? `Create land appointment via proxy: ${proxy.host}:${proxy.port}` : 'Create land appointment via proxy: (no proxy available)',
-        data: { body },
-        type: 'info_request'
-      });
-      const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      try {
-        const response = await axios.post(url, body, postConfig);
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        await loggerService.createLogger({
-          message: 'Create land appointment response',
-          data: { response: response.data },
-          type: 'info_response'
-        });
-        return normalizeFasahResponse(response.data, 'create');
-      } catch (error) {
-        if (originalReject !== undefined) process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
-        else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        this.loggerService.createLogger({
-          message: `Create land appointment error: ${error}`,
-          data: { error: String(error) },
-          type: 'error'
-        });
-        throw error;
-      }
-    }
-
-    const response = await axios.post(url, body, postConfig);
+    await loggerService.createLogger({
+      message: 'Create land appointment request',
+      data: { body },
+      type: 'info_request'
+    });
+    const response = await this.performRequest(
+      'post',
+      url,
+      postConfig,
+      body,
+      'create land',
+      proxyContext
+    );
     await loggerService.createLogger({
       message: 'Create land appointment response',
       data: { response: response.data },
