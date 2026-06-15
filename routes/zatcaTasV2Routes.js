@@ -5,7 +5,7 @@ const { extractFasahMessage } = FasahClient;
 const bookingDailyLimits = require('../services/bookingDailyLimits');
 const bookingHistoryService = require('../services/bookingHistoryService');
 
-const client = new FasahClient();
+const client = FasahClient.getInstance();
 
 /**
  * GET /api/zatca-tas/v2/appointment/bulk/getDeclarationInfo

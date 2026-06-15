@@ -3,7 +3,7 @@ const FasahClient = require('./fasahClient');
 
 class ScheduleCron {
   constructor() {
-    this.client = new FasahClient();
+    this.client = FasahClient.getInstance();
     this.isRunning = false;
     this.job = null;
   }

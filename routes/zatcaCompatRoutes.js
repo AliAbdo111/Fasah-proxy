@@ -3,7 +3,7 @@ const router = express.Router();
 const FasahClient = require('../services/fasahClient');
 const Schedule = require('./models/Schedule');
 
-const client = new FasahClient();
+const client = FasahClient.getInstance();
 
 /**
  * Persist a fetched schedule into the Schedule collection.

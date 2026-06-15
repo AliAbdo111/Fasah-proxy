@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const FasahClient = require('../services/fasahClient');
 
-const client = new FasahClient();
+const client = FasahClient.getInstance();
 
 /**
  * GET /api/zatca-tas/v1/appoint/pdf/generateLand

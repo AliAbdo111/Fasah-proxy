@@ -8,7 +8,7 @@ const bookingHistoryService = require('../services/bookingHistoryService');
 const loggerService = require('../services/loggerSerivce');
 
 // Initialize client
-const client = new FasahClient();
+const client = FasahClient.getInstance();
 
 function extractTasBookRef(result) {
   return (

@@ -5,6 +5,9 @@ require('dotenv').config();
 const loggerService = require('./loggerSerivce');
 const ProxyPool = require('./proxyPool');
 
+/** One pool per process — shared by every FasahClient instance. */
+let sharedPlatformProxyPool = null;
+
 const MSG_SCHEDULE_NO_SLOTS = 'لا يوجد مواعيد متاحة';
 const MSG_CREATE_FASAH_ERROR = 'حدث خطا علي منصة فسح';
 
@@ -136,15 +139,14 @@ class FasahClient {
     
     // Rotation index for legacy per-key pools (VPS URLs, etc.).
     this.proxyRotationMap = new Map();
-    this._platformProxyPool = null;
   }
 
   _getPlatformProxyPool() {
     const proxies = this.platformProxies.map((p) => this.normalizeProxyEntry(p)).filter(Boolean);
-    if (!this._platformProxyPool || this._platformProxyPool.size !== proxies.length) {
-      this._platformProxyPool = new ProxyPool(proxies);
+    if (!sharedPlatformProxyPool || sharedPlatformProxyPool.size !== proxies.length) {
+      sharedPlatformProxyPool = new ProxyPool(proxies);
     }
-    return this._platformProxyPool;
+    return sharedPlatformProxyPool;
   }
 
   /**
@@ -1327,6 +1329,13 @@ async getLandAppointmentPdf(params) {
     }
   }
 }
+
+let defaultInstance = null;
+
+FasahClient.getInstance = function getInstance() {
+  if (!defaultInstance) defaultInstance = new FasahClient();
+  return defaultInstance;
+};
 
 module.exports = FasahClient;
 module.exports.extractFasahMessage = extractFasahMessage;

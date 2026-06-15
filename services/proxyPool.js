@@ -1,3 +1,5 @@
+const POOL_DEBUG = String(process.env.FASAH_PROXY_POOL_DEBUG || 'false').toLowerCase() === 'true';
+
 /**
  * One-in-flight-per-proxy pool.
  * Max concurrent outbound requests = number of proxies; extra requests wait in queue.
@@ -8,6 +10,13 @@ class ProxyPool {
     this.freeIndices = this.proxies.map((_, index) => index);
     this.waitQueue = [];
     this.inUse = 0;
+  }
+
+  _logState(event) {
+    if (!POOL_DEBUG) return;
+    console.log(
+      `[POOL] ${event} active=${this.inUse}/${this.size} free=${this.freeIndices.length} queued=${this.waitQueue.length}`
+    );
   }
 
   get size() {
@@ -25,6 +34,7 @@ class ProxyPool {
   _grant(idx, resolve) {
     this.inUse += 1;
     const proxy = this.proxies[idx];
+    this._logState('acquire');
     resolve({
       proxy,
       release: () => this._release(idx)
@@ -39,6 +49,7 @@ class ProxyPool {
       return;
     }
     this.freeIndices.push(idx);
+    this._logState('release');
   }
 
   acquire() {
@@ -49,6 +60,7 @@ class ProxyPool {
       const idx = this.freeIndices.shift();
       return new Promise((resolve) => this._grant(idx, resolve));
     }
+    this._logState('enqueue');
     return new Promise((resolve) => {
       this.waitQueue.push(resolve);
     });
