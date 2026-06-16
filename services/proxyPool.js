@@ -1,5 +1,3 @@
-const POOL_DEBUG = String(process.env.FASAH_PROXY_POOL_DEBUG || 'false').toLowerCase() === 'true';
-
 /**
  * One-in-flight-per-proxy pool.
  * Max concurrent outbound requests = number of proxies; extra requests wait in queue.
@@ -10,13 +8,8 @@ class ProxyPool {
     this.freeIndices = this.proxies.map((_, index) => index);
     this.waitQueue = [];
     this.inUse = 0;
-  }
-
-  _logState(event) {
-    if (!POOL_DEBUG) return;
-    console.log(
-      `[POOL] ${event} active=${this.inUse}/${this.size} free=${this.freeIndices.length} queued=${this.waitQueue.length}`
-    );
+    this._seq = 0;
+    this.stats = { maxActive: 0, maxQueued: 0, started: 0, finished: 0 };
   }
 
   get size() {
@@ -31,38 +24,55 @@ class ProxyPool {
     return this.waitQueue.length;
   }
 
-  _grant(idx, resolve) {
+  _trackStats() {
+    this.stats.maxActive = Math.max(this.stats.maxActive, this.inUse);
+    this.stats.maxQueued = Math.max(this.stats.maxQueued, this.waitQueue.length);
+  }
+
+  _log(event, reqId, proxy) {
+    this._trackStats();
+    const host = proxy ? `${proxy.host}:${proxy.port}` : '-';
+    console.log(
+      `[proxyPool] #${reqId} ${event} proxy=${host} | active=${this.inUse}/${this.size} queued=${this.queued} free=${this.freeIndices.length}`
+    );
+  }
+
+  _grant(idx, resolve, reqId) {
     this.inUse += 1;
     const proxy = this.proxies[idx];
-    this._logState('acquire');
+    this._log('START', reqId, proxy);
     resolve({
       proxy,
-      release: () => this._release(idx)
+      release: () => this._release(idx, reqId, proxy)
     });
   }
 
-  _release(idx) {
+  _release(idx, reqId, proxy) {
     this.inUse = Math.max(0, this.inUse - 1);
+    this.stats.finished += 1;
     if (this.waitQueue.length > 0) {
       const next = this.waitQueue.shift();
-      this._grant(idx, next);
+      this._grant(idx, next.resolve, next.reqId);
       return;
     }
     this.freeIndices.push(idx);
-    this._logState('release');
+    this._log('DONE', reqId, proxy);
   }
 
-  acquire() {
+  acquire(reqId) {
     if (this.proxies.length === 0) {
       return Promise.resolve({ proxy: null, release: () => {} });
     }
     if (this.freeIndices.length > 0) {
       const idx = this.freeIndices.shift();
-      return new Promise((resolve) => this._grant(idx, resolve));
+      return new Promise((resolve) => this._grant(idx, resolve, reqId));
     }
-    this._logState('enqueue');
+    this._trackStats();
+    console.log(
+      `[proxyPool] #${reqId} WAIT | active=${this.inUse}/${this.size} queued=${this.waitQueue.length + 1} (no free proxy)`
+    );
     return new Promise((resolve) => {
-      this.waitQueue.push(resolve);
+      this.waitQueue.push({ resolve, reqId });
     });
   }
 
@@ -72,19 +82,30 @@ class ProxyPool {
    * @param {string} [logLabel]
    */
   async run(task, logLabel = '') {
-    const slot = await this.acquire();
+    const reqId = ++this._seq;
+    this.stats.started += 1;
+    const slot = await this.acquire(reqId);
     if (!slot.proxy) {
       return task(null);
     }
-    const label = logLabel ? ` (${logLabel})` : '';
-    console.log(
-      `[proxyPool] using ${slot.proxy.host}:${slot.proxy.port}${label} | active=${this.inUse}/${this.size} queued=${this.queued}`
-    );
+    if (logLabel) {
+      console.log(`[proxyPool] #${reqId} label=${logLabel}`);
+    }
     try {
       return await task(slot.proxy);
     } finally {
       slot.release();
     }
+  }
+
+  resetStats() {
+    this.stats = { maxActive: 0, maxQueued: 0, started: 0, finished: 0 };
+  }
+
+  printStats() {
+    console.log(
+      `[proxyPool] STATS started=${this.stats.started} finished=${this.stats.finished} maxActive=${this.stats.maxActive}/${this.size} maxQueued=${this.stats.maxQueued}`
+    );
   }
 }
 
