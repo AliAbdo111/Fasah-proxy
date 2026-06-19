@@ -17,28 +17,29 @@ class FasahClient {
 
     // For better TLS support, use HTTPS proxy protocol (protocol: 'https')
     // and set rejectUnauthorized: true if the provider uses trusted certificates
-    // host:port:username:password — 20-entry platform pool (FASAH_USE_PROXY=true)
+    // host:port:username:password — platform pool (FASAH_USE_PROXY=true)
     this.platformProxies = [
-      // { host: '82.23.74.101', port: 7356, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.26.83.122', port: 6331, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '31.98.6.125', port: 6803, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.64.142', port: 6397, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.47.203', port: 6457, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '31.98.11.39', port: 7216, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.58.6', port: 5761, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.48.34', port: 5289, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.27.103.12', port: 5220, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.79.6', port: 7761, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '31.98.24.148', port: 5824, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.45.229', port: 6481, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '31.98.5.33', port: 7211, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.51.50', port: 6802, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '31.98.17.94', port: 7270, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.79.190', port: 7945, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.52.32', port: 6785, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.23.79.204', port: 7959, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '82.27.101.197', port: 5906, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false },
-      // { host: '31.98.6.25', port: 6703, username: 'wjlsvmlc', password: 'e9m2qtqzoujk', protocol: 'http', rejectUnauthorized: false }
+      // epqiqeii (20)
+      { host: '82.23.61.41', port: 7793, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.97.159', port: 6029, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.133.87', port: 6307, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.23.57.147', port: 7401, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.129.152', port: 6873, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '104.252.75.122', port: 5492, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.129.29', port: 6750, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '82.22.96.63', port: 7771, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '179.61.172.191', port: 6742, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.13.34', port: 6211, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.13.21', port: 6198, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '46.203.86.208', port: 5708, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '46.203.15.11', port: 7012, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '87.86.24.127', port: 5778, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '195.40.129.114', port: 6835, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '87.86.24.170', port: 5821, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '212.212.19.64', port: 6215, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '31.98.15.181', port: 5358, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '87.86.25.168', port: 5319, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false },
+      { host: '46.203.60.87', port: 7087, username: 'epqiqeii', password: 'httc0aob5x24', protocol: 'http', rejectUnauthorized: false }
     ];
 
     // Optional per-user proxy pools (hardcoded). If a request has `proxyContext._id` that matches,
