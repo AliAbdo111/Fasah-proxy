@@ -10,6 +10,7 @@ const zatcaTasCustomsRoutes = require('./routes/zatcaTasCustomsRoutes');
 const zatcaFleetCompatRoutes = require('./routes/zatcaFleetCompatRoutes');
 const zatcaFleetV1Routes = require('./routes/zatcaFleetV1Routes');
 const authRoutes = require('./routes/authRoutes');
+const queueAppointmentRoutes = require('./routes/queueAppointmentRoutes');
 const authMiddleware = require('./middleware/authMiddleware');
 const mongoose = require('mongoose');
 const app = express();
@@ -114,6 +115,7 @@ app.use('/api/zatca-tas/customs', authMiddleware, zatcaTasCustomsRoutes);
 app.use('/api/zatca-fleet/v1', authMiddleware, zatcaFleetV1Routes);
 app.use('/api/zatca-fleet/v2', authMiddleware, zatcaFleetCompatRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/queue-appointments', queueAppointmentRoutes);
 
 // Root endpoint
 // app.get('/', (req, res) => {
