@@ -115,7 +115,7 @@ app.use('/api/zatca-tas/customs', authMiddleware, zatcaTasCustomsRoutes);
 app.use('/api/zatca-fleet/v1', authMiddleware, zatcaFleetV1Routes);
 app.use('/api/zatca-fleet/v2', authMiddleware, zatcaFleetCompatRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/queue-appointments', queueAppointmentRoutes);
+app.use('/api/queue-appointments', authMiddleware, queueAppointmentRoutes);
 
 // Root endpoint
 // app.get('/', (req, res) => {
