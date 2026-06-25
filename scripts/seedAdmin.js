@@ -1,6 +1,7 @@
 require('dotenv').config();
+require('../dist/polyfill-web-crypto');
 const mongoose = require('mongoose');
-const User = require('../routes/models/User');
+const User = require('../dist/schemas/user.schema').default;
 
 /** Admin seed: plaintext only; bcrypt hash is applied in User schema pre('save'). */
 function assertStrongAdminPassword(password) {

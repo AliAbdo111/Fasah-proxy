@@ -14,9 +14,10 @@
  *   SEED_SUBSCRIPTION_END_OPEN (ISO date, default 2026-06-19T23:59:59+03:00)
  */
 require('dotenv').config();
+require('../dist/polyfill-web-crypto');
 const mongoose = require('mongoose');
-const User = require('../routes/models/User');
-const bookingDailyLimits = require('../services/bookingDailyLimits');
+const User = require('../dist/schemas/user.schema').default;
+const bookingDailyLimits = require('../dist/services/bookingDailyLimits').default;
 
 const DEFAULT_FEATURES = [...bookingDailyLimits.DEFAULT_USER_FEATURES];
 

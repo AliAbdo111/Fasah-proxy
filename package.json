@@ -1,11 +1,12 @@
 {
   "name": "fasah-proxy",
-  "version": "1.0.0",
-  "description": "FASAH API Proxy Service for Schedule Management (المواعيد)",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "FASAH API Proxy Service for Schedule Management (NestJS + TypeScript)",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "dev": "nest start --watch",
     "seed:package-examples": "node scripts/seedPackageExamples.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -15,23 +16,38 @@
     "proxy",
     "api",
     "schedule",
-    "zatca"
+    "zatca",
+    "nestjs"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@nestjs/common": "^11.0.12",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.12",
+    "@nestjs/mongoose": "^11.0.3",
+    "@nestjs/platform-express": "^11.0.12",
+    "@nestjs/schedule": "^5.0.1",
+    "@nestjs/serve-static": "^5.0.3",
     "axios": "^1.10.0",
     "bcryptjs": "^3.0.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^4.21.2",
-    "express-rate-limit": "^8.2.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
     "https-proxy-agent": "^7.0.6",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.1",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.5.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "@nestjs/cli": "^11.0.6",
+    "@nestjs/schematics": "^11.0.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.14.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

@@ -5,8 +5,8 @@
  *   COUNT=250 BATCH_SIZE=100 node scripts/proxy-batch-example.js
  */
 
-const ProxyPool = require('../services/proxyPool');
-const { runProxyBatches, runProxyBatchesIndexed } = require('../services/proxyBatchRunner');
+const ProxyPool = require('../dist/services/proxyPool').default;
+const { runProxyBatches, runProxyBatchesIndexed } = require('../dist/services/proxyBatchRunner');
 
 const COUNT = Number(process.env.COUNT || 250);
 const BATCH_SIZE = Number(process.env.BATCH_SIZE || 100);

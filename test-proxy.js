@@ -1,4 +1,4 @@
-const FasahClient = require('./services/fasahClient');
+const FasahClient = require('./dist/services/fasahClient').default;
 
 const client = new FasahClient();
 

@@ -108,7 +108,7 @@ To switch to a different provider:
 
 1. Sign up with the new provider
 2. Get your proxy credentials
-3. Update the `proxies` array in `services/fasahClient.js`
+3. Update the `proxies` array in `src/services/fasahClient.ts`
 4. Test with a single proxy first
 5. Add more proxies for rotation
 
