@@ -22,10 +22,34 @@ import * as dailyBookingResetCron from './services/dailyBookingResetCron';
 import { startAppointmentWatcherCron } from './services/appointmentWatcherCron';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT') || 3001;
   const mongoUri = config.get<string>('MONGO_URI') || 'mongodb://127.0.0.1:27017/fasah';
+
+  const corsOriginRaw = config.get<string>('CORS_ORIGIN');
+  const corsOrigins =
+    !corsOriginRaw || corsOriginRaw.trim() === '*'
+      ? true
+      : corsOriginRaw.split(',').map((o) => o.trim()).filter(Boolean);
+  const corsCredentials = String(config.get('CORS_CREDENTIALS') ?? 'true').toLowerCase() === 'true';
+
+  app.enableCors({
+    origin: corsOrigins,
+    credentials: corsCredentials,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Auth-Token',
+      'x-auth-token',
+      'X-Requested-With',
+      'Accept',
+      'Origin'
+    ],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
+    maxAge: 86400
+  });
 
   // Services/schemas use mongoose.model() on the default connection (not Nest createConnection).
   await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });

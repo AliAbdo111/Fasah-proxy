@@ -84,6 +84,8 @@ scripts/               # Seed & utility scripts
 
 ## Production deployment with PM2
 
+> **`dist/` is not in git** — you must run `npm run build` on the server after every clone or pull. PM2 runs `dist/main.js`, not `src/`.
+
 The appointment watcher and daily booking cron must run in **exactly one process**. Use `instances: 1` and `exec_mode: fork` (already set in `ecosystem.config.cjs`).
 
 ### 1. Prepare the server
@@ -117,12 +119,21 @@ mkdir -p logs
 
 ### 4. Start with PM2
 
-The repo includes `ecosystem.config.cjs`:
+**Build first** (creates `dist/main.js`), then start:
 
 ```bash
+npm run build
+mkdir -p logs
 pm2 start ecosystem.config.cjs
+```
+
+Or use the helper script (build + start in one step):
+
+```bash
+mkdir -p logs
+npm run pm2:start
 pm2 save
-pm2 startup   # follow the printed command to enable boot on system restart
+pm2 startup   # run once — follow the printed systemctl command
 ```
 
 ### 5. Verify
@@ -154,7 +165,15 @@ pm2 monit
 ### Deploy updates
 
 ```bash
-cd /var/www/fasah-proxy
+cd ~/fasah-omar/Fasah-proxy   # your deploy path
+git pull
+npm run pm2:deploy
+pm2 save
+```
+
+Or manually:
+
+```bash
 git pull
 npm ci
 npm run build

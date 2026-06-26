@@ -7,6 +7,9 @@ import { extractAuthToken } from './request-auth';
  * Protects routes: requires valid JWT and active user.
  */
 export default async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
   try {
     const token = extractAuthToken(req);
     const decoded = authService.verifyToken(token) as { userId: string; iat?: number };

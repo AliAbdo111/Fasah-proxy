@@ -313,7 +313,7 @@ class FasahClient {
       const axiosConfig = {
         params: queryParams,
         headers,
-        timeout: 30000,
+        timeout: 3000,
         validateStatus: function (status) {
           return status >= 200 && status < 500;
         }
@@ -327,6 +327,7 @@ class FasahClient {
         'schedule',
         { ...(params.proxyContext || {}), proxyIndex: params.proxyIndex }
       );
+      console.log('[fasahClient] getLandSchedule response', response.data);
       return normalizeFasahResponse(response.data, 'schedule');
 
     } catch (error) {

@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import * as authService from '../../services/authService';
 
 export default async function adminAuthMiddleware(req: Request, res: Response, next: NextFunction) {
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
   try {
     const token = (req.headers['authorization'] || req.headers['x-auth-token']) as string;
     const { decoded, user } = await authService.assertAdminToken(token);
