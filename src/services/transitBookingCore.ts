@@ -79,7 +79,19 @@ async function executeTransitBooking({
       };
     }
   }
-
+  console.log('createTransitAppointment', {
+    port_code,
+    zone_schedule_id,
+    purpose,
+    cargo_type,
+    fleet_info,
+    bayan_appointment,
+    declaration_number,
+    token,
+    userType,
+    proxyContext,
+    proxyIndex
+  });
   const result = await client.createTransitAppointment({
     port_code,
     zone_schedule_id,

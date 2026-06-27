@@ -6,6 +6,7 @@ const authService = require('../services/authService');
 const adminAuthMiddleware = require('../common/middleware/admin-auth.middleware').default;
 const bookingDailyLimits = require('../services/bookingDailyLimits').default;
 const bookingHistoryService = require('../services/bookingHistoryService');
+const User = require('../schemas/user.schema').default;
 
 // POST /api/auth/register (admin only — use admin JWT from POST /api/auth/admin/login)
 router.post('/register', adminAuthMiddleware, async (req, res, next) => {
@@ -143,7 +144,6 @@ router.get('/me', async (req, res) => {
   try {
     const token = req.headers['authorization'] || req.headers['x-auth-token'];
     const decoded = authService.verifyToken(token);
-    const User = require('../schemas/user.schema');
     await bookingDailyLimits.syncUserBookingDay(decoded.userId);
     const user = await User.findById(decoded.userId).select('-password -otp -otpExpires -resetPasswordToken -resetPasswordExpires');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });

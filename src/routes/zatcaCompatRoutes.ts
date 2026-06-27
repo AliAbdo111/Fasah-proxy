@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const fasahMod = require('../services/fasahClient');
 const FasahClient = fasahMod.default;
-const Schedule = require('../schemas/schedule.schema');
+const Schedule = require('../schemas/schedule.schema').default;
 
 const client = FasahClient.getInstance();
 
