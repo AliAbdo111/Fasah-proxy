@@ -5,7 +5,7 @@ import QueueAppointment from '../schemas/queue-appointment.schema';
 import {
   assertMongoReady,
   buildScheduleCheckProfile,
-  watcherNeedsBooking,
+  needsBooking,
   WATCHER_QUEUE_STATUSES
 } from './queueAppointmentShape';
 import { extractLandSchedules, filterBookableSchedules } from './landScheduleExtract';
@@ -62,12 +62,13 @@ async function listUsersWithQueue() {
 
 async function getFirstAppointmentForUser(userId) {
   assertMongoReady();
-  return QueueAppointment.findOne({
+  const docs = await QueueAppointment.find({
     userId,
     status: { $in: ACTIVE_STATUSES }
   })
     .sort({ createdAt: 1 })
     .lean();
+  return docs.find(needsBooking) || null;
 }
 
 async function loadAllNeedingBooking() {
@@ -75,7 +76,7 @@ async function loadAllNeedingBooking() {
   const docs = await QueueAppointment.find({ status: { $in: ACTIVE_STATUSES } })
     .sort({ createdAt: 1 })
     .lean();
-  return docs.filter(watcherNeedsBooking);
+  return docs.filter(needsBooking);
 }
 
 /**
@@ -95,7 +96,7 @@ async function pollAllUsersOnce({ sessionId, tickIndex = 0 } = {}) {
     users.map(async (u, userIndex) => {
       const proxyIndex = (tickIndex * users.length + userIndex) % proxyCount;
       const first = await getFirstAppointmentForUser(u.userId);
-      if (!first || !watcherNeedsBooking(first)) {
+      if (!first || !needsBooking(first)) {
         return { userId: u.userId, ok: false, message: 'No bookable first appointment', proxyIndex };
       }
 

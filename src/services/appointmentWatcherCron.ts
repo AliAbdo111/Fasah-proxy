@@ -11,6 +11,9 @@ const ENABLED = String(process.env.WATCHER_ENABLED || 'false').toLowerCase() ===
 const IGNORE_WINDOW = String(process.env.WATCHER_IGNORE_WINDOW || 'false').toLowerCase() === 'true';
 const KEEP_POLLING = String(process.env.WATCHER_KEEP_POLLING || 'true').toLowerCase() === 'true';
 
+/** Runtime on/off (API stop/start); initialized from WATCHER_ENABLED at boot. */
+let watcherEnabled = ENABLED;
+
 let watcherActive = false;
 let nextTickTimer: ReturnType<typeof setTimeout> | null = null;
 let tickInFlight = false;
@@ -57,7 +60,8 @@ async function getWatcherStatus() {
     (await WatcherRun.findOne().sort({ updatedAt: -1 }).lean());
 
   return {
-    enabled: ENABLED,
+    enabled: watcherEnabled,
+    envEnabled: ENABLED,
     ignoreWindow: IGNORE_WINDOW,
     keepPolling: KEEP_POLLING,
     timezone: TZ,
@@ -95,7 +99,7 @@ function stopWatcherLoop(reason) {
 }
 
 function scheduleNextTick(delayMs = POLL_MS) {
-  if (!watcherActive) return;
+  if (!watcherActive || !watcherEnabled) return;
   if (nextTickTimer) clearTimeout(nextTickTimer);
   nextTickTimer = setTimeout(() => {
     runWatcherTick()
@@ -108,6 +112,8 @@ function scheduleNextTick(delayMs = POLL_MS) {
 }
 
 async function runWatcherTick() {
+  if (!watcherEnabled) return;
+
   if (tickInFlight) {
     console.log('[watcher] previous tick still running — skip overlap');
     return;
@@ -237,14 +243,11 @@ async function runWatcherTick() {
 }
 
 function startAppointmentWatcherCron() {
-  if (!ENABLED) {
-    console.log('[watcher] WATCHER_ENABLED=false — cron not started');
-    return;
-  }
+  watcherEnabled = true;
 
   if (watcherActive) {
     console.log('[watcher] already running');
-    return;
+    return { started: false, message: 'already running' };
   }
 
   watcherActive = true;
@@ -259,10 +262,23 @@ function startAppointmentWatcherCron() {
   runWatcherTick()
     .catch((err) => console.error('[watcher] initial tick', err))
     .finally(() => scheduleNextTick(POLL_MS));
+
+  return { started: true, message: 'watcher started' };
 }
 
-function stopAppointmentWatcherCron() {
-  stopWatcherLoop('manual');
+async function stopAppointmentWatcherCron(reason = 'manual') {
+  watcherEnabled = false;
+  stopWatcherLoop(reason);
+  try {
+    await upsertWatcherRun({
+      phase: 'idle',
+      stoppedAt: new Date(),
+      meta: { reason: String(reason) }
+    });
+  } catch (err) {
+    console.error('[watcher] stop persist failed', err.message || err);
+  }
+  return { stopped: true, message: 'watcher stopped', reason: String(reason) };
 }
 
 export { startAppointmentWatcherCron };

@@ -1,6 +1,5 @@
 // @ts-nocheck
 /* Ported from services/queueAutoBookService.js */
-import mongoose from 'mongoose';
 import QueueAppointment from '../schemas/queue-appointment.schema';
 import FasahClient from './fasahClient';
 import {
@@ -10,12 +9,11 @@ import {
   applyBookedState,
   applyBookingAttemptFailure,
   resolveBearer,
-  watcherNeedsBooking
+  needsBooking,
+  getBookingAttempts,
+  MAX_BOOKING_ATTEMPTS
 } from './queueAppointmentShape';
-import {
-  pickSlotForAppointment,
-  pickRandomBookableSlot
-} from './landScheduleExtract';
+import { listSlotsToTry } from './landScheduleExtract';
 import { executeTransitBooking } from './transitBookingCore';
 import { loadUnavailableIds, markSlotUnavailable, todaySessionId } from './unavailableSlotsStore';
 import { loadAllNeedingBooking } from './queueWatcherService';
@@ -23,23 +21,242 @@ import { loadAllNeedingBooking } from './queueWatcherService';
 async function persistAppointmentRecord(doc, patch) {
   const filter = { userId: doc.userId, id: doc.id };
   const $set = { ...patch, updatedAt: new Date() };
-  await QueueAppointment.findOneAndUpdate(filter, { $set }, { new: true });
+  await QueueAppointment.findOneAndUpdate(filter, { $set }, { returnDocument: 'after' });
 }
 
-async function setAppointmentPending(doc) {
-  const patch = { status: QUEUE_STATUS.PENDING, lastError: undefined };
-  if (String(doc.status || '').toLowerCase() === QUEUE_STATUS.FAILED) {
-    patch.bookingAttempts = 0;
+async function reloadAppointment(doc) {
+  return QueueAppointment.findOne({ userId: doc.userId, id: doc.id }).lean();
+}
+
+function isRetryableSlotError(message) {
+  const msg = String(message || '').toLowerCase();
+  return msg.includes('schedule_not_exist') || msg.includes('zero_available');
+}
+
+async function tryBookOnce({
+  appointment,
+  schedules,
+  unavailableIds,
+  sessionId,
+  proxyIndex,
+  fasahToken,
+  endpoint
+}) {
+  const slotsToTry = listSlotsToTry(schedules, appointment, unavailableIds);
+  if (!slotsToTry.length) {
+    return {
+      ok: false,
+      message: 'No bookable slots in current schedules',
+      result: null,
+      slot: null,
+      unavailableIds
+    };
   }
-  await persistAppointmentRecord(doc, patch);
+
+  let lastResult = null;
+  let lastSlot = null;
+  let lastMessage = 'Booking failed';
+
+  for (let i = 0; i < slotsToTry.length; i++) {
+    const slot = slotsToTry[i];
+    const body = buildTransitCreateBody(appointment, slot, fasahToken);
+    const result = await executeTransitBooking({
+      mongoUserId: String(appointment.userId),
+      appointmentId: appointment.id,
+      body,
+      proxyIndex,
+      endpoint: i === 0 ? endpoint || '/watcher/auto-book' : '/watcher/auto-book-retry'
+    });
+
+    lastResult = result;
+    lastSlot = slot;
+    lastMessage = result?.message || lastMessage;
+
+    if (result.success) {
+      return { ok: true, result, slot, unavailableIds, message: result.message };
+    }
+
+    if (result.zeroAvailableSlots || isRetryableSlotError(result.message)) {
+      await markSlotUnavailable({
+        zone_schedule_id: slot.zone_schedule_id,
+        port_code: slot.port_code || slot.zone_code,
+        sessionId,
+        reason: result.message || 'slot_unavailable'
+      });
+      unavailableIds = await loadUnavailableIds(sessionId);
+      continue;
+    }
+
+    break;
+  }
+
+  return {
+    ok: false,
+    result: lastResult,
+    slot: lastSlot,
+    unavailableIds,
+    message: lastMessage
+  };
+}
+
+async function recordBookingFailure(current, message) {
+  const prev = (await reloadAppointment(current)) || current;
+  const { record, isFinalFailure, attempts } = applyBookingAttemptFailure(prev, message);
+  await persistAppointmentRecord(prev, record);
+  return { record, isFinalFailure, attempts, prev };
+}
+
+async function bookAppointmentWithRetries({
+  appointment,
+  schedules,
+  sessionId,
+  proxyIndex,
+  onProgress
+}) {
+  const appointmentId = appointment.id;
+  const userId = String(appointment.userId);
+  let unavailableIds = await loadUnavailableIds(sessionId);
+  let current = appointment;
+  let attemptProxy = proxyIndex;
+
+  if (!needsBooking(current)) {
+    return { appointmentId, skipped: true, message: 'Already resolved or max attempts reached' };
+  }
+
+  if (!hasBookingPayload(current)) {
+    return {
+      appointmentId,
+      skipped: true,
+      message: 'Missing declaration_number, purpose, or fleet_info'
+    };
+  }
+
+  if (onProgress) {
+    onProgress({ phase: 'booking', appointmentId, userId, proxyIndex: attemptProxy });
+  }
+
+  while (true) {
+    current = (await reloadAppointment(current)) || current;
+    if (!needsBooking(current)) {
+      break;
+    }
+
+    const attemptNum = getBookingAttempts(current) + 1;
+    const fasahToken = resolveBearer(current);
+
+    try {
+      const tryResult = await tryBookOnce({
+        appointment: current,
+        schedules,
+        unavailableIds,
+        sessionId,
+        proxyIndex: attemptProxy,
+        fasahToken,
+        endpoint: attemptNum > 1 ? '/watcher/auto-book-retry' : '/watcher/auto-book'
+      });
+      unavailableIds = tryResult.unavailableIds || unavailableIds;
+
+      if (tryResult.ok) {
+        return {
+          appointmentId,
+          userId,
+          ok: true,
+          result: tryResult.result,
+          slot: tryResult.slot,
+          sourceAppointment: current,
+          attempts: attemptNum
+        };
+      }
+
+      const message = tryResult.result?.message || tryResult.message || 'Booking failed';
+      const { isFinalFailure, attempts } = await recordBookingFailure(current, message);
+      current = (await reloadAppointment(current)) || current;
+
+      if (onProgress) {
+        onProgress({
+          phase: isFinalFailure ? 'failed' : 'retry',
+          appointmentId,
+          userId,
+          message,
+          attempts,
+          maxAttempts: MAX_BOOKING_ATTEMPTS
+        });
+      }
+
+      console.log(
+        `[watcher] book attempt ${attempts}/${MAX_BOOKING_ATTEMPTS} failed appointment=${appointmentId} msg=${message}`
+      );
+
+      if (isFinalFailure) {
+        return {
+          appointmentId,
+          userId,
+          ok: false,
+          result: tryResult.result,
+          message,
+          attempts,
+          final: true,
+          sourceAppointment: current
+        };
+      }
+    } catch (err) {
+      const message = err?.message || String(err);
+      const { isFinalFailure, attempts } = await recordBookingFailure(current, message);
+      current = (await reloadAppointment(current)) || current;
+
+      console.log(
+        `[watcher] book attempt ${attempts}/${MAX_BOOKING_ATTEMPTS} error appointment=${appointmentId} msg=${message}`
+      );
+
+      if (onProgress) {
+        onProgress({
+          phase: isFinalFailure ? 'failed' : 'retry',
+          appointmentId,
+          userId,
+          message,
+          attempts,
+          maxAttempts: MAX_BOOKING_ATTEMPTS
+        });
+      }
+
+      if (isFinalFailure) {
+        return {
+          appointmentId,
+          userId,
+          ok: false,
+          message,
+          attempts,
+          final: true,
+          sourceAppointment: current
+        };
+      }
+    }
+
+    const proxyCount = FasahClient.getPlatformProxyCount() || 1;
+    attemptProxy = (attemptProxy + 1) % proxyCount;
+  }
+
+  const finalDoc = (await reloadAppointment(current)) || current;
+  const attempts = getBookingAttempts(finalDoc);
+  const isFinal = attempts >= MAX_BOOKING_ATTEMPTS || String(finalDoc.status) === QUEUE_STATUS.FAILED;
+
+  return {
+    appointmentId,
+    userId,
+    ok: false,
+    message: finalDoc.lastError || 'Max booking attempts reached',
+    attempts,
+    final: isFinal,
+    sourceAppointment: finalDoc
+  };
 }
 
 /**
- * Auto-book all in_queue / retryable pending rows after schedules are found.
+ * Auto-book all in_queue rows after schedules are found.
+ * Each appointment retries until success or MAX_BOOKING_ATTEMPTS (status → failed only at the end).
  */
 async function runAutoBookForAll({ schedules, sessionId, onProgress } = {}) {
   const sid = sessionId || todaySessionId();
-  let unavailableIds = await loadUnavailableIds(sid);
   const pending = await loadAllNeedingBooking();
 
   if (!pending.length) {
@@ -58,78 +275,13 @@ async function runAutoBookForAll({ schedules, sessionId, onProgress } = {}) {
     const waveResults = await Promise.all(
       wave.map(async (appointment, waveOffset) => {
         const proxyIndex = (waveStart + waveOffset) % concurrency;
-        const appointmentId = appointment.id;
-        const userId = String(appointment.userId);
-
-        if (!watcherNeedsBooking(appointment)) {
-          return { appointmentId, skipped: true, message: 'Already resolved' };
-        }
-
-        if (!hasBookingPayload(appointment)) {
-          return {
-            appointmentId,
-            skipped: true,
-            message: 'Missing declaration_number, purpose, or fleet_info'
-          };
-        }
-
-        await setAppointmentPending(appointment);
-
-        if (onProgress) {
-          onProgress({ phase: 'booking', appointmentId, userId, proxyIndex });
-        }
-
-        let slot = pickSlotForAppointment(schedules, appointment, unavailableIds);
-        if (!slot) {
-          return {
-            appointmentId,
-            userId,
-            ok: false,
-            message: 'No matching bookable slot in schedules',
-            sourceAppointment: appointment
-          };
-        }
-
-        const fasahToken = resolveBearer(appointment);
-        let body = buildTransitCreateBody(appointment, slot, fasahToken);
-        let result = await executeTransitBooking({
-          mongoUserId: userId,
-          appointmentId,
-          body,
+        return bookAppointmentWithRetries({
+          appointment,
+          schedules,
+          sessionId: sid,
           proxyIndex,
-          endpoint: '/watcher/auto-book'
+          onProgress
         });
-
-        if (!result.success && result.zeroAvailableSlots) {
-          const randomSlot = pickRandomBookableSlot(schedules, unavailableIds);
-          if (randomSlot) {
-            await markSlotUnavailable({
-              zone_schedule_id: randomSlot.zone_schedule_id,
-              port_code: randomSlot.port_code || randomSlot.zone_code,
-              sessionId: sid,
-              reason: 'zero_available_slots'
-            });
-            unavailableIds = await loadUnavailableIds(sid);
-            slot = randomSlot;
-            body = buildTransitCreateBody(appointment, slot, fasahToken);
-            result = await executeTransitBooking({
-              mongoUserId: userId,
-              appointmentId,
-              body,
-              proxyIndex,
-              endpoint: '/watcher/auto-book-retry'
-            });
-          }
-        }
-
-        return {
-          appointmentId,
-          userId,
-          ok: result.success,
-          result,
-          slot,
-          sourceAppointment: appointment
-        };
       })
     );
 
@@ -156,27 +308,14 @@ async function runAutoBookForAll({ schedules, sessionId, onProgress } = {}) {
           });
         }
       } else {
-        const message = item.result?.message || item.message || 'Booking failed';
-        const { record, isFinalFailure, attempts } = applyBookingAttemptFailure(prev, message);
-        await persistAppointmentRecord(prev, record);
         const entry = {
           appointmentId: item.appointmentId,
           userId: item.userId,
-          message,
-          attempts,
-          final: isFinalFailure
+          message: item.message || item.result?.message || 'Booking failed',
+          attempts: item.attempts,
+          final: Boolean(item.final)
         };
-        if (isFinalFailure) failed.push(entry);
-        else failed.push({ ...entry, retrying: true });
-        if (onProgress) {
-          onProgress({
-            phase: isFinalFailure ? 'failed' : 'retry',
-            appointmentId: item.appointmentId,
-            userId: item.userId,
-            message,
-            attempts
-          });
-        }
+        failed.push(item.final ? entry : { ...entry, retrying: true });
       }
     }
   }

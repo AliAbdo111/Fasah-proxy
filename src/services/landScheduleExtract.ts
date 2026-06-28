@@ -4,7 +4,36 @@
  * Normalize FASAH land schedule API responses → { schedules, headerMsg }.
  */
 
-import { getPreferredScheduleIndex } from './queueAppointmentShape';
+import { getPreferredScheduleIndex, getPreferredZoneScheduleId } from './queueAppointmentShape';
+
+function normalizeScheduleTime(value) {
+  if (!value) return '';
+  const s = String(value).trim().replace('T', ' ');
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2})/);
+  if (match) return `${match[1]} ${match[2]}:${match[3]}`;
+  return s.slice(0, 16);
+}
+
+function isFasahScheduleId(value) {
+  return /^\d{10,}$/.test(String(value || '').trim());
+}
+
+function getStoredSlotHints(appointment) {
+  const selected = appointment?.appointment?.selectedSlot || {};
+  const submit = appointment?.submitData || {};
+  return {
+    scheduleFrom: normalizeScheduleTime(selected.schedule_from || submit.schedule_from),
+    scheduleTo: normalizeScheduleTime(selected.schedule_to || submit.schedule_to),
+    portCode: String(
+      selected.port_code || selected.zone_code || submit.port_code || ''
+    ).trim()
+  };
+}
+
+function slotMatchesHints(slot, hints) {
+  if (!hints?.scheduleFrom) return true;
+  return normalizeScheduleTime(slot?.schedule_from) === hints.scheduleFrom;
+}
 
 function extractLandSchedules(data) {
   if (!data || typeof data !== 'object') {
@@ -48,31 +77,85 @@ function filterBookableSchedules(schedules, unavailableIds = new Set()) {
   });
 }
 
-/** Pick slot by stored zone_schedule_id index into the API schedules list. */
-function pickSlotForAppointment(schedules, appointment, unavailableIds = new Set()) {
+/** Preferred slot only — no fallback. */
+function pickPreferredSlotForAppointment(schedules, appointment, unavailableIds = new Set()) {
   const rawList = Array.isArray(schedules) ? schedules : [];
-  const preferredIndex = getPreferredScheduleIndex(appointment);
+  const hints = getStoredSlotHints(appointment);
+  const preferredId = getPreferredZoneScheduleId(appointment);
 
+  const isAvailable = (slot) =>
+    slot &&
+    isBookableSlot(slot) &&
+    !unavailableIds.has(String(slot.zone_schedule_id));
+
+  if (preferredId && isFasahScheduleId(preferredId)) {
+    const byId = rawList.find((slot) => String(slot.zone_schedule_id) === String(preferredId));
+    if (isAvailable(byId)) return byId;
+  }
+
+  if (hints.scheduleFrom) {
+    const byTime = rawList.find(
+      (slot) =>
+        isAvailable(slot) &&
+        slotMatchesHints(slot, hints) &&
+        (!hints.portCode ||
+          String(slot.port_code || slot.zone_code) === hints.portCode)
+    );
+    if (byTime) return byTime;
+  }
+
+  const preferredIndex = getPreferredScheduleIndex(appointment);
   if (preferredIndex != null && preferredIndex < rawList.length) {
     const slot = rawList[preferredIndex];
-    if (
-      slot &&
-      isBookableSlot(slot) &&
-      !unavailableIds.has(String(slot.zone_schedule_id))
-    ) {
+    if (isAvailable(slot) && slotMatchesHints(slot, hints)) {
       return slot;
     }
   }
 
+  return null;
+}
+
+/** First bookable slot in API order (deterministic, not random). */
+function pickFirstBookableSlot(schedules, unavailableIds = new Set()) {
   const list = filterBookableSchedules(schedules, unavailableIds);
   return list[0] || null;
 }
 
+/**
+ * Pick slot: preferred match first, then any bookable slot from current poll.
+ * Goal is to book — not to fail when the saved day/time is not in today's list.
+ */
+function pickSlotForAppointment(schedules, appointment, unavailableIds = new Set()) {
+  return (
+    pickPreferredSlotForAppointment(schedules, appointment, unavailableIds) ||
+    pickFirstBookableSlot(schedules, unavailableIds)
+  );
+}
+
+/** Ordered list of slots to try: preferred first, then remaining bookable slots. */
+function listSlotsToTry(schedules, appointment, unavailableIds = new Set()) {
+  const preferred = pickPreferredSlotForAppointment(schedules, appointment, unavailableIds);
+  const bookable = filterBookableSchedules(schedules, unavailableIds);
+  const seen = new Set();
+  const ordered = [];
+
+  if (preferred) {
+    ordered.push(preferred);
+    seen.add(String(preferred.zone_schedule_id));
+  }
+
+  for (const slot of bookable) {
+    const id = String(slot.zone_schedule_id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(slot);
+  }
+
+  return ordered;
+}
+
 function pickRandomBookableSlot(schedules, unavailableIds = new Set()) {
-  const list = filterBookableSchedules(schedules, unavailableIds);
-  if (!list.length) return null;
-  const idx = Math.floor(Math.random() * list.length);
-  return list[idx];
+  return pickFirstBookableSlot(schedules, unavailableIds);
 }
 
 function extractBookableZoneScheduleIds(data, unavailableIds = new Set()) {
@@ -97,6 +180,9 @@ export { extractLandSchedules };
 export { isBookableSlot };
 export { filterBookableSchedules };
 export { pickSlotForAppointment };
+export { pickPreferredSlotForAppointment };
+export { pickFirstBookableSlot };
+export { listSlotsToTry };
 export { pickRandomBookableSlot };
 export { extractBookableZoneScheduleIds };
 export { hasBookableSchedules };

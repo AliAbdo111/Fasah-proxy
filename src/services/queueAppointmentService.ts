@@ -5,8 +5,13 @@ import QueueAppointment from '../schemas/queue-appointment.schema';
 import {
   normalizeQueueAppointmentInput,
   toQueueAppointmentResponse,
-  assertMongoReady
+  assertMongoReady,
+  QUEUE_STATUS,
+  VALID_STATUSES
 } from './queueAppointmentShape';
+import bookingDailyLimits from './bookingDailyLimits';
+
+const SUCCESS_STATUSES = new Set([QUEUE_STATUS.BOOKED, QUEUE_STATUS.SUCCESS]);
 
 function parsePagination(query) {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
@@ -143,10 +148,89 @@ async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace 
   const doc = await QueueAppointment.findOneAndUpdate(
     filter,
     { $set: normalized },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   return toQueueAppointmentResponse(doc);
+}
+
+/**
+ * Update queue appointment status; when moving to booked/success, increment user booking counters once.
+ */
+async function updateQueueAppointmentStatus({
+  userId,
+  queueId,
+  isAdmin,
+  status,
+  tasBookRef,
+  lastError,
+  recordUserBooking
+}) {
+  assertMongoReady();
+  const filter = { id: String(queueId) };
+  if (!isAdmin) {
+    filter.userId = userId;
+  }
+
+  const existing = await QueueAppointment.findOne(filter);
+  if (!existing) {
+    const err = new Error('Queue appointment not found');
+    err.status = 404;
+    throw err;
+  }
+
+  if (status == null || status === '') {
+    const err = new Error('status is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const nextStatus = String(status).toLowerCase();
+  if (!VALID_STATUSES.includes(nextStatus)) {
+    const err = new Error(`Invalid status. Allowed: ${VALID_STATUSES.join(', ')}`);
+    err.status = 400;
+    throw err;
+  }
+
+  const prevStatus = String(existing.status || '').toLowerCase();
+  const $set = { status: nextStatus };
+
+  if (tasBookRef !== undefined) {
+    $set.tasBookRef = tasBookRef ? String(tasBookRef) : undefined;
+  }
+  if (lastError !== undefined) {
+    $set.lastError = lastError ? String(lastError) : undefined;
+  }
+
+  if (SUCCESS_STATUSES.has(nextStatus)) {
+    $set.bookedAt = existing.bookedAt || new Date();
+    if (lastError === undefined) {
+      $set.lastError = undefined;
+    }
+  }
+
+  const doc = await QueueAppointment.findOneAndUpdate(
+    filter,
+    { $set },
+    { returnDocument: 'after', runValidators: true }
+  );
+
+  const shouldRecordUserBooking =
+    recordUserBooking !== false &&
+    SUCCESS_STATUSES.has(nextStatus) &&
+    !SUCCESS_STATUSES.has(prevStatus);
+
+  let userBookingRecorded = false;
+  if (shouldRecordUserBooking) {
+    await bookingDailyLimits.syncUserBookingDay(String(existing.userId));
+    await bookingDailyLimits.recordTransitBookingSuccess(String(existing.userId), null);
+    userBookingRecorded = true;
+  }
+
+  return {
+    appointment: toQueueAppointmentResponse(doc),
+    userBookingRecorded
+  };
 }
 
 async function deleteQueueAppointment({ userId, queueId, isAdmin }) {
@@ -179,5 +263,6 @@ export { listQueueAppointments };
 export { listQueueAppointmentsByUser };
 export { getQueueAppointmentById };
 export { updateQueueAppointment };
+export { updateQueueAppointmentStatus };
 export { deleteQueueAppointment };
 export { mapMongoError };

@@ -120,7 +120,15 @@ async function bootstrap() {
   console.log(`❤️  Health Check: http://localhost:${port}/health`);
 
   dailyBookingResetCron.start();
-  startAppointmentWatcherCron();
+  const watcherEnabledAtBoot =
+    String(config.get('WATCHER_ENABLED') ?? 'false').toLowerCase() === 'true';
+  if (watcherEnabledAtBoot) {
+    startAppointmentWatcherCron();
+  } else {
+    console.log(
+      '[watcher] WATCHER_ENABLED=false — not started at boot (use POST /api/queue-appointments/watcher/start or set env true)'
+    );
+  }
 }
 
 bootstrap();

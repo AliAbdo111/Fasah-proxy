@@ -175,11 +175,9 @@ function needsBooking(appointment) {
   return getBookingAttempts(appointment) < MAX_BOOKING_ATTEMPTS;
 }
 
-/** Watcher keeps users in queue even after all booking attempts failed. */
+/** Watcher keeps polling while booking attempts remain (stops at MAX_BOOKING_ATTEMPTS). */
 function watcherNeedsBooking(appointment) {
-  if (!appointment || typeof appointment !== 'object') return false;
-  const status = String(appointment.status || QUEUE_STATUS.IN_QUEUE).toLowerCase();
-  return WATCHER_QUEUE_STATUSES.includes(status);
+  return needsBooking(appointment);
 }
 
 function getPreferredZoneScheduleId(appointment) {
@@ -321,13 +319,9 @@ function applyBookingAttemptFailure(appointment, message) {
     lastError: message,
     updatedAt: new Date().toISOString()
   };
-  const retryStatus =
-    String(prev.status || '').toLowerCase() === QUEUE_STATUS.IN_QUEUE
-      ? QUEUE_STATUS.IN_QUEUE
-      : QUEUE_STATUS.PENDING;
   const record = isFinalFailure
     ? applyFailedState(base, message)
-    : sanitizeAppointmentForStorage({ ...base, status: retryStatus });
+    : sanitizeAppointmentForStorage({ ...base, status: QUEUE_STATUS.IN_QUEUE });
   return { record, isFinalFailure, attempts };
 }
 

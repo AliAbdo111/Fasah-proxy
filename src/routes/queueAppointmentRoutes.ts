@@ -4,7 +4,7 @@ const router = express.Router();
 const queueAppointmentService = require('../services/queueAppointmentService');
 const { normalizeQueueAppointmentInput, toQueueAppointmentResponse } = require('../services/queueAppointmentShape');
 const { requireRequestUserId } = require('../common/middleware/request-auth');
-const { getWatcherStatus } = require('../services/appointmentWatcherCron');
+const { getWatcherStatus, startAppointmentWatcherCron, stopAppointmentWatcherCron } = require('../services/appointmentWatcherCron');
 
 function isAdmin(req) {
   return req.auth?.role === 'admin';
@@ -94,6 +94,61 @@ router.get('/watcher/status', async (req, res) => {
     res.json({ success: true, ...status });
   } catch (err) {
     handleError(res, err);
+  }
+});
+
+/** POST /api/queue-appointments/watcher/stop — admin: stop immediately */
+router.post('/watcher/stop', async (req, res) => {
+  try {
+    const userId = requireRequestUserId(req, res);
+    if (!userId) return;
+    if (!isAdmin(req)) {
+      return res.status(403).json({ success: false, message: 'Admin only' });
+    }
+    const reason = req.body?.reason || 'api_stop';
+    const result = await stopAppointmentWatcherCron(reason);
+    const status = await getWatcherStatus();
+    res.json({ success: true, ...result, status });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+/** POST /api/queue-appointments/watcher/start — admin: start again */
+router.post('/watcher/start', async (req, res) => {
+  try {
+    const userId = requireRequestUserId(req, res);
+    if (!userId) return;
+    if (!isAdmin(req)) {
+      return res.status(403).json({ success: false, message: 'Admin only' });
+    }
+    const result = startAppointmentWatcherCron();
+    const status = await getWatcherStatus();
+    res.json({ success: true, ...result, status });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+/** PATCH /api/queue-appointments/:queueId/status — update status (+ user booking count when booked/success) */
+router.patch('/:queueId/status', async (req, res) => {
+  try {
+    const userId = requireRequestUserId(req, res);
+    if (!userId) return;
+
+    const { status, tasBookRef, lastError, recordUserBooking } = req.body || {};
+    const result = await queueAppointmentService.updateQueueAppointmentStatus({
+      userId,
+      queueId: req.params.queueId,
+      isAdmin: isAdmin(req),
+      status,
+      tasBookRef,
+      lastError,
+      recordUserBooking
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    handleError(res, queueAppointmentService.mapMongoError(err));
   }
 });
 

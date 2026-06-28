@@ -3,7 +3,7 @@
 import FasahClient from './fasahClient';
 import { extractFasahMessage } from './fasahClient';
 import bookingDailyLimits from './bookingDailyLimits';
-import bookingHistoryService from './bookingHistoryService';
+import * as bookingHistoryService from './bookingHistoryService';
 
 const client = FasahClient.getInstance ? FasahClient.getInstance() : new FasahClient();
 
