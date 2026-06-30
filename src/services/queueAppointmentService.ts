@@ -164,7 +164,7 @@ async function updateQueueAppointmentStatus({
   status,
   tasBookRef,
   lastError,
-  recordUserBooking
+  recordUserBooking = true
 }) {
   assertMongoReady();
   const filter = { id: String(queueId) };
@@ -216,9 +216,7 @@ async function updateQueueAppointmentStatus({
   );
 
   const shouldRecordUserBooking =
-    recordUserBooking !== false &&
-    SUCCESS_STATUSES.has(nextStatus) &&
-    !SUCCESS_STATUSES.has(prevStatus);
+    recordUserBooking !== false && status === QUEUE_STATUS.SUCCESS;
 
   let userBookingRecorded = false;
   if (shouldRecordUserBooking) {

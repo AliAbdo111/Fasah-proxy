@@ -138,7 +138,7 @@ router.patch('/:queueId/status', async (req, res) => {
 
     const { status, tasBookRef, lastError, recordUserBooking } = req.body || {};
     const result = await queueAppointmentService.updateQueueAppointmentStatus({
-      userId,
+      userId, 
       queueId: req.params.queueId,
       isAdmin: isAdmin(req),
       status,
