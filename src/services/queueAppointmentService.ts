@@ -51,7 +51,6 @@ function assertUserListAccess({ requesterId, targetUserId, isAdmin }) {
 }
 
 async function listQueueAppointmentsByUser({ requesterId, targetUserId, query, isAdmin }) {
-  assertMongoReady();
   const listQuery = { ...query };
   delete listQuery.userId;
   const resolvedUserId = assertUserListAccess({ requesterId, targetUserId, isAdmin });
@@ -114,13 +113,7 @@ async function getQueueAppointmentById({ userId, queueId, isAdmin }) {
 }
 
 async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace = false }) {
-  assertMongoReady();
-  const filter = { id: String(queueId) };
-  if (!isAdmin) {
-    filter.userId = userId;
-  }
-
-  const existing = await QueueAppointment.findOne(filter);
+  const existing = await QueueAppointment.findOne({ id: queueId });
   if (!existing) {
     const err = new Error('Queue appointment not found');
     err.status = 404;
@@ -145,12 +138,11 @@ async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace 
 
   const normalized = normalizeQueueAppointmentInput(merged, { existingId: existing.id });
 
-  const doc = await QueueAppointment.findOneAndUpdate(
-    filter,
-    { $set: normalized },
-    { returnDocument: 'after', runValidators: true }
-  );
-
+  const doc = await QueueAppointment.findOneAndUpdate({ id: existing.id }, { $set: normalized }, { returnDocument: 'after', runValidators: true });
+  if (normalized.status === QUEUE_STATUS.SUCCESS) {
+    await bookingDailyLimits.syncUserBookingDay(String(existing.userId));
+    await bookingDailyLimits.recordTransitBookingSuccess(String(existing.userId), null);
+  }
   return toQueueAppointmentResponse(doc);
 }
 
@@ -166,17 +158,12 @@ async function updateQueueAppointmentStatus({
   error,
   recordUserBooking = true
 }) {
-  assertMongoReady();
-  const filter = { id: String(queueId) };
-  if (!isAdmin) {
-    filter.userId = userId;
-  }
 
-  const existing = await QueueAppointment.findOne(filter);
+  const existing = await QueueAppointment.findOne({ id: queueId });
   if (!existing) {
-    const err = new Error('Queue appointment not found');
-    err.status = 404;
-    throw err;
+    // const err = new Error('Queue appointment not found');
+    // err.status = 404;
+    // throw err;
   }
 
   if (status == null || status === '') {
@@ -209,26 +196,18 @@ async function updateQueueAppointmentStatus({
     }
   }
 
-  const doc = await QueueAppointment.findOneAndUpdate(
+  await QueueAppointment.findOneAndUpdate(
     filter,
     { $set },
     { returnDocument: 'after', runValidators: true }
   );
 
-  const shouldRecordUserBooking =
-    recordUserBooking !== false && status === QUEUE_STATUS.SUCCESS;
-
-  let userBookingRecorded = false;
-  if (shouldRecordUserBooking) {
+  if (status === QUEUE_STATUS.SUCCESS) {
     await bookingDailyLimits.syncUserBookingDay(String(existing.userId));
     await bookingDailyLimits.recordTransitBookingSuccess(String(existing.userId), null);
-    userBookingRecorded = true;
   }
 
-  return {
-    appointment: toQueueAppointmentResponse(doc),
-    userBookingRecorded
-  };
+  return true
 }
 
 async function deleteQueueAppointment({ userId, queueId, isAdmin }) {

@@ -122,6 +122,8 @@ const queueAppointmentSchema = new mongoose.Schema(
     zone_schedule_id: { type: String, index: true },
     bookingAttempts: { type: Number, default: 0, min: 0 },
     lastError: String,
+
+    error: String,
     tasBookRef: String,
     bookedAt: Date
   },
