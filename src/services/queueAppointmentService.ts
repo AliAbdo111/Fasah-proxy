@@ -163,7 +163,7 @@ async function updateQueueAppointmentStatus({
   isAdmin,
   status,
   tasBookRef,
-  lastError,
+  error,
   recordUserBooking = true
 }) {
   assertMongoReady();
@@ -198,14 +198,14 @@ async function updateQueueAppointmentStatus({
   if (tasBookRef !== undefined) {
     $set.tasBookRef = tasBookRef ? String(tasBookRef) : undefined;
   }
-  if (lastError !== undefined) {
-    $set.lastError = lastError ? String(lastError) : undefined;
+  if (error !== undefined) {
+    $set.error = error ? String(error) : undefined;
   }
 
   if (SUCCESS_STATUSES.has(nextStatus)) {
     $set.bookedAt = existing.bookedAt || new Date();
-    if (lastError === undefined) {
-      $set.lastError = undefined;
+    if (error === undefined) {
+      $set.error = undefined;
     }
   }
 

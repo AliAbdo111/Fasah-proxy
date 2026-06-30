@@ -136,14 +136,14 @@ router.patch('/:queueId/status', async (req, res) => {
     const userId = requireRequestUserId(req, res);
     if (!userId) return;
 
-    const { status, tasBookRef, lastError, recordUserBooking } = req.body || {};
+    const { status, tasBookRef, error, recordUserBooking } = req.body || {};
     const result = await queueAppointmentService.updateQueueAppointmentStatus({
       userId, 
       queueId: req.params.queueId,
       isAdmin: isAdmin(req),
       status,
       tasBookRef,
-      lastError,
+      error,
       recordUserBooking
     });
     res.json({ success: true, ...result });
