@@ -311,7 +311,7 @@ router.post('/appointment/transit/create', async (req, res) => {
     const token = req.headers['x-fasah-token'] || 
                   req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
                   req.headers['token']?.replace(/^Bearer\s+/i, '');
-
+    const gRecaptchaResponse = req.headers['g-recaptcha-response'];
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -351,7 +351,8 @@ router.post('/appointment/transit/create', async (req, res) => {
       declaration_number,
       token,
       userType: userType,
-      proxyContext: req.user
+      proxyContext: req.user,
+      gRecaptchaResponse
     });
 
     // Count as success only when tasBookRef exists

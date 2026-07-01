@@ -992,7 +992,8 @@ async createTransitAppointment(params) {
       cargo_type = '',
       bayan_appointment = {},
       token,
-      userType = 'broker'
+      userType = 'broker',
+      gRecaptchaResponse
     } = params;
 
     // التحقق من المعاملات المطلوبة
@@ -1027,19 +1028,19 @@ async createTransitAppointment(params) {
       declaration_number
     };
     console.log('requestData', requestData);
-    // إعداد الهيدرات
     const headers = {
       'Accept': 'application/json',
       'Accept-Language': 'ar',
       'Content-Type': 'application/json; charset=UTF-8',
       'Origin': baseUrl,
       'Referer': `${baseUrl}/ar/broker/2.0/`,
-      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`,
+      'g-recaptcha-response': params.gRecaptchaResponse
     };
-
+      console.log('headers', headers);
     const postConfig = {
       headers,
-      timeout: 30000,
+      timeout: 5000,
       validateStatus: function (status) {
         return status >= 200 && status < 500;
       }
