@@ -45,7 +45,8 @@ async function bootstrap() {
       'x-auth-token',
       'X-Requested-With',
       'Accept',
-      'Origin'
+      'Origin',
+      'g-recaptcha-response'
     ],
     exposedHeaders: ['Content-Length', 'Content-Type'],
     maxAge: 86400
