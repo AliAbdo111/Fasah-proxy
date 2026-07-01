@@ -43,6 +43,7 @@ async function bootstrap() {
       'Authorization',
       'X-Auth-Token',
       'x-auth-token',
+      'token',
       'X-Requested-With',
       'Accept',
       'Origin',
