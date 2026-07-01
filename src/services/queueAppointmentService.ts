@@ -10,6 +10,7 @@ import {
   VALID_STATUSES
 } from './queueAppointmentShape';
 import bookingDailyLimits from './bookingDailyLimits';
+import User from 'src/schemas/user.schema';
 
 const SUCCESS_STATUSES = new Set([QUEUE_STATUS.BOOKED, QUEUE_STATUS.SUCCESS]);
 
@@ -139,9 +140,8 @@ async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace 
   const normalized = normalizeQueueAppointmentInput(merged, { existingId: existing.id });
 
   const doc = await QueueAppointment.findOneAndUpdate({ id: existing.id }, { $set: normalized }, { returnDocument: 'after', runValidators: true });
-  if (normalized.status === QUEUE_STATUS.SUCCESS) {
-    await bookingDailyLimits.syncUserBookingDay(String(existing.userId));
-    await bookingDailyLimits.recordTransitBookingSuccess(String(existing.userId), null);
+  if (normalized.status === QUEUE_STATUS.BOOKED) {
+    await User.findByIdAndUpdate(existing.userId, { $inc: { transitBookingCount: 1, bookingCount: 1 } });
   }
   return toQueueAppointmentResponse(doc);
 }
