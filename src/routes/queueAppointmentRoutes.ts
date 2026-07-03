@@ -194,7 +194,7 @@ router.patch('/:queueId', async (req, res) => {
     const userId = requireRequestUserId(req, res);
     if (!userId) return;
 
-    const appointment = await queueAppointmentService.updateQueueAppointment({
+    const appointment = await queueAppointmentService.updateQueueAppointment({ 
       userId,
       queueId: req.params.queueId,
       body: req.body,

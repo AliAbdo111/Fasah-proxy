@@ -386,12 +386,13 @@ router.post('/appointment/transit/create', async (req, res) => {
     }
 
     if (req.user && req.user._id) {
-      await bookingDailyLimits.recordTransitBookingSuccess(
+  /*    await bookingDailyLimits.recordTransitBookingSuccess(
         req.user._id,
         bookingDecision,
         type
       );
-    }
+    */
+      }
 
     await bookingHistoryService.logBooking({
       userId: req.user && req.user._id,
