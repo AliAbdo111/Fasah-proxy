@@ -176,6 +176,7 @@ router.put('/:queueId', async (req, res) => {
     if (!userId) return;
 
     const appointment = await queueAppointmentService.updateQueueAppointment({
+      responseBody: req.body,
       userId,
       queueId: req.params.queueId,
       body: req.body,
@@ -196,6 +197,7 @@ router.patch('/:queueId', async (req, res) => {
 
     const appointment = await queueAppointmentService.updateQueueAppointment({ 
       userId,
+      responseBody: req.body,
       queueId: req.params.queueId,
       body: req.body,
       isAdmin: isAdmin(req),

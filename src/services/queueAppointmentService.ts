@@ -113,7 +113,7 @@ async function getQueueAppointmentById({ userId, queueId, isAdmin }) {
   return toQueueAppointmentResponse(doc);
 }
 
-async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace = false }) {
+async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace = false, responseBody }) {
   const existing = await QueueAppointment.findOne({ id: queueId });
   if (!existing) {
     const err = new Error('Queue appointment not found');
@@ -140,8 +140,15 @@ async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace 
   const normalized = normalizeQueueAppointmentInput(merged, { existingId: existing.id });
 
   const doc = await QueueAppointment.findOneAndUpdate({ id: existing.id }, { $set: normalized }, { returnDocument: 'after', runValidators: true });
-  if (normalized.status === QUEUE_STATUS.BOOKED) {
+  if (normalized.status === body.status) {
     await User.findByIdAndUpdate(existing.userId, { $inc: { transitBookingCount: 1, bookingCount: 1 , totalMonthlyTransitBookingCount: 1 } });
+    await bookingHistoryService.logBooking({
+      userId: existing.userId,
+      bookingDecision: body.status,
+      type: 'transit',
+      bookingData: normalized, 
+      responseBody: responseBody
+    });
   }
   return toQueueAppointmentResponse(doc);
 }
