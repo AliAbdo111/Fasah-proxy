@@ -442,7 +442,7 @@ class FasahClient {
       const queryParams = {
         departure,
         arrival,
-        type: 'SPECIAL',
+        type:type 
       };
 
       const bearer =

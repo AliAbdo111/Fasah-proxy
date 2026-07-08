@@ -44,7 +44,7 @@ router.get('/zone/schedule/land/server-one', async (req, res) => {
       });
     }
 
-    const result = await client.getLandSchedule({
+    const result = await client.getLandSchedule({  
       departure,
       arrival,
       type,
