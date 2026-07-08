@@ -140,7 +140,7 @@ async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace 
   const normalized = normalizeQueueAppointmentInput(merged, { existingId: existing.id });
 
   const doc = await QueueAppointment.findOneAndUpdate({ id: existing.id }, { $set: normalized }, { returnDocument: 'after', runValidators: true });
-  if (normalized.status === body.status) {
+  if (body.status === QUEUE_STATUS.BOOKED) {
     await User.findByIdAndUpdate(existing.userId, { $inc: { transitBookingCount: 1, bookingCount: 1 , totalMonthlyTransitBookingCount: 1 } });
     await bookingHistoryService.logBooking({
       userId: existing.userId,
