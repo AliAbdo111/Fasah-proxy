@@ -11,6 +11,7 @@ import {
 } from './queueAppointmentShape';
 import bookingDailyLimits from './bookingDailyLimits';
 import User from 'src/schemas/user.schema';
+import { listUserBookings, logBooking } from './bookingHistoryService';
 
 const SUCCESS_STATUSES = new Set([QUEUE_STATUS.BOOKED, QUEUE_STATUS.SUCCESS]);
 
@@ -63,7 +64,7 @@ async function listQueueAppointmentsByUser({ requesterId, targetUserId, query, i
   });
 
   const [items, total] = await Promise.all([
-    QueueAppointment.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit),
+    QueueAppointment.find().sort({ updatedAt: -1 }).skip(skip).limit(limit),
     QueueAppointment.countDocuments(filter)
   ]);
 
@@ -142,7 +143,7 @@ async function updateQueueAppointment({ userId, queueId, body, isAdmin, replace 
   const doc = await QueueAppointment.findOneAndUpdate({ id: existing.id }, { $set: normalized }, { returnDocument: 'after', runValidators: true });
   if (body.status === QUEUE_STATUS.BOOKED) {
     await User.findByIdAndUpdate(existing.userId, { $inc: { transitBookingCount: 1, bookingCount: 1 , totalMonthlyTransitBookingCount: 1 } });
-    await bookingHistoryService.logBooking({
+    await logBooking({
       userId: existing.userId,
       bookingDecision: body.status,
       type: 'transit',
