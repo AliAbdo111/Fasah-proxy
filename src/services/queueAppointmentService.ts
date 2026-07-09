@@ -64,7 +64,7 @@ async function listQueueAppointmentsByUser({ requesterId, targetUserId, query, i
   });
 
   const [items, total] = await Promise.all([
-    QueueAppointment.find().sort({ updatedAt: -1 }).skip(skip).limit(limit),
+    QueueAppointment.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit),
     QueueAppointment.countDocuments(filter)
   ]);
 
