@@ -352,11 +352,12 @@ class FasahClient {
    */
   createProxyAgent(proxyConfig) {
     // Support both HTTP and HTTPS proxy protocols
-    const protocol = proxyConfig.protocol || 'http';
-    const proxyUrl = `${protocol}://${proxyConfig.username}:${proxyConfig.password}@${proxyConfig.host}:${proxyConfig.port}`;
+    const proxyUrl = typeof proxyConfig === 'string'
+      ? this.normalizeProxyUrl(proxyConfig)
+      : `${proxyConfig.protocol || 'http'}://${proxyConfig.username}:${proxyConfig.password}@${proxyConfig.host}:${proxyConfig.port}`;
     
     // Configure TLS options - rejectUnauthorized must be false for proxies with self-signed certs
-    const rejectUnauthorized = proxyConfig.rejectUnauthorized !== undefined 
+    const rejectUnauthorized = typeof proxyConfig !== 'string' && proxyConfig.rejectUnauthorized !== undefined
       ? proxyConfig.rejectUnauthorized 
       : false;
     
@@ -385,16 +386,51 @@ class FasahClient {
     return agent;
   }
 
+  normalizeProxyUrl(proxyUrl) {
+    let parsedUrl;
+    try {
+      if (typeof proxyUrl !== 'string' || !proxyUrl || proxyUrl !== proxyUrl.trim()) {
+        throw new Error('Invalid proxy URL');
+      }
+      parsedUrl = new URL(proxyUrl);
+    } catch {
+      const error = new Error('The proxy header must be a complete HTTP or HTTPS proxy URL');
+      error.status = 400;
+      throw error;
+    }
+
+    if (
+      !['http:', 'https:'].includes(parsedUrl.protocol) ||
+      !parsedUrl.hostname ||
+      (parsedUrl.pathname !== '/' && parsedUrl.pathname !== '') ||
+      parsedUrl.search ||
+      parsedUrl.hash
+    ) {
+      const error = new Error('The proxy header must be a complete HTTP or HTTPS proxy URL');
+      error.status = 400;
+      throw error;
+    }
+
+    return parsedUrl.toString();
+  }
+
   /**
    * Execute axios request with optional rotating proxy.
    * Ensures every request can use one proxy from the list when enabled.
    */
-  async performRequest(method, url, config = {}, body = undefined, proxyLogLabel = '', proxyContext = undefined) {
+  async performRequest(method, url, config = {}, body = undefined, proxyLogLabel = '', proxyContext = undefined, requestProxyUrl = undefined) {
     const axiosConfig = { ...config };
     const proxyOpts = proxyContext && typeof proxyContext === 'object' ? proxyContext : {};
-    const proxy = this.resolvePlatformProxy({ ...proxyOpts, proxyContext });
+    const proxy = requestProxyUrl
+      ? null
+      : this.resolvePlatformProxy({ ...proxyOpts, proxyContext });
 
-    if (proxy) {
+    if (requestProxyUrl) {
+      const normalizedProxyUrl = this.normalizeProxyUrl(requestProxyUrl);
+      axiosConfig.httpsAgent = this.createProxyAgent(normalizedProxyUrl);
+      const proxyLabel = new URL(normalizedProxyUrl).host;
+      console.log(`Using request proxy${proxyLabel ? ` (${proxyLabel})` : ''}`);
+    } else if (proxy) {
       axiosConfig.httpsAgent = this.createProxyAgent(proxy);
       const label = this._buildProxyLogLabel(proxyLogLabel, proxyContext);
       console.log(`Using proxy${label ? ` (${label})` : ''}: ${proxy.host}:${proxy.port}`);
@@ -1056,7 +1092,8 @@ async createTransitAppointment(params) {
       postConfig,
       requestData,
       'create transit',
-      { ...(params.proxyContext || {}), proxyIndex: params.proxyIndex }
+      { ...(params.proxyContext || {}), proxyIndex: params.proxyIndex },
+      params.proxyUrl
     );
     await loggerService.createLogger({ message: 'Create transit appointment response', data: { response: response.data }, type: 'info_response' });
     return normalizeFasahResponse(response.data, 'create');
@@ -1170,7 +1207,7 @@ async createNonDeclarationAppointment(params) {
  * @param {string} params.token - Bearer token
  * @param {string} [params.userType='broker'] - broker | transporter
  */
-async createLandAppointment({ body, token, userType = 'broker', proxyContext }) {
+async createLandAppointment({ body, token, userType = 'broker', proxyContext, proxyUrl }) {
   try {
     if (!token) {
       throw new Error('رمز المصادقة مطلوب');
@@ -1210,7 +1247,8 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext }) 
       postConfig,
       body,
       'create land',
-      proxyContext
+      proxyContext,
+      proxyUrl
     );
     await loggerService.createLogger({
       message: 'Create land appointment response',
@@ -1430,6 +1468,7 @@ async getLandAppointmentPdf(params) {
       
     } else {
       // Something happened in setting up the request that triggered an Error
+      if (error.status) throw error;
       throw new Error(`Request setup error: ${JSON.stringify(error.message)}`);
 
     }
@@ -1449,4 +1488,3 @@ let defaultInstance = null;
 
 export { extractFasahMessage, normalizeFasahResponse };
 export default FasahClient;
-

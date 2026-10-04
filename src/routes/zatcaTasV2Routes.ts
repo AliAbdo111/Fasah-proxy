@@ -105,7 +105,8 @@ router.post('/appointment/land/create', async (req, res) => {
       body: payload,
       token,
       userType,
-      proxyContext: req.user
+      proxyContext: req.user,
+      proxyUrl: req.headers.proxy
     });
 
     if (result?.success === false) {

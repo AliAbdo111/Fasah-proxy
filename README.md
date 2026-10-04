@@ -42,6 +42,34 @@ Copy `.env.example` to `.env` and configure at minimum:
 
 See `.env.example` for all watcher, booking limit, and seed variables.
 
+Transit appointment creation (`POST /api/fasah/appointment/transit/create`) requires a Google reCAPTCHA v3 token in the `g-recaptcha-response` header. Generate the token in the browser and send it with the API request:
+
+```javascript
+const siteKey = '6Ld2R98rAAAAAFKGX6HYCbBHrzQrbNKZe6UHH-zt';
+const script = document.createElement('script');
+script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+document.head.appendChild(script);
+
+await new Promise((resolve, reject) => {
+  script.onload = resolve;
+  script.onerror = reject;
+});
+await new Promise((resolve) => grecaptcha.ready(resolve));
+const captchaToken = await grecaptcha.execute(siteKey, { action: 'verify' });
+
+await fetch('/api/fasah/appointment/transit/create', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-fasah-token': fasahToken,
+    'g-recaptcha-response': captchaToken
+  },
+  body: JSON.stringify(appointment)
+});
+```
+
+The API forwards this token to FASAH. Do not try to generate it in the Node.js server. Transit and import appointment creation can also use a per-request proxy by sending a `proxy` header containing a complete proxy URL, for example `http://username:password@proxy.example:8080`. This request proxy takes precedence over platform proxy rotation for that request; omit the header to retain the existing behavior.
+
 ## Scripts
 
 | Command | Description |

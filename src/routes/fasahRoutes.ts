@@ -320,6 +320,14 @@ router.post('/appointment/transit/create', async (req, res) => {
       });
     }
 
+    if (!gRecaptchaResponse) {
+      return res.status(400).json({
+        success: false,
+        message: 'رمز reCAPTCHA مطلوب',
+        error: 'Missing reCAPTCHA token'
+      });
+    }
+
     // التحقق من البيانات المطلوبة
     if (!port_code || !zone_schedule_id || !purpose || !declaration_number || !fleet_info) {
       return res.status(400).json({
@@ -352,6 +360,7 @@ router.post('/appointment/transit/create', async (req, res) => {
       token,
       userType: userType,
       proxyContext: req.user,
+      proxyUrl: req.headers.proxy,
       gRecaptchaResponse
     });
 
@@ -592,4 +601,3 @@ router.use((err, req, res, next) => {
 });
 
 export default router;
-
