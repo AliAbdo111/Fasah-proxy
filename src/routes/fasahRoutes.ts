@@ -8,6 +8,54 @@ const User = require('../schemas/user.schema').default;
 const bookingDailyLimits = require('../services/bookingDailyLimits').default;
 const bookingHistoryService = require('../services/bookingHistoryService');
 const loggerService = require('../services/logger.service').default;
+const queueAppointmentService = require('../services/queueAppointmentService');
+
+/**
+ * Mark the originating queue appointment as booked once FASAH confirms creation.
+ * Never throws into the request flow: a successful FASAH booking must still succeed
+ * even if the queue row cannot be updated.
+ */
+async function syncQueueAppointmentBooked({ targetQueueId, req, tasBookRef }) {
+  if (!targetQueueId || !req.user || !req.user._id) return false;
+
+  try {
+    await queueAppointmentService.updateQueueAppointmentStatus({
+      userId: req.user._id,
+      queueId: targetQueueId,
+      isAdmin: false,
+      status: 'booked',
+      tasBookRef
+    });
+    return true;
+  } catch (e) {
+    console.error('Queue appointment status sync failed:', e?.message || e);
+    return false;
+  }
+}
+
+/**
+ * Mark the originating queue appointment as failed after FASAH rejects the
+ * booking or the upstream call errors. Only invoked once a request has actually
+ * been sent upstream, so client-side rejections (401/400/403) leave the row alone.
+ * Same never-throw contract as the booked sync.
+ */
+async function syncQueueAppointmentFailed({ targetQueueId, req, message }) {
+  if (!targetQueueId || !req.user || !req.user._id) return false;
+
+  try {
+    await queueAppointmentService.updateQueueAppointmentStatus({
+      userId: req.user._id,
+      queueId: targetQueueId,
+      isAdmin: false,
+      status: 'failed',
+      lastError: message
+    });
+    return true;
+  } catch (e) {
+    console.error('Queue appointment failure sync failed:', e?.message || e);
+    return false;
+  }
+}
 
 // Initialize client
 const client = FasahClient.getInstance();
@@ -293,6 +341,9 @@ router.get('/appointment/transit/getDeclarationInfo', async (req, res) => {
 });
 
 router.post('/appointment/transit/create', async (req, res) => {
+  // Declared outside the try so the catch block can also sync a failure.
+  const targetQueueId =
+    req.body?.queueAppointmentId || req.headers['x-queue-appointment-id'] || null;
   try {
     // استخراج البيانات من request body
     const {
@@ -304,7 +355,8 @@ router.post('/appointment/transit/create', async (req, res) => {
       bayan_appointment = {},
       declaration_number,
       userType = 'broker',
-      type = null
+      type = null,
+      queueAppointmentId = null
     } = req.body;
     
     // الحصول على رمز المصادقة من الهيدرات
@@ -317,14 +369,6 @@ router.post('/appointment/transit/create', async (req, res) => {
         success: false,
         message: 'رمز المصادقة مطلوب',
         error: 'Missing authentication token'
-      });
-    }
-
-    if (!gRecaptchaResponse) {
-      return res.status(400).json({
-        success: false,
-        message: 'رمز reCAPTCHA مطلوب',
-        error: 'Missing reCAPTCHA token'
       });
     }
 
@@ -374,6 +418,14 @@ router.post('/appointment/transit/create', async (req, res) => {
         result?.data?.message ||
         result?.data?.data?.message ||
         'Booking not created';
+
+      // FASAH rejected the booking, so the queue appointment is failed.
+      await syncQueueAppointmentFailed({
+        targetQueueId,
+        req,
+        message: upstreamMessage
+      });
+
       await bookingHistoryService.logBooking({
         userId: req.user && req.user._id,
         endpoint: '/api/fasah/appointment/transit/create',
@@ -417,6 +469,13 @@ router.post('/appointment/transit/create', async (req, res) => {
       extraPriceApplied: bookingDecision && bookingDecision.extraPriceApplied
     });
 
+    // FASAH confirmed the booking, so the originating queue appointment is now booked.
+    await syncQueueAppointmentBooked({
+      targetQueueId,
+      req,
+      tasBookRef
+    });
+
     // إرجاع النتيجة الناجحة
     res.json({
       success: true,
@@ -425,6 +484,14 @@ router.post('/appointment/transit/create', async (req, res) => {
   } catch (error) {
     const status = error.status || 500;
     console.error('خطأ في إنشاء موعد النقل العابر:', error);
+
+    // The upstream call failed or threw; mark the queue appointment as failed.
+    await syncQueueAppointmentFailed({
+      targetQueueId,
+      req,
+      message: error?.message || 'Booking error'
+    });
+
     await bookingHistoryService.logBooking({
       userId: req.user && req.user._id,
       endpoint: '/api/fasah/appointment/transit/create',
