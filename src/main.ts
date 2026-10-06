@@ -47,7 +47,9 @@ async function bootstrap() {
       'X-Requested-With',
       'Accept',
       'Origin',
-      'g-recaptcha-response'
+      'g-recaptcha-response',
+      'proxy',
+      'x-queue-appointment-id'
     ],
     exposedHeaders: ['Content-Length', 'Content-Type'],
     maxAge: 86400

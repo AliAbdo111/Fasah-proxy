@@ -107,6 +107,7 @@ const queueAppointmentSchema = new mongoose.Schema(
       default: 'in_queue',
       index: true
     },
+    type: { type: String, trim: true },
     appointment: appointmentBlockSchema,
     vehicle: vehicleSchema,
     driver: driverSchema,

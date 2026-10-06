@@ -10,7 +10,7 @@ import {
   VALID_STATUSES
 } from './queueAppointmentShape';
 import bookingDailyLimits from './bookingDailyLimits';
-import User from 'src/schemas/user.schema';
+import User from '../schemas/user.schema';
 import { listUserBookings, logBooking } from './bookingHistoryService';
 
 const SUCCESS_STATUSES = new Set([QUEUE_STATUS.BOOKED, QUEUE_STATUS.SUCCESS]);
@@ -164,14 +164,20 @@ async function updateQueueAppointmentStatus({
   status,
   tasBookRef,
   error,
+  lastError,
   recordUserBooking = true
 }) {
 
-  const existing = await QueueAppointment.findOne({ id: queueId });
+  const filter = { id: String(queueId) };
+  if (!isAdmin) {
+    filter.userId = userId;
+  }
+
+  const existing = await QueueAppointment.findOne(filter);
   if (!existing) {
-    // const err = new Error('Queue appointment not found');
-    // err.status = 404;
-    // throw err;
+    const err = new Error('Queue appointment not found');
+    err.status = 404;
+    throw err;
   }
 
   if (status == null || status === '') {
@@ -189,24 +195,46 @@ async function updateQueueAppointmentStatus({
 
   const prevStatus = String(existing.status || '').toLowerCase();
   const $set = { status: nextStatus };
+  // Mongoose silently drops `$set: { field: undefined }`, so clearing a field
+  // requires $unset. Anything set to null/undefined lands in $unset instead.
+  const $unset = {};
 
   if (tasBookRef !== undefined) {
-    $set.tasBookRef = tasBookRef ? String(tasBookRef) : undefined;
+    if (tasBookRef) {
+      $set.tasBookRef = String(tasBookRef);
+    } else {
+      $unset.tasBookRef = '';
+    }
   }
   if (error !== undefined) {
-    $set.error = error ? String(error) : undefined;
+    if (error) {
+      $set.error = String(error);
+    } else {
+      $unset.error = '';
+    }
+  }
+  if (lastError !== undefined) {
+    if (lastError) {
+      $set.lastError = String(lastError);
+    } else {
+      $unset.lastError = '';
+    }
   }
 
   if (SUCCESS_STATUSES.has(nextStatus)) {
     $set.bookedAt = existing.bookedAt || new Date();
     if (error === undefined) {
-      $set.error = undefined;
+      $unset.error = '';
+    }
+    if (lastError === undefined) {
+      $unset.lastError = '';
     }
   }
 
+  const update = $unset && Object.keys($unset).length > 0 ? { $set, $unset } : { $set };
   await QueueAppointment.findOneAndUpdate(
     filter,
-    { $set },
+    update,
     { returnDocument: 'after', runValidators: true }
   );
 

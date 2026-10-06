@@ -1071,9 +1071,20 @@ async createTransitAppointment(params) {
       'Origin': baseUrl,
       'Referer': `${baseUrl}/ar/broker/2.0/`,
       'token': `Bearer ${token.replace(/^Bearer\s+/i, '')}`,
-      'g-recaptcha-response': params.gRecaptchaResponse
+      ...(params.gRecaptchaResponse
+        ? { 'g-recaptcha-response': params.gRecaptchaResponse }
+        : {})
     };
-      console.log('headers', headers);
+
+    console.log('=== createTransitAppointment DEBUG ===');
+    console.log('[transit] target url:', url);
+    console.log('[transit] userType:', userType);
+    console.log('[transit] body:', JSON.stringify(requestData, null, 2));
+    console.log('[transit] g-recaptcha-response:', params.gRecaptchaResponse ?? '(absent)');
+    console.log('[transit] proxy header:', params.proxyUrl ?? '(absent)');
+    console.log('[transit] outbound headers:', JSON.stringify(headers, null, 2));
+    console.log('=== end createTransitAppointment DEBUG ===');
+
     const postConfig = {
       headers,
       timeout: 5000,
@@ -1207,7 +1218,14 @@ async createNonDeclarationAppointment(params) {
  * @param {string} params.token - Bearer token
  * @param {string} [params.userType='broker'] - broker | transporter
  */
-async createLandAppointment({ body, token, userType = 'broker', proxyContext, proxyUrl }) {
+async createLandAppointment({
+  body,
+  token,
+  userType = 'broker',
+  proxyContext,
+  proxyUrl,
+  gRecaptchaResponse
+}) {
   try {
     if (!token) {
       throw new Error('رمز المصادقة مطلوب');
@@ -1225,7 +1243,8 @@ async createLandAppointment({ body, token, userType = 'broker', proxyContext, pr
       'Content-Type': 'application/json; charset=UTF-8',
       Origin: baseUrl,
       Referer: `${baseUrl}/ar/broker/2.0/`,
-      token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+      token: `Bearer ${token.replace(/^Bearer\s+/i, '')}`,
+      ...(gRecaptchaResponse ? { 'g-recaptcha-response': gRecaptchaResponse } : {})
     };
 
     const postConfig = {
